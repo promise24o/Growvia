@@ -173,13 +173,29 @@ export function Sidebar({ mobileMenuOpen, toggleMobileMenu }: SidebarProps) {
             
             {/* User profile section before the sticky theme toggle */}
             {user && (
-              <div className="mt-4 flex items-center p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/40">
-                <AvatarWithStatus user={user} />
+              <div className="mt-4">
+                {/* User profile section */}
+                <div className="flex items-center p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/40">
+                  <AvatarWithStatus user={user} />
+                  <div className="ml-3 flex-1 truncate">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
+                  </div>
+                </div>
+                
+                {/* Explicit logout button to ensure clean state */}
                 <button 
-                  className="ml-auto text-slate-400 hover:text-slate-500 dark:text-slate-400 dark:hover:text-slate-300"
-                  onClick={logout}
+                  className="mt-2 w-full flex items-center p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  onClick={() => {
+                    // Force clear localStorage completely on logout
+                    localStorage.removeItem('auth-storage');
+                    console.log('Sidebar: Cleared authentication storage for logout');
+                    logout();
+                  }}
+                  title="Sign out and clear all session data"
                 >
                   <LogOut className="h-5 w-5" />
+                  <span className="ml-3 font-medium">Sign Out</span>
                 </button>
               </div>
             )}

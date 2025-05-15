@@ -30,11 +30,8 @@ export function AvatarWithStatus({
     lg: "h-12 w-12",
   };
   
-  const statusColor = status === "active" 
-    ? "bg-success-500" 
-    : status === "pending" 
-    ? "bg-warning-500" 
-    : "bg-slate-300";
+  // Always use bright green for the status indicator
+  const statusColor = "bg-green-500";
 
   return (
     <div className="flex items-center">
@@ -47,7 +44,7 @@ export function AvatarWithStatus({
         {showStatus && (
           <span 
             className={cn(
-              "absolute bottom-0 right-0 block rounded-full ring-2 ring-white",
+              "absolute bottom-0 right-0 block rounded-full ring-2 ring-white dark:ring-slate-800",
               statusColor,
               size === "sm" ? "h-2 w-2" : "h-3 w-3"
             )}

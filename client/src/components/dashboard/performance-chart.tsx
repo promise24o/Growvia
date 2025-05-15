@@ -50,15 +50,15 @@ export function PerformanceChart({ title = "Performance Overview" }: Performance
     : yearlyData;
 
   return (
-    <Card>
+    <Card className="dark-card border shadow-sm">
       <CardContent className="p-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-slate-800 text-lg">{title}</h3>
+          <h3 className="font-semibold text-slate-800 dark:text-white text-lg">{title}</h3>
           <Tabs value={period} onValueChange={setPeriod}>
-            <TabsList>
-              <TabsTrigger value="weekly">Weekly</TabsTrigger>
-              <TabsTrigger value="monthly">Monthly</TabsTrigger>
-              <TabsTrigger value="yearly">Yearly</TabsTrigger>
+            <TabsList className="dark:bg-slate-800">
+              <TabsTrigger value="weekly" className="dark:data-[state=active]:bg-slate-700 dark:text-white dark:data-[state=active]:text-white">Weekly</TabsTrigger>
+              <TabsTrigger value="monthly" className="dark:data-[state=active]:bg-slate-700 dark:text-white dark:data-[state=active]:text-white">Monthly</TabsTrigger>
+              <TabsTrigger value="yearly" className="dark:data-[state=active]:bg-slate-700 dark:text-white dark:data-[state=active]:text-white">Yearly</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -69,24 +69,25 @@ export function PerformanceChart({ title = "Performance Overview" }: Performance
               data={data}
               margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
               <XAxis 
                 dataKey="name" 
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: '#94a3b8' }}
+                tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
               />
               <YAxis 
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: '#94a3b8' }}
+                tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: 'white',
-                  border: '1px solid #e2e8f0',
+                  backgroundColor: 'var(--card)',
+                  border: '1px solid var(--border)',
                   borderRadius: '0.5rem',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  color: 'var(--foreground)'
                 }}
               />
               <defs>

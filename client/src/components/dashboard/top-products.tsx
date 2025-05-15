@@ -38,12 +38,12 @@ export function TopProducts({ limit = 4 }: TopProductsProps) {
   const displayProducts = products?.slice(0, limit);
 
   return (
-    <Card>
+    <Card className="dark-card border shadow-sm">
       <CardContent className="p-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-slate-800 text-lg">Top Products</h3>
+          <h3 className="font-semibold text-slate-800 dark:text-white text-lg">Top Products</h3>
           <Link href="/apps">
-            <Button variant="link" className="text-primary-600 hover:text-primary-700 text-sm font-medium p-0 h-auto">
+            <Button variant="link" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 text-sm font-medium p-0 h-auto">
               View All
             </Button>
           </Link>
@@ -53,34 +53,36 @@ export function TopProducts({ limit = 4 }: TopProductsProps) {
           {isLoading ? (
             // Loading skeleton
             Array.from({ length: limit }).map((_, index) => (
-              <div key={index} className="flex items-center py-3 border-b border-slate-100">
-                <Skeleton className="h-10 w-10 rounded-lg" />
+              <div key={index} className="flex items-center py-3 border-b border-slate-100 dark:border-slate-700/50">
+                <Skeleton className="h-10 w-10 rounded-lg dark:bg-slate-700" />
                 <div className="ml-3 flex-1">
-                  <Skeleton className="h-4 w-32 mb-1" />
-                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-4 w-32 mb-1 dark:bg-slate-700" />
+                  <Skeleton className="h-3 w-24 dark:bg-slate-700" />
                 </div>
                 <div className="text-right">
-                  <Skeleton className="h-4 w-16 ml-auto mb-1" />
-                  <Skeleton className="h-3 w-10 ml-auto" />
+                  <Skeleton className="h-4 w-16 ml-auto mb-1 dark:bg-slate-700" />
+                  <Skeleton className="h-3 w-10 ml-auto dark:bg-slate-700" />
                 </div>
               </div>
             ))
           ) : (
             // Actual data
             displayProducts?.map((product) => (
-              <div key={product.id} className="flex items-center py-3 border-b border-slate-100">
-                <div className="bg-primary-50 h-10 w-10 rounded-lg flex items-center justify-center text-primary-600">
+              <div key={product.id} className="flex items-center py-3 border-b border-slate-100 dark:border-slate-700/50">
+                <div className="bg-primary-50 dark:bg-primary/20 h-10 w-10 rounded-lg flex items-center justify-center text-primary-600 dark:text-primary-400">
                   {getProductIcon(product.icon, product.id)}
                 </div>
                 <div className="ml-3 flex-1">
-                  <h4 className="text-sm font-medium text-slate-800">{product.name}</h4>
-                  <p className="text-xs text-slate-500">{product.conversions} conversions</p>
+                  <h4 className="text-sm font-medium text-slate-800 dark:text-white">{product.name}</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{product.conversions} conversions</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-slate-800">${product.revenue.toFixed(2)}</p>
+                  <p className="text-sm font-medium text-slate-800 dark:text-white">${product.revenue.toFixed(2)}</p>
                   <div className={cn(
                     "flex items-center text-xs justify-end",
-                    product.growth >= 0 ? "text-success-500" : "text-error-500"
+                    product.growth >= 0 
+                      ? "text-success-500 dark:text-emerald-400" 
+                      : "text-error-500 dark:text-rose-400"
                   )}>
                     {product.growth >= 0 ? (
                       <ChevronUp className="h-3 w-3 mr-1" />

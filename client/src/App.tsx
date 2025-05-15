@@ -2,6 +2,7 @@ import { Switch, Route, useLocation } from "wouter";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 
 // Auth pages
 import Login from "@/pages/auth/login";

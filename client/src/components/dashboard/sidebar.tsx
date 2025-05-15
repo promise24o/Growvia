@@ -1,103 +1,107 @@
 import { Link, useLocation } from "wouter";
+import { cn } from "@/lib/utils";
 import {
-  BarChart3,
-  HelpCircle,
-  LayoutDashboard,
-  LogOut,
-  Plus,
+  BarChart4,
+  GanttChart,
+  Home,
   Settings,
-  ShoppingCart,
-  Store,
   Users,
+  CreditCard,
+  Layout,
+  LogOut,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 export function Sidebar() {
   const [location] = useLocation();
 
-  // Main menu items for the sidebar
-  const mainMenuItems = [
-    {
-      name: "Dashboard",
-      href: "/dashboard",
-      icon: <LayoutDashboard className="w-4 h-4" />,
-    },
-    {
-      name: "Analytics",
-      href: "/analytics",
-      icon: <BarChart3 className="w-4 h-4" />,
-    },
-    {
-      name: "Apps",
-      href: "/apps",
-      icon: <Store className="w-4 h-4" />,
-    },
-    {
-      name: "Marketers",
-      href: "/marketers",
-      icon: <Users className="w-4 h-4" />,
-    },
-    {
-      name: "Commissions",
-      href: "/commissions",
-      icon: <ShoppingCart className="w-4 h-4" />,
-    },
-    {
-      name: "Settings",
-      href: "/settings",
-      icon: <Settings className="w-4 h-4" />,
-    },
-  ];
+  const isActive = (path: string) => {
+    return location === path || location.startsWith(`${path}/`);
+  };
 
   return (
-    <aside className="hidden md:flex flex-col h-screen fixed w-64 p-4 bg-background/90 backdrop-blur-sm border-r">
-      {/* Logo */}
-      <div className="flex items-center gap-2 px-2 py-4">
-        <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-white">
-          <span className="font-bold text-sm">G</span>
+    <div className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r bg-background/95 backdrop-blur-sm md:block">
+      <div className="flex h-full flex-col">
+        <div className="border-b p-6">
+          <Link href="/" className="flex items-center gap-2 font-semibold">
+            <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-white">
+              G
+            </div>
+            <span className="text-xl font-bold">Growvia</span>
+          </Link>
         </div>
-        <h1 className="font-bold text-lg tracking-tight">Growvia</h1>
+        <nav className="flex-1 overflow-auto py-6">
+          <div className="px-3">
+            <h3 className="mb-2 px-4 text-xs font-medium text-muted-foreground">
+              Menu
+            </h3>
+            <div className="space-y-1">
+              <NavItem href="/dashboard" icon={Home} active={isActive("/dashboard")}>
+                Dashboard
+              </NavItem>
+              <NavItem href="/analytics" icon={BarChart4} active={isActive("/analytics")}>
+                Analytics
+              </NavItem>
+              <NavItem href="/apps" icon={Layout} active={isActive("/apps")}>
+                Apps
+              </NavItem>
+              <NavItem href="/marketers" icon={Users} active={isActive("/marketers")}>
+                Marketers
+              </NavItem>
+              <NavItem href="/commissions" icon={CreditCard} active={isActive("/commissions")}>
+                Commissions
+              </NavItem>
+              <NavItem href="/activities" icon={GanttChart} active={isActive("/activities")}>
+                Activities
+              </NavItem>
+            </div>
+          </div>
+          <div className="mt-auto px-3">
+            <h3 className="mb-2 px-4 text-xs font-medium text-muted-foreground">
+              Settings
+            </h3>
+            <div className="space-y-1">
+              <NavItem href="/settings" icon={Settings} active={isActive("/settings")}>
+                Settings
+              </NavItem>
+              <a
+                href="/api/logout"
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-4 py-2 text-sm text-muted-foreground",
+                  "hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </a>
+            </div>
+          </div>
+        </nav>
       </div>
+    </div>
+  );
+}
 
-      {/* Add new app button */}
-      <Button className="mt-4 mb-6" size="sm">
-        <Plus className="h-4 w-4 mr-2" /> Add New App
-      </Button>
+interface NavItemProps {
+  href: string;
+  icon: React.ElementType;
+  active?: boolean;
+  children: React.ReactNode;
+}
 
-      {/* Main navigation */}
-      <nav className="space-y-1">
-        {mainMenuItems.map((item) => {
-          const isActive = location === item.href;
-          
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`sidebar-item ${isActive ? "active" : ""}`}
-            >
-              {item.icon}
-              <span>{item.name}</span>
-              {item.name === "Apps" && (
-                <Badge className="ml-auto" variant="outline">
-                  3
-                </Badge>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="mt-auto space-y-1">
-        <Link href="/help" className="sidebar-item">
-          <HelpCircle className="w-4 h-4" />
-          <span>Help & Support</span>
-        </Link>
-        <Link href="/api/logout" className="sidebar-item text-destructive hover:text-destructive">
-          <LogOut className="w-4 h-4" />
-          <span>Log Out</span>
-        </Link>
-      </div>
-    </aside>
+function NavItem({ href, icon: Icon, active, children }: NavItemProps) {
+  return (
+    <Link href={href}>
+      <a
+        className={cn(
+          "flex items-center gap-3 rounded-md px-4 py-2 text-sm",
+          active
+            ? "bg-accent font-medium text-accent-foreground"
+            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        )}
+      >
+        <Icon className="h-4 w-4" />
+        <span>{children}</span>
+      </a>
+    </Link>
   );
 }

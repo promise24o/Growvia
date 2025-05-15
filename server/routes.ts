@@ -98,7 +98,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
   setupPaymentRoutes(app);
   
   // Authentication routes
-  router.post("/auth/login", async (req, res) => {
+  router.post("/auth/login", async (req: Request, res: Response) => {
     try {
       const validatedData = loginSchema.parse(req.body);
       
@@ -552,7 +552,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
   });
 
   // Conversions routes
-  app.post("/api/webhooks/conversions", async (req, res) => {
+  router.post("/webhooks/conversions", async (req, res) => {
     try {
       // In a real implementation, you would verify the webhook signature
       // and perform additional validation

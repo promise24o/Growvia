@@ -30,14 +30,22 @@ export function verifyToken(token: string): any {
 
 // Generate a password reset token
 export function generatePasswordResetToken(userId: string | number): string {
+  // Input validation
+  if (userId === undefined || userId === null) {
+    throw new Error('User ID is required to generate a password reset token');
+  }
+  
   // Generate a random token
   const resetToken = crypto.randomBytes(32).toString('hex');
   
   // Store the reset token with an expiration of 1 hour
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour in milliseconds
   
+  // Convert userId to string for consistent comparison
+  const userIdStr = String(userId);
+  
   // Remove any existing tokens for this user
-  const userTokenIndex = resetTokens.findIndex(rt => rt.userId.toString() === userId.toString());
+  const userTokenIndex = resetTokens.findIndex(rt => String(rt.userId) === userIdStr);
   if (userTokenIndex !== -1) {
     resetTokens.splice(userTokenIndex, 1);
   }
@@ -54,9 +62,17 @@ export function generatePasswordResetToken(userId: string | number): string {
 
 // Verify a password reset token
 export function verifyPasswordResetToken(userId: string | number, token: string): boolean {
+  // Input validation
+  if (userId === undefined || userId === null || !token) {
+    return false;
+  }
+  
+  // Convert userId to string for consistent comparison
+  const userIdStr = String(userId);
+  
   // Find the token for this user
   const resetToken = resetTokens.find(rt => 
-    rt.userId.toString() === userId.toString() && 
+    String(rt.userId) === userIdStr && 
     rt.token === token && 
     rt.expiresAt > new Date()
   );
@@ -66,7 +82,15 @@ export function verifyPasswordResetToken(userId: string | number, token: string)
 
 // Remove a used password reset token
 export function removePasswordResetToken(userId: string | number): void {
-  const userTokenIndex = resetTokens.findIndex(rt => rt.userId.toString() === userId.toString());
+  // Input validation
+  if (userId === undefined || userId === null) {
+    return;
+  }
+  
+  // Convert userId to string for consistent comparison
+  const userIdStr = String(userId);
+  
+  const userTokenIndex = resetTokens.findIndex(rt => String(rt.userId) === userIdStr);
   if (userTokenIndex !== -1) {
     resetTokens.splice(userTokenIndex, 1);
   }

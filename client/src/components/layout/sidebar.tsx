@@ -95,7 +95,7 @@ export function Sidebar({ mobileMenuOpen, toggleMobileMenu }: SidebarProps) {
                 <div className="bg-primary text-white p-2 rounded">
                   <BarChart3 className="h-5 w-5" />
                 </div>
-                <h1 className="ml-3 text-xl font-semibold text-slate-800 dark:text-white font-heading">AffiliateHub</h1>
+                <h1 className="ml-3 text-xl font-semibold text-slate-800 dark:text-white font-heading">Growvia</h1>
               </div>
             </RouterLink>
             <button 
@@ -171,11 +171,7 @@ export function Sidebar({ mobileMenuOpen, toggleMobileMenu }: SidebarProps) {
               </div>
             )}
             
-            <div className="mt-4 flex items-center justify-between p-2">
-              <div className="text-sm font-medium text-slate-500 dark:text-slate-300">Appearance</div>
-              <ThemeToggle />
-            </div>
-            
+            {/* User profile section before the sticky theme toggle */}
             {user && (
               <div className="mt-4 flex items-center p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/40">
                 <AvatarWithStatus user={user} />
@@ -187,6 +183,12 @@ export function Sidebar({ mobileMenuOpen, toggleMobileMenu }: SidebarProps) {
                 </button>
               </div>
             )}
+            
+            {/* Sticky theme toggle at the bottom */}
+            <div className="mt-4 flex items-center justify-between p-2 sticky bottom-0 bg-white dark:bg-[#25293c] z-10 border-t dark:border-slate-700/30">
+              <div className="text-sm font-medium text-slate-500 dark:text-slate-300">Appearance</div>
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </aside>

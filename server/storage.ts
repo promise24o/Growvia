@@ -34,6 +34,7 @@ export interface IStorage {
   getUsersByOrganization(orgId: number): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
+  verifyPassword(password: string, hash: string): boolean;
   
   // Apps
   getApp(id: number): Promise<App | undefined>;
@@ -138,6 +139,7 @@ export class MemStorage implements IStorage {
       email: "admin@techcorp.com",
       logo: null,
       plan: SubscriptionPlan.STARTER,
+      trialEndsAt: null,
       webhookUrl: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -298,7 +300,7 @@ export class MemStorage implements IStorage {
     return crypto.createHash('sha256').update(password).digest('hex');
   }
 
-  private verifyPassword(password: string, hash: string): boolean {
+  verifyPassword(password: string, hash: string): boolean {
     return this.hashPassword(password) === hash;
   }
 

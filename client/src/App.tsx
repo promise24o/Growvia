@@ -50,7 +50,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  const { isAuthenticated, fetchUserData, user } = useAuth();
+  const { isAuthenticated, fetchUserData, user, organization } = useAuth();
   const [, navigate] = useLocation();
 
   // Fetch user data when the app loads if the user is authenticated
@@ -62,17 +62,17 @@ function App() {
   
   // Check if user needs to complete onboarding
   useEffect(() => {
-    if (isAuthenticated && user && user.organization) {
+    if (isAuthenticated && user && organization) {
       // If user is admin and onboarding is not completed, redirect to onboarding
       if (
         user.role === 'admin' &&
-        user.organization && 
-        user.organization.onboardingCompleted === false
+        organization && 
+        organization.onboardingCompleted === false
       ) {
         navigate('/onboarding');
       }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, organization, navigate]);
 
   return (
     <TooltipProvider>

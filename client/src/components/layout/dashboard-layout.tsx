@@ -29,7 +29,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
       {/* Backdrop for mobile menu */}
       {mobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          className="fixed inset-0 bg-black/50 z-10 md:hidden"
           onClick={toggleMobileMenu}
         />
       )}

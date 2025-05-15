@@ -86,7 +86,7 @@ export function Sidebar({ mobileMenuOpen, toggleMobileMenu }: SidebarProps) {
     <>
       <aside className={cn(
         "w-full md:w-64 bg-white dark:bg-[#25293c] shadow-md md:flex md:flex-col md:fixed md:inset-y-0 z-30 transition-all",
-        isMenuOpen ? "fixed inset-0 top-16" : "hidden md:flex"
+        isMenuOpen ? "fixed inset-0 top-16 bottom-0" : "hidden md:flex"
       )}>
         <div className="p-4 border-b dark:border-slate-700/30">
           <div className="flex items-center justify-between">

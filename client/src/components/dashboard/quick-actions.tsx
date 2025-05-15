@@ -27,9 +27,9 @@ function QuickAction({
   iconColor = "primary"
 }: QuickActionProps) {
   const bgColors = {
-    primary: "bg-primary-50 text-primary-600",
-    warning: "bg-warning-50 text-warning-500",
-    success: "bg-success-50 text-success-500",
+    primary: "bg-primary-50 dark:bg-primary/20 text-primary-600 dark:text-primary",
+    warning: "bg-warning-50 dark:bg-amber-500/20 text-warning-500 dark:text-amber-400",
+    success: "bg-success-50 dark:bg-emerald-500/20 text-success-500 dark:text-emerald-400",
   };
 
   return (
@@ -39,9 +39,9 @@ function QuickAction({
           <div className={`p-3 rounded-lg ${bgColors[iconColor]}`}>
             {icon}
           </div>
-          <h3 className="ml-3 text-lg font-semibold text-slate-800">{title}</h3>
+          <h3 className="ml-3 text-lg font-semibold text-slate-800 dark:text-white">{title}</h3>
         </div>
-        <p className="text-slate-600 text-sm mb-4">{description}</p>
+        <p className="text-slate-600 dark:text-slate-300 text-sm mb-4">{description}</p>
         <Button
           variant={buttonVariant === "primary" ? "default" : "outline"}
           className="w-full"

@@ -33,8 +33,8 @@ function SidebarLink({ href, icon, label, active }: SidebarLinkProps) {
       <div className={cn(
         "flex items-center px-4 py-3 rounded-lg transition-colors cursor-pointer",
         active 
-          ? "text-primary-600 bg-primary-50" 
-          : "text-slate-600 hover:bg-slate-100"
+          ? "text-primary bg-primary/10 dark:bg-primary/20" 
+          : "text-foreground/80 hover:bg-accent/10"
       )}>
         {icon}
         <span className="ml-3 font-medium">{label}</span>
@@ -72,21 +72,21 @@ export function Sidebar() {
   return (
     <>
       <aside className={cn(
-        "w-full md:w-64 bg-white shadow-md md:flex md:flex-col md:fixed md:inset-y-0 z-10 transition-all",
+        "w-full md:w-64 bg-white dark:bg-[#25293c] shadow-md md:flex md:flex-col md:fixed md:inset-y-0 z-10 transition-all",
         mobileMenuOpen ? "fixed inset-0" : "relative"
       )}>
-        <div className="p-4 border-b">
+        <div className="p-4 border-b dark:border-slate-700/30">
           <div className="flex items-center justify-between">
             <RouterLink href="/dashboard">
               <div className="flex items-center cursor-pointer">
-                <div className="bg-primary-600 text-white p-2 rounded">
+                <div className="bg-primary text-white p-2 rounded">
                   <BarChart3 className="h-5 w-5" />
                 </div>
-                <h1 className="ml-3 text-xl font-semibold text-slate-800 font-heading">AffiliateHub</h1>
+                <h1 className="ml-3 text-xl font-semibold text-slate-800 dark:text-white font-heading">AffiliateHub</h1>
               </div>
             </RouterLink>
             <button 
-              className="md:hidden text-slate-500 hover:text-slate-700"
+              className="md:hidden text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white"
               onClick={toggleMobileMenu}
             >
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -139,17 +139,17 @@ export function Sidebar() {
 
           <div className="p-4 mt-auto">
             {planDetails && (
-              <div className="bg-primary-50 rounded-lg p-4">
-                <p className="text-sm text-slate-700 font-medium">{planDetails.name} Plan</p>
-                <div className="mt-2 flex items-center text-xs text-slate-500">
+              <div className="bg-primary-50 dark:bg-[#2a3042] rounded-lg p-4">
+                <p className="text-sm text-slate-700 dark:text-white font-medium">{planDetails.name} Plan</p>
+                <div className="mt-2 flex items-center text-xs text-slate-500 dark:text-slate-300">
                   <span>{planDetails.limits.apps === 999999 ? "Unlimited" : planDetails.limits.apps} Apps</span>
-                  <span className="mx-2 text-slate-300">|</span>
+                  <span className="mx-2 text-slate-300 dark:text-slate-500">|</span>
                   <span>{planDetails.limits.marketers === 999999 ? "Unlimited" : planDetails.limits.marketers} Marketers</span>
                 </div>
                 <div className="mt-3">
                   <Button 
                     variant="link" 
-                    className="p-0 h-auto text-primary-600 text-sm font-medium hover:text-primary-700"
+                    className="p-0 h-auto text-primary text-sm font-medium hover:text-primary/90"
                     onClick={() => setPlanModalOpen(true)}
                   >
                     Upgrade Plan →
@@ -159,15 +159,15 @@ export function Sidebar() {
             )}
             
             <div className="mt-4 flex items-center justify-between p-2">
-              <div className="text-sm font-medium text-slate-500">Appearance</div>
+              <div className="text-sm font-medium text-slate-500 dark:text-slate-300">Appearance</div>
               <ThemeToggle />
             </div>
             
             {user && (
-              <div className="mt-4 flex items-center p-2 rounded-lg hover:bg-slate-100">
+              <div className="mt-4 flex items-center p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/40">
                 <AvatarWithStatus user={user} />
                 <button 
-                  className="ml-auto text-slate-400 hover:text-slate-500"
+                  className="ml-auto text-slate-400 hover:text-slate-500 dark:text-slate-400 dark:hover:text-slate-300"
                   onClick={logout}
                 >
                   <LogOut className="h-5 w-5" />

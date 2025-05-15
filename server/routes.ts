@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { MongoStorage } from "./mongoStorage";
+import { IStorage } from "./storage";
 import { 
   loginSchema, 
   registerSchema, 
@@ -19,6 +20,9 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "affiliate-hub-secret-key-change-in-production";
 const TOKEN_EXPIRY = "7d";
+
+// Initialize the MongoDB storage
+const storage: IStorage = new MongoStorage();
 
 interface JwtPayload {
   userId: number;

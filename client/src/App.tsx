@@ -15,6 +15,10 @@ import Analytics from "@/pages/analytics";
 import Commissions from "@/pages/commissions";
 import Settings from "@/pages/settings";
 
+// Settings pages
+import Billing from "@/pages/settings/billing";
+import PaymentSuccess from "@/pages/settings/billing/success";
+
 // Other pages
 import NotFound from "@/pages/not-found";
 
@@ -81,6 +85,19 @@ function App() {
         <Route path="/settings">
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        </Route>
+        
+        {/* Settings routes */}
+        <Route path="/settings/billing">
+          <ProtectedRoute>
+            <Billing />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/settings/billing/success">
+          <ProtectedRoute>
+            <PaymentSuccess />
           </ProtectedRoute>
         </Route>
 

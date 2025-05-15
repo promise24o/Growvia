@@ -10,9 +10,9 @@ import {
   CardTitle 
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { CheckCircle2Icon, XCircleIcon, RefreshCwIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2Icon, CheckCircle, XCircle } from 'lucide-react';
-import { PaymentGateway, checkPendingPayment, verifyPayment } from '@/lib/payment';
+import { apiRequest } from '@/lib/queryClient';
 
 export default function PaymentSuccessPage() {
   const [verificationStatus, setVerificationStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -24,45 +24,52 @@ export default function PaymentSuccessPage() {
   useEffect(() => {
     const verifyPaymentStatus = async () => {
       try {
-        const { isPending, reference, gateway } = checkPendingPayment();
+        // Get reference and gateway from URL query params
+        const urlParams = new URLSearchParams(window.location.search);
+        const reference = urlParams.get('reference') || urlParams.get('tx_ref');
+        const gateway = urlParams.get('gateway') || 'flutterwave'; // Default to flutterwave if not specified
         
-        if (!isPending || !reference || !gateway) {
+        if (!reference) {
           setVerificationStatus('error');
-          setMessage('No payment details found. Please try again or contact support.');
+          setMessage('Payment reference not found. Please contact support.');
           return;
         }
         
-        // Verify the payment
-        const response = await verifyPayment(reference, gateway as PaymentGateway);
+        // Call API to verify payment
+        const response = await apiRequest(`/api/payment/verify?reference=${reference}&gateway=${gateway}`);
         
         if (response.success) {
           setVerificationStatus('success');
           setMessage('Your payment was successful! Your subscription has been updated.');
           
-          // Invalidate relevant queries to refresh data
+          // Invalidate organization query to refresh subscription data
           queryClient.invalidateQueries({ queryKey: ['/api/organization'] });
           
+          // Show success toast
           toast({
             title: 'Payment Successful',
             description: 'Your subscription has been updated successfully.',
+            variant: 'default',
           });
         } else {
           setVerificationStatus('error');
           setMessage(response.message || 'Payment verification failed. Please contact support.');
           
+          // Show error toast
           toast({
             title: 'Payment Verification Failed',
-            description: response.message || 'Please contact support for assistance.',
+            description: response.message || 'Please try again or contact support.',
             variant: 'destructive',
           });
         }
-      } catch (error: any) {
+      } catch (error) {
         setVerificationStatus('error');
-        setMessage(error?.message || 'An error occurred while verifying your payment.');
+        setMessage('An error occurred during payment verification. Please contact support.');
         
+        // Show error toast
         toast({
-          title: 'Payment Verification Error',
-          description: error?.message || 'An error occurred while verifying your payment.',
+          title: 'Error',
+          description: 'An error occurred during payment verification. Please try again.',
           variant: 'destructive',
         });
       }
@@ -78,57 +85,65 @@ export default function PaymentSuccessPage() {
   return (
     <div className="container max-w-md py-12">
       <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-center text-2xl">
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-4">
+            {verificationStatus === 'loading' && (
+              <RefreshCwIcon className="h-16 w-16 text-primary animate-spin" />
+            )}
+            {verificationStatus === 'success' && (
+              <CheckCircle2Icon className="h-16 w-16 text-green-500" />
+            )}
+            {verificationStatus === 'error' && (
+              <XCircleIcon className="h-16 w-16 text-red-500" />
+            )}
+          </div>
+          <CardTitle className="text-2xl">
             {verificationStatus === 'loading' && 'Processing Payment'}
             {verificationStatus === 'success' && 'Payment Successful'}
             {verificationStatus === 'error' && 'Payment Failed'}
           </CardTitle>
-          <CardDescription className="text-center">
-            {verificationStatus === 'loading' && 'Please wait while we verify your payment...'}
+          <CardDescription className="mt-2">
+            {message}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center p-6">
-          {verificationStatus === 'loading' && (
-            <Loader2Icon className="h-16 w-16 text-primary animate-spin mb-4" />
-          )}
+        <CardContent>
           {verificationStatus === 'success' && (
-            <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
+            <div className="bg-green-50 border border-green-100 p-4 rounded-lg mb-4">
+              <p className="text-sm text-green-800">
+                Your subscription has been updated successfully. Your new plan is now active.
+              </p>
+            </div>
           )}
           {verificationStatus === 'error' && (
-            <XCircle className="h-16 w-16 text-red-500 mb-4" />
-          )}
-          
-          <p className="text-center mb-4">{message}</p>
-          
-          {verificationStatus === 'success' && (
-            <p className="text-center text-muted-foreground">
-              Your subscription has been activated and you now have access to all the features of your chosen plan.
-            </p>
-          )}
-          
-          {verificationStatus === 'error' && (
-            <p className="text-center text-muted-foreground">
-              If you believe this is an error, please contact our support team or try again.
-            </p>
+            <div className="bg-red-50 border border-red-100 p-4 rounded-lg mb-4">
+              <p className="text-sm text-red-800">
+                We couldn't verify your payment. If you believe this is an error, please contact our support team.
+              </p>
+            </div>
           )}
         </CardContent>
         <CardFooter className="flex justify-center">
-          {verificationStatus !== 'loading' && (
+          {verificationStatus === 'loading' ? (
+            <Button disabled>
+              <RefreshCwIcon className="mr-2 h-4 w-4 animate-spin" />
+              Verifying...
+            </Button>
+          ) : (
             <Button onClick={handleBackToDashboard}>
               Back to Dashboard
             </Button>
           )}
-          
-          {verificationStatus === 'error' && (
-            <Link href="/settings/billing">
-              <Button variant="outline" className="ml-2">
-                Try Again
-              </Button>
-            </Link>
-          )}
         </CardFooter>
       </Card>
+      
+      {/* Show support info if there's an error */}
+      {verificationStatus === 'error' && (
+        <div className="mt-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Need help? Contact support at <Link href="mailto:support@growvia.com" className="text-primary hover:underline">support@growvia.com</Link>
+          </p>
+        </div>
+      )}
     </div>
   );
 }

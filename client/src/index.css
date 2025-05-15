@@ -2,6 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+.authentication-wrapper {
+  --bs-auth-basic-inner-max-width: 460px;
+  display: flex;
+  flex-basis: 100%;
+  inline-size: 100%;
+  min-block-size: 100vh;
+}
+
+.authentication-wrapper .authentication-bg {
+  background-color: var(--bs-paper-bg);
+}
+
+@media (max-width: 1199.98px) {
+  .authentication-wrapper:not(.authentication-basic) .authentication-inner {
+    block-size: 100vh;
+  }
+}
+
+.authentication-wrapper .authentication-inner {
+  block-size: 100%;
+  inline-size: 100%;
+  margin-block: auto;
+  margin-inline: 0;
+}
+
 :root {
       --background: 0 0% 100%;
 --foreground: 224 71% 4%;

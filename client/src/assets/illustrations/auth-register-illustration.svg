@@ -1,0 +1,71 @@
+<svg width="500" height="500" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="250" cy="250" r="250" fill="#4B5563" opacity="0.1"/>
+  
+  <!-- Character standing with stats - centered in background -->
+  <g transform="translate(175, 160)">
+    <!-- Character -->
+    <!-- Body -->
+    <path d="M0 120 C0 80 15 60 30 60 C45 60 60 80 60 120 Z" fill="#4F46E5" />
+    
+    <!-- Head -->
+    <circle cx="30" cy="40" r="30" fill="#f2d1b3" />
+    
+    <!-- Hair -->
+    <path d="M5 20 Q30 0 55 20" fill="#333" />
+    <ellipse cx="30" cy="20" rx="25" ry="15" fill="#333" />
+    
+    <!-- Eyes -->
+    <ellipse cx="20" cy="35" rx="4" ry="5" fill="#333" />
+    <ellipse cx="40" cy="35" rx="4" ry="5" fill="#333" />
+    
+    <!-- Smile -->
+    <path d="M20 50 Q30 55 40 50" stroke="#333" stroke-width="2" fill="none" />
+    
+    <!-- Arms -->
+    <path d="M10 80 L-10 95" stroke="#4F46E5" stroke-width="15" stroke-linecap="round" />
+    <path d="M50 80 L70 95" stroke="#4F46E5" stroke-width="15" stroke-linecap="round" />
+    
+    <!-- Legs -->
+    <path d="M15 120 L15 180" stroke="#4B5563" stroke-width="20" stroke-linecap="round" />
+    <path d="M45 120 L45 180" stroke="#4B5563" stroke-width="20" stroke-linecap="round" />
+    
+    <!-- Shoes -->
+    <path d="M5 180 L15 185 L25 180" fill="#333" stroke="#333" stroke-width="1" />
+    <path d="M35 180 L45 185 L55 180" fill="#333" stroke="#333" stroke-width="1" />
+    
+    <!-- Thumbs up -->
+    <path d="M-10 95 L-20 85" stroke="#f2d1b3" stroke-width="15" stroke-linecap="round" />
+  </g>
+  
+  <!-- Stats Card 1 - Top left -->
+  <g transform="translate(50, 100)">
+    <rect x="0" y="0" width="110" height="90" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1" />
+    <text x="12" y="24" font-family="Arial" font-size="14" fill="#9ca3af">Profit</text>
+    <text x="12" y="40" font-family="Arial" font-size="12" fill="#6b7280">Last Month</text>
+    
+    <!-- Line chart -->
+    <path d="M15 60 C25 50 35 55 45 45 C55 35 75 30 95 20" stroke="#10b981" stroke-width="2" fill="none" />
+    
+    <text x="12" y="75" font-family="Arial" font-size="16" font-weight="bold" fill="#f3f4f6">624k</text>
+    <text x="70" y="75" font-family="Arial" font-size="12" fill="#10b981">+8.24%</text>
+  </g>
+  
+  <!-- Stats Card 2 - Top right -->
+  <g transform="translate(340, 150)">
+    <rect x="0" y="0" width="110" height="90" rx="8" fill="#1f2937" stroke="#374151" stroke-width="1" />
+    <text x="12" y="24" font-family="Arial" font-size="14" fill="#9ca3af">Order</text>
+    <text x="12" y="40" font-family="Arial" font-size="12" fill="#6b7280">Last Week</text>
+    
+    <!-- Bar chart -->
+    <rect x="15" y="45" width="8" height="15" fill="#818cf8" />
+    <rect x="30" y="40" width="8" height="20" fill="#6366f1" />
+    <rect x="45" y="50" width="8" height="10" fill="#818cf8" />
+    <rect x="60" y="35" width="8" height="25" fill="#6366f1" />
+    <rect x="75" y="45" width="8" height="15" fill="#818cf8" />
+    <rect x="90" y="30" width="8" height="30" fill="#6366f1" />
+    
+    <text x="12" y="75" font-family="Arial" font-size="16" font-weight="bold" fill="#f3f4f6">124k</text>
+    <text x="70" y="75" font-family="Arial" font-size="12" fill="#10b981">+42.6%</text>
+  </g>
+</svg>

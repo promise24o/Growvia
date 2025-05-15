@@ -21,7 +21,9 @@ const ActivitySchema = new Schema<IActivity>(
         'app_created', 
         'plan_changed',
         'affiliate_link_created',
-        'settings_updated'
+        'settings_updated',
+        'organization_created',
+        'user_created'
       ],
     },
     description: {

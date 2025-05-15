@@ -29,10 +29,10 @@ export async function apiRequest<T = any>(
   const method = options?.method || 'GET';
   const token = getAuthToken();
   
-  const headers: HeadersInit = {
+  const headers = {
     'Content-Type': 'application/json',
     ...options?.headers,
-  };
+  } as Record<string, string>;
   
   // Add auth token if available
   if (token) {
@@ -58,7 +58,7 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const token = getAuthToken();
-    const headers: HeadersInit = {};
+    const headers = {} as Record<string, string>;
     
     // Add auth token if available
     if (token) {

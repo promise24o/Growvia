@@ -181,10 +181,10 @@ export default function Register() {
           <CardFooter>
             <p className="text-sm text-slate-600 text-center w-full">
               Already have an account?{" "}
-              <Link href="/login">
-                <a className="text-primary-600 hover:text-primary-800 font-medium">
+              <Link to="/login">
+                <span className="text-primary-600 hover:text-primary-800 font-medium">
                   Sign in
-                </a>
+                </span>
               </Link>
             </p>
           </CardFooter>

@@ -43,15 +43,28 @@ function SidebarLink({ href, icon, label, active }: SidebarLinkProps) {
   );
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileMenuOpen?: boolean;
+  toggleMobileMenu?: () => void;
+}
+
+export function Sidebar({ mobileMenuOpen, toggleMobileMenu }: SidebarProps) {
   const [location] = useLocation();
   const { user, organization, logout } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [planModalOpen, setPlanModalOpen] = useState(false);
-
-  // Handle mobile menu toggle
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
+  
+  // Use internal state if no props are provided (for backwards compatibility)
+  const [internalMobileMenuOpen, setInternalMobileMenuOpen] = useState(false);
+  
+  const isMenuOpen = mobileMenuOpen !== undefined ? mobileMenuOpen : internalMobileMenuOpen;
+  
+  // Handle mobile menu toggle if not provided from props
+  const handleToggleMobileMenu = () => {
+    if (toggleMobileMenu) {
+      toggleMobileMenu();
+    } else {
+      setInternalMobileMenuOpen(!internalMobileMenuOpen);
+    }
   };
 
   // Get plan limits
@@ -72,8 +85,8 @@ export function Sidebar() {
   return (
     <>
       <aside className={cn(
-        "w-full md:w-64 bg-white dark:bg-[#25293c] shadow-md md:flex md:flex-col md:fixed md:inset-y-0 z-10 transition-all",
-        mobileMenuOpen ? "fixed inset-0" : "sticky top-0 h-screen"
+        "w-full md:w-64 bg-white dark:bg-[#25293c] shadow-md md:flex md:flex-col md:fixed md:inset-y-0 z-30 transition-all",
+        isMenuOpen ? "fixed inset-0 top-16" : "hidden md:flex"
       )}>
         <div className="p-4 border-b dark:border-slate-700/30">
           <div className="flex items-center justify-between">
@@ -87,16 +100,16 @@ export function Sidebar() {
             </RouterLink>
             <button 
               className="md:hidden text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white"
-              onClick={toggleMobileMenu}
+              onClick={handleToggleMobileMenu}
             >
-              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
         
         <div className={cn(
           "flex flex-col h-full justify-between overflow-y-auto",
-          mobileMenuOpen ? "block" : "hidden md:flex"
+          isMenuOpen ? "block" : "hidden md:flex"
         )}>
           <nav className="p-4 space-y-1">
             <SidebarLink 
@@ -178,13 +191,7 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* Backdrop for mobile menu */}
-      {mobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-0 md:hidden"
-          onClick={toggleMobileMenu}
-        />
-      )}
+      {/* Backdrop for mobile menu - now moved to dashboard layout */}
 
       {/* Plan Modal */}
       <PlanModal 

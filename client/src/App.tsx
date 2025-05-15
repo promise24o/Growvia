@@ -23,6 +23,9 @@ import PaymentSuccess from "@/pages/settings/billing/success";
 import TermsOfService from "@/pages/legal/terms";
 import PrivacyPolicy from "@/pages/legal/privacy-policy";
 
+// Landing page
+import LandingPage from "@/pages/landing";
+
 // Other pages
 import NotFound from "@/pages/not-found";
 
@@ -109,14 +112,14 @@ function App() {
         <Route path="/legal/terms" component={TermsOfService} />
         <Route path="/legal/privacy-policy" component={PrivacyPolicy} />
 
-        {/* Redirect root to dashboard if authenticated, otherwise to login */}
+        {/* Redirect root to dashboard if authenticated, otherwise to landing page */}
         <Route path="/">
           {isAuthenticated ? (
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
           ) : (
-            <Login />
+            <LandingPage />
           )}
         </Route>
 

@@ -1,0 +1,721 @@
+import type { Express, Request, Response, NextFunction } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { 
+  loginSchema, 
+  registerSchema, 
+  insertAppSchema, 
+  insertAffiliateLinkSchema,
+  insertConversionSchema,
+  UserRole,
+  PLAN_LIMITS,
+  SubscriptionPlan
+} from "@shared/schema";
+import { randomBytes } from "crypto";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "affiliate-hub-secret-key-change-in-production";
+const TOKEN_EXPIRY = "7d";
+
+interface JwtPayload {
+  userId: number;
+  organizationId: number | null;
+  role: string;
+}
+
+// Middleware to authenticate requests
+const authenticate = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    
+    if (!token) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    
+    // Add user info to request object
+    (req as any).user = {
+      id: decoded.userId,
+      organizationId: decoded.organizationId,
+      role: decoded.role
+    };
+    
+    next();
+  } catch (error) {
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
+};
+
+// Middleware to check authorization
+const authorize = (roles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = (req as any).user;
+    
+    if (!user) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    if (!roles.includes(user.role)) {
+      return res.status(403).json({ message: "Insufficient permissions" });
+    }
+    
+    next();
+  };
+};
+
+// Generate a JWT token
+const generateToken = (user: { id: number, organizationId: number | null, role: string }): string => {
+  return jwt.sign(
+    { 
+      userId: user.id, 
+      organizationId: user.organizationId,
+      role: user.role
+    },
+    JWT_SECRET,
+    { expiresIn: TOKEN_EXPIRY }
+  );
+};
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Authentication routes
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const validatedData = loginSchema.parse(req.body);
+      
+      // Find user by email
+      const user = await storage.getUserByEmail(validatedData.email);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // In a real app, you would use bcrypt.compare here
+      // For this implementation, we're using a simple hash check in the storage layer
+      const isPasswordValid = await storage.verifyPassword(validatedData.password, user.password);
+      
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // Generate JWT token
+      const token = generateToken({
+        id: user.id,
+        organizationId: user.organizationId,
+        role: user.role
+      });
+      
+      // Return user info and token
+      return res.json({
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          organizationId: user.organizationId
+        }
+      });
+    } catch (error: any) {
+      return res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const validatedData = registerSchema.parse(req.body);
+      
+      // Check if user with this email already exists
+      const existingUser = await storage.getUserByEmail(validatedData.email);
+      
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+      
+      // Check if organization with this email already exists
+      const existingOrg = await storage.getOrganizationByEmail(validatedData.email);
+      
+      if (existingOrg) {
+        return res.status(400).json({ message: "Email already in use for an organization" });
+      }
+      
+      // Create organization
+      const organization = await storage.createOrganization({
+        name: validatedData.organizationName,
+        email: validatedData.email,
+        plan: SubscriptionPlan.STARTER
+      });
+      
+      // Create admin user
+      const user = await storage.createUser({
+        organizationId: organization.id,
+        name: validatedData.name,
+        email: validatedData.email,
+        password: validatedData.password,
+        role: UserRole.ADMIN,
+        status: "active"
+      });
+      
+      // Generate JWT token
+      const token = generateToken({
+        id: user.id,
+        organizationId: user.organizationId,
+        role: user.role
+      });
+      
+      // Create initial activity
+      await storage.createActivity({
+        organizationId: organization.id,
+        userId: user.id,
+        type: "organization_created",
+        description: `${user.name} created organization ${organization.name}`
+      });
+      
+      // Return user info and token
+      return res.status(201).json({
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          organizationId: user.organizationId
+        }
+      });
+    } catch (error: any) {
+      return res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/auth/me", authenticate, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      // Get user details
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Get organization details if applicable
+      let organization = null;
+      if (user.organizationId) {
+        organization = await storage.getOrganization(user.organizationId);
+      }
+      
+      return res.json({
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+          avatar: user.avatar
+        },
+        organization: organization ? {
+          id: organization.id,
+          name: organization.name,
+          plan: organization.plan,
+          logo: organization.logo
+        } : null
+      });
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Organization routes
+  app.get("/api/organizations/current", authenticate, async (req, res) => {
+    try {
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(404).json({ message: "No organization associated with this user" });
+      }
+      
+      const organization = await storage.getOrganization(organizationId);
+      
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      return res.json(organization);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/organizations/current", authenticate, authorize([UserRole.ADMIN]), async (req, res) => {
+    try {
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(404).json({ message: "No organization associated with this user" });
+      }
+      
+      const organization = await storage.updateOrganization(organizationId, req.body);
+      
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      return res.json(organization);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  // User/Marketer routes
+  app.get("/api/marketers", authenticate, authorize([UserRole.ADMIN]), async (req, res) => {
+    try {
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(404).json({ message: "No organization associated with this user" });
+      }
+      
+      const users = await storage.getUsersByOrganization(organizationId);
+      
+      // Filter to only get marketers
+      const marketers = users.filter(user => user.role === UserRole.MARKETER);
+      
+      return res.json(marketers);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/marketers", authenticate, authorize([UserRole.ADMIN]), async (req, res) => {
+    try {
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(404).json({ message: "No organization associated with this user" });
+      }
+      
+      // Check plan limits
+      const organization = await storage.getOrganization(organizationId);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      const marketers = await storage.getUsersByOrganization(organizationId);
+      const marketerCount = marketers.filter(u => u.role === UserRole.MARKETER).length;
+      
+      const planLimits = PLAN_LIMITS[organization.plan as SubscriptionPlan];
+      if (marketerCount >= planLimits.marketers) {
+        return res.status(403).json({ 
+          message: `Your plan allows a maximum of ${planLimits.marketers} marketers. Please upgrade your plan.` 
+        });
+      }
+      
+      // Generate a random password for the marketer
+      const temporaryPassword = randomBytes(8).toString('hex');
+      
+      // Create marketer
+      const marketer = await storage.createUser({
+        organizationId,
+        name: req.body.name,
+        email: req.body.email,
+        password: temporaryPassword,
+        role: UserRole.MARKETER,
+        status: "pending"
+      });
+      
+      // Create activity
+      await storage.createActivity({
+        organizationId,
+        userId: (req as any).user.id,
+        type: "marketer_invited",
+        description: `${req.body.name} invited as a new marketer`
+      });
+      
+      // In a real app, you would send an email with the invitation link here
+      
+      return res.status(201).json({
+        marketer: {
+          id: marketer.id,
+          name: marketer.name,
+          email: marketer.email,
+          status: marketer.status
+        },
+        inviteLink: `${req.protocol}://${req.get('host')}/marketer/accept-invite?email=${marketer.email}&token=${temporaryPassword}`
+      });
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/marketers/top", authenticate, async (req, res) => {
+    try {
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(404).json({ message: "No organization associated with this user" });
+      }
+      
+      const limit = parseInt(req.query.limit as string) || 5;
+      const topMarketers = await storage.getTopMarketers(organizationId, limit);
+      
+      return res.json(topMarketers);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  // App routes
+  app.get("/api/apps", authenticate, async (req, res) => {
+    try {
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(404).json({ message: "No organization associated with this user" });
+      }
+      
+      const apps = await storage.getAppsByOrganization(organizationId);
+      
+      return res.json(apps);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/apps", authenticate, authorize([UserRole.ADMIN]), async (req, res) => {
+    try {
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(404).json({ message: "No organization associated with this user" });
+      }
+      
+      // Check plan limits
+      const organization = await storage.getOrganization(organizationId);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      const apps = await storage.getAppsByOrganization(organizationId);
+      
+      const planLimits = PLAN_LIMITS[organization.plan as SubscriptionPlan];
+      if (apps.length >= planLimits.apps) {
+        return res.status(403).json({ 
+          message: `Your plan allows a maximum of ${planLimits.apps} apps. Please upgrade your plan.` 
+        });
+      }
+      
+      // Validate app data
+      const validatedData = insertAppSchema.parse({
+        ...req.body,
+        organizationId
+      });
+      
+      // Create app
+      const app = await storage.createApp(validatedData);
+      
+      // Create activity
+      await storage.createActivity({
+        organizationId,
+        userId: (req as any).user.id,
+        type: "app_created",
+        description: `New app "${app.name}" created`
+      });
+      
+      return res.status(201).json(app);
+    } catch (error: any) {
+      return res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/apps/top", authenticate, async (req, res) => {
+    try {
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(404).json({ message: "No organization associated with this user" });
+      }
+      
+      const limit = parseInt(req.query.limit as string) || 5;
+      const topProducts = await storage.getTopProducts(organizationId, limit);
+      
+      return res.json(topProducts);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Affiliate links routes
+  app.get("/api/affiliate-links", authenticate, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      const links = await storage.getAffiliateLinksByUser(userId);
+      
+      return res.json(links);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/affiliate-links", authenticate, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(404).json({ message: "No organization associated with this user" });
+      }
+      
+      // Validate app exists and belongs to the organization
+      const app = await storage.getApp(req.body.appId);
+      
+      if (!app || app.organizationId !== organizationId) {
+        return res.status(404).json({ message: "App not found" });
+      }
+      
+      // Generate a unique code for the link
+      const code = randomBytes(6).toString('hex');
+      
+      // Create the link
+      const validatedData = insertAffiliateLinkSchema.parse({
+        userId,
+        appId: app.id,
+        code
+      });
+      
+      const link = await storage.createAffiliateLink(validatedData);
+      
+      // Create activity
+      await storage.createActivity({
+        organizationId,
+        userId,
+        type: "affiliate_link_created",
+        description: `New affiliate link created for "${app.name}"`
+      });
+      
+      return res.status(201).json(link);
+    } catch (error: any) {
+      return res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/affiliate-links/:code/redirect", async (req, res) => {
+    try {
+      const { code } = req.params;
+      
+      // Find the link by code
+      const link = await storage.getAffiliateLinkByCode(code);
+      
+      if (!link) {
+        return res.status(404).json({ message: "Affiliate link not found" });
+      }
+      
+      // Get the app details
+      const app = await storage.getApp(link.appId);
+      
+      if (!app) {
+        return res.status(404).json({ message: "App not found" });
+      }
+      
+      // Increment click count
+      await storage.incrementLinkClicks(link.id);
+      
+      // In a real implementation, you might want to track more information about the click
+      
+      // Redirect to the app URL
+      return res.redirect(`${app.baseUrl}?ref=${link.code}`);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Conversions routes
+  app.post("/api/webhooks/conversions", async (req, res) => {
+    try {
+      // In a real implementation, you would verify the webhook signature
+      // and perform additional validation
+      
+      const { code, transactionId, amount } = req.body;
+      
+      if (!code || !transactionId || !amount) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Find the link by code
+      const link = await storage.getAffiliateLinkByCode(code);
+      
+      if (!link) {
+        return res.status(404).json({ message: "Affiliate link not found" });
+      }
+      
+      // Get the app details
+      const app = await storage.getApp(link.appId);
+      
+      if (!app) {
+        return res.status(404).json({ message: "App not found" });
+      }
+      
+      // Calculate commission
+      let commission = 0;
+      if (app.commissionType === "percentage") {
+        commission = (app.commissionValue / 100) * amount;
+      } else {
+        commission = app.commissionValue;
+      }
+      
+      // Create conversion
+      const validatedData = insertConversionSchema.parse({
+        linkId: link.id,
+        transactionId,
+        amount,
+        commission,
+        status: "pending",
+        metadata: req.body
+      });
+      
+      const conversion = await storage.createConversion(validatedData);
+      
+      // Get user and organization info
+      const user = await storage.getUser(link.userId);
+      const organization = user?.organizationId ? await storage.getOrganization(user.organizationId) : null;
+      
+      // Create activity
+      if (user && organization) {
+        await storage.createActivity({
+          organizationId: organization.id,
+          userId: user.id,
+          type: "conversion_created",
+          description: `New conversion for "${app.name}" - $${amount.toFixed(2)}`
+        });
+        
+        // In a real implementation, you might want to send a notification to the user
+        
+        // Call the organization webhook if configured
+        if (organization.webhookUrl) {
+          try {
+            // In a real implementation, you would use axios to call the webhook
+            console.log(`Would call webhook at ${organization.webhookUrl} with conversion data`);
+          } catch (webhookError) {
+            console.error("Webhook delivery failed:", webhookError);
+          }
+        }
+      }
+      
+      return res.status(201).json(conversion);
+    } catch (error: any) {
+      return res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/conversions", authenticate, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const role = (req as any).user.role;
+      const organizationId = (req as any).user.organizationId;
+      
+      let conversions = [];
+      
+      if (role === UserRole.ADMIN && organizationId) {
+        // Admins see all conversions for their organization
+        conversions = await storage.getConversionsByOrganization(organizationId);
+      } else {
+        // Marketers see only their own conversions
+        conversions = await storage.getConversionsByUser(userId);
+      }
+      
+      return res.json(conversions);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Analytics routes
+  app.get("/api/analytics/organization", authenticate, async (req, res) => {
+    try {
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(404).json({ message: "No organization associated with this user" });
+      }
+      
+      const stats = await storage.getOrganizationStats(organizationId);
+      
+      return res.json(stats);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics/user", authenticate, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      const stats = await storage.getUserStats(userId);
+      
+      return res.json(stats);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Activities routes
+  app.get("/api/activities", authenticate, async (req, res) => {
+    try {
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(404).json({ message: "No organization associated with this user" });
+      }
+      
+      const limit = parseInt(req.query.limit as string) || 10;
+      const activities = await storage.getActivitiesByOrganization(organizationId, limit);
+      
+      return res.json(activities);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Payment routes (simplified)
+  app.post("/api/payouts/request", authenticate, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      const { amount, paymentMethod } = req.body;
+      
+      if (!amount || !paymentMethod) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Create payout
+      const payout = await storage.createPayout({
+        userId,
+        amount,
+        status: "pending",
+        paymentMethod
+      });
+      
+      // In a real implementation, you would integrate with payment providers here
+      
+      return res.status(201).json(payout);
+    } catch (error: any) {
+      return res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/payouts", authenticate, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      const payouts = await storage.getPayoutsByUser(userId);
+      
+      return res.json(payouts);
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  const httpServer = createServer(app);
+
+  return httpServer;
+}

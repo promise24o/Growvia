@@ -202,12 +202,14 @@ export default function Analytics() {
       </div>
       
       <Tabs defaultValue="clicks" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="clicks">Clicks</TabsTrigger>
-          <TabsTrigger value="conversions">Conversions</TabsTrigger>
-          <TabsTrigger value="revenue">Revenue</TabsTrigger>
-          <TabsTrigger value="marketers">Marketers</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-1">
+          <TabsList className="mb-4 flex-nowrap w-max min-w-full">
+            <TabsTrigger value="clicks">Clicks</TabsTrigger>
+            <TabsTrigger value="conversions">Conversions</TabsTrigger>
+            <TabsTrigger value="revenue">Revenue</TabsTrigger>
+            <TabsTrigger value="marketers">Marketers</TabsTrigger>
+          </TabsList>
+        </div>
         
         <TabsContent value="clicks" className="w-full">
           <Card className="mb-6">

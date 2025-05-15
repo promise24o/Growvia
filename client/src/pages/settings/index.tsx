@@ -68,28 +68,30 @@ export default function SettingsPage() {
       </div>
       
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="profile">
-            <User className="h-4 w-4 mr-2" />
-            Profile
-          </TabsTrigger>
-          <TabsTrigger value="organization">
-            <Building className="h-4 w-4 mr-2" />
-            Organization
-          </TabsTrigger>
-          <TabsTrigger value="subscription">
-            <CreditCard className="h-4 w-4 mr-2" />
-            Subscription
-          </TabsTrigger>
-          <TabsTrigger value="notifications">
-            <Bell className="h-4 w-4 mr-2" />
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger value="integration">
-            <Settings className="h-4 w-4 mr-2" />
-            Integration
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-1">
+          <TabsList className="mb-4 flex-nowrap w-max min-w-full">
+            <TabsTrigger value="profile">
+              <User className="h-4 w-4 mr-2" />
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="organization">
+              <Building className="h-4 w-4 mr-2" />
+              Organization
+            </TabsTrigger>
+            <TabsTrigger value="subscription">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Subscription
+            </TabsTrigger>
+            <TabsTrigger value="notifications">
+              <Bell className="h-4 w-4 mr-2" />
+              Notifications
+            </TabsTrigger>
+            <TabsTrigger value="integration">
+              <Settings className="h-4 w-4 mr-2" />
+              Integration
+            </TabsTrigger>
+          </TabsList>
+        </div>
         
         {/* Profile Tab */}
         <TabsContent value="profile">

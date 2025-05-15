@@ -209,7 +209,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
     }
   });
 
-  app.get("/api/auth/me", authenticate, async (req, res) => {
+  router.get("/auth/me", authenticate, async (req, res) => {
     try {
       const userId = (req as any).user.id;
       
@@ -289,7 +289,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
   });
 
   // User/Marketer routes
-  app.get("/api/marketers", authenticate, authorize([UserRole.ADMIN]), async (req, res) => {
+  router.get("/marketers", authenticate, authorize([UserRole.ADMIN]), async (req, res) => {
     try {
       const organizationId = (req as any).user.organizationId;
       
@@ -369,7 +369,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
     }
   });
 
-  app.get("/api/marketers/top", authenticate, async (req, res) => {
+  router.get("/marketers/top", authenticate, async (req, res) => {
     try {
       const organizationId = (req as any).user.organizationId;
       
@@ -387,7 +387,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
   });
 
   // App routes
-  app.get("/api/apps", authenticate, async (req, res) => {
+  router.get("/apps", authenticate, async (req, res) => {
     try {
       const organizationId = (req as any).user.organizationId;
       
@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
     }
   });
 
-  app.get("/api/apps/top", authenticate, async (req, res) => {
+  router.get("/apps/top", authenticate, async (req, res) => {
     try {
       const organizationId = (req as any).user.organizationId;
       

@@ -87,8 +87,8 @@ export default function Register() {
       <div className="d-none d-xl-flex hidden lg:flex lg:w-[60%] relative bg-cover bg-center overflow-hidden" 
            style={{ backgroundColor: '#161D31' }}>
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative w-full max-w-[600px] mx-auto flex flex-col items-center">
-            <img src={authRegisterIllustration} alt="Register" className="max-w-full z-10" />
+          <div className="relative w-full max-w-[700px] mx-auto flex flex-col items-center">
+            <img src={registerCharacter} alt="Register" className="max-w-full z-10" style={{ maxHeight: '85vh' }} />
           </div>
         </div>
       </div>

@@ -1,13 +1,12 @@
-import { SubscriptionPlan } from "@/lib/types";
-import { useToast } from "@/hooks/use-toast";
+import { SubscriptionPlan } from '@shared/schema';
+import { apiRequest, queryClient } from './queryClient';
+import { useToast } from '@/hooks/use-toast';
 
-// Define payment gateway enum
 export enum PaymentGateway {
   FLUTTERWAVE = 'flutterwave',
   PAYSTACK = 'paystack',
 }
 
-// Define payment response interface
 export interface PaymentResponse {
   success: boolean;
   redirectUrl?: string;
@@ -26,49 +25,35 @@ export interface PaymentOptions {
  * Initialize a payment for subscription
  */
 export async function initializePayment(options: PaymentOptions): Promise<PaymentResponse> {
-  const { planId, gateway, onSuccess, onError } = options;
-  
-  // Get the current domain for callback URL
-  const callbackUrl = `${window.location.origin}/settings?payment=verify`;
-  
   try {
-    const response = await fetch('/api/payment/initialize', {
+    // Get the current window location for the callback URL
+    const callbackUrl = `${window.location.origin}/settings/billing/success`;
+    
+    // Make the API request to initialize payment
+    const response = await apiRequest<PaymentResponse>('/api/payment/initialize', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({
-        planId,
-        gateway,
-        callbackUrl
-      })
+        planId: options.planId,
+        gateway: options.gateway,
+        callbackUrl,
+      }),
     });
     
-    const data = await response.json() as PaymentResponse;
-    
-    if (data.success && data.redirectUrl) {
-      // Store payment info in session for verification later
-      sessionStorage.setItem('paymentRef', data.reference || '');
-      sessionStorage.setItem('paymentGateway', gateway);
-      sessionStorage.setItem('paymentPlan', planId);
-      
-      // Redirect to payment page
-      if (onSuccess) {
-        onSuccess(data);
-      } else {
-        window.location.href = data.redirectUrl;
-      }
+    // Handle success callback if provided
+    if (response.success && options.onSuccess) {
+      options.onSuccess(response);
     }
     
-    return data;
-  } catch (error) {
-    console.error('Payment initialization failed:', error);
-    if (onError) {
-      onError(error);
+    return response;
+  } catch (error: any) {
+    // Handle error callback if provided
+    if (options.onError) {
+      options.onError(error);
     }
+    
     return {
       success: false,
-      message: 'Payment initialization failed. Please try again later.'
+      message: error?.message || 'Failed to initialize payment',
     };
   }
 }
@@ -78,25 +63,14 @@ export async function initializePayment(options: PaymentOptions): Promise<Paymen
  */
 export async function verifyPayment(reference: string, gateway: PaymentGateway): Promise<PaymentResponse> {
   try {
-    const response = await fetch(`/api/payment/verify?reference=${reference}&gateway=${gateway}`, {
-      method: 'GET',
-    });
+    // Make the API request to verify payment
+    const response = await apiRequest<PaymentResponse>(`/api/payment/verify?reference=${reference}&gateway=${gateway}`);
     
-    const data = await response.json() as PaymentResponse;
-    
-    if (data.success) {
-      // Clear payment session data
-      sessionStorage.removeItem('paymentRef');
-      sessionStorage.removeItem('paymentGateway');
-      sessionStorage.removeItem('paymentPlan');
-    }
-    
-    return data;
-  } catch (error) {
-    console.error('Payment verification failed:', error);
+    return response;
+  } catch (error: any) {
     return {
       success: false,
-      message: 'Payment verification failed. Please contact support.'
+      message: error?.message || 'Failed to verify payment',
     };
   }
 }
@@ -106,16 +80,17 @@ export async function verifyPayment(reference: string, gateway: PaymentGateway):
  * This should be called when the page loads to check if we're returning from a payment gateway
  */
 export function checkPendingPayment(): { isPending: boolean; reference?: string; gateway?: PaymentGateway } {
-  const searchParams = new URLSearchParams(window.location.search);
-  const paymentStatus = searchParams.get('payment');
+  // Check URL query parameters for reference and gateway
+  const urlParams = new URLSearchParams(window.location.search);
+  const reference = urlParams.get('reference');
+  const gateway = urlParams.get('gateway') as PaymentGateway;
   
-  if (paymentStatus === 'verify') {
-    const reference = sessionStorage.getItem('paymentRef');
-    const gateway = sessionStorage.getItem('paymentGateway') as PaymentGateway;
-    
-    if (reference && gateway) {
-      return { isPending: true, reference, gateway };
-    }
+  if (reference && gateway) {
+    return {
+      isPending: true,
+      reference,
+      gateway,
+    };
   }
   
   return { isPending: false };
@@ -128,64 +103,49 @@ export function usePayment() {
   const { toast } = useToast();
   
   const processPayment = async (planId: SubscriptionPlan, gateway: PaymentGateway) => {
-    toast({
-      title: "Initializing payment...",
-      description: "Please wait while we prepare your payment."
-    });
-    
-    const response = await initializePayment({
-      planId,
-      gateway,
-      onSuccess: (res) => {
-        toast({
-          title: "Payment initialized",
-          description: "You will be redirected to complete your payment."
-        });
-      },
-      onError: (error) => {
-        toast({
-          title: "Payment failed",
-          description: "There was an error initializing your payment. Please try again.",
-          variant: "destructive"
-        });
-      }
-    });
-    
-    return response;
-  };
-  
-  const verifyPendingPayment = async () => {
-    const { isPending, reference, gateway } = checkPendingPayment();
-    
-    if (isPending && reference && gateway) {
+    try {
+      // Show loading toast
       toast({
-        title: "Verifying payment...",
-        description: "Please wait while we verify your payment."
+        title: 'Processing Payment',
+        description: 'Please wait while we redirect you to the payment page...',
       });
       
-      const result = await verifyPayment(reference, gateway);
+      // Initialize payment
+      const response = await initializePayment({
+        planId,
+        gateway,
+        onError: (error) => {
+          toast({
+            title: 'Payment Failed',
+            description: error.message || 'Failed to initialize payment. Please try again.',
+            variant: 'destructive',
+          });
+        },
+      });
       
-      if (result.success) {
-        toast({
-          title: "Payment successful",
-          description: "Your subscription has been updated successfully."
-        });
-        // Reload user data to get updated subscription info
-        window.location.href = '/settings';
+      // If successful and has redirect URL, redirect to payment page
+      if (response.success && response.redirectUrl) {
+        window.location.href = response.redirectUrl;
       } else {
+        // Show error toast
         toast({
-          title: "Payment verification failed",
-          description: result.message || "We couldn't verify your payment. Please contact support.",
-          variant: "destructive"
+          title: 'Payment Failed',
+          description: response.message || 'Failed to initialize payment. Please try again.',
+          variant: 'destructive',
         });
       }
+    } catch (error) {
+      toast({
+        title: 'Payment Error',
+        description: 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      });
     }
-    
-    return isPending;
   };
   
   return {
     processPayment,
-    verifyPendingPayment
+    checkPendingPayment,
+    verifyPayment,
   };
 }

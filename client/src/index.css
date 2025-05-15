@@ -55,4 +55,40 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+  
+  /* Thin scrollbar styles */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+  
+  /* Ensure that the white background is removed in dark mode */
+  .dark {
+    --background-main: 228 30% 10%;
+  }
+  
+  .dark main, 
+  .dark .main-content, 
+  .dark [data-theme="dark"] {
+    background-color: hsl(var(--background-main));
+  }
+
+  /* Card styling for dark mode to match Vuexy */
+  .dark .card,
+  .dark .dark-card {
+    background-color: hsl(229 29% 13%);
+    border-color: hsl(229 30% 16%);
+  }
 }

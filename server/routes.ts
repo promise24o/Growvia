@@ -90,12 +90,15 @@ const generateToken = (user: { id: number, organizationId: number | null, role: 
   );
 };
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Set up payment routes
+export async function registerRoutes(app: Express, apiRouter?: any): Promise<Server> {
+  // Determine which router to use for API routes
+  const router = apiRouter || app;
+  
+  // Set up payment routes on main app
   setupPaymentRoutes(app);
   
   // Authentication routes
-  app.post("/api/auth/login", async (req, res) => {
+  router.post("/auth/login", async (req, res) => {
     try {
       const validatedData = loginSchema.parse(req.body);
       
@@ -137,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/register", async (req, res) => {
+  router.post("/auth/register", async (req, res) => {
     try {
       const validatedData = registerSchema.parse(req.body);
       

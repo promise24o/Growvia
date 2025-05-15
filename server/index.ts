@@ -7,6 +7,14 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Add middleware to properly set headers for API requests
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    res.setHeader('Content-Type', 'application/json');
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -41,7 +49,14 @@ app.use((req, res, next) => {
   // Connect to MongoDB before initializing routes
   await connectToDatabase();
   
-  const server = await registerRoutes(app);
+  // Create separate router for API routes to ensure they're handled properly
+  const apiRouter = express.Router();
+  
+  // Register API routes separately
+  const server = await registerRoutes(app, apiRouter);
+  
+  // Mount API router after all middlewares but before Vite
+  app.use('/api', apiRouter);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

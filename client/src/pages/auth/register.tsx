@@ -101,7 +101,7 @@ export default function Register() {
             </div>
             
             {/* Copyright text at the bottom */}
-            <div className="absolute bottom-4 left-0 right-0 text-center text-white opacity-70 text-sm">
+            <div className="fixed bottom-4 left-0 w-[60%] text-center text-white opacity-70 text-sm">
               © {new Date().getFullYear()} Growvia. All rights reserved.
             </div>
           </div>
@@ -235,7 +235,7 @@ export default function Register() {
                     </FormControl>
                     <div className="space-y-1 leading-none">
                       <FormLabel className="text-sm text-slate-600 dark:text-slate-400 font-normal">
-                        I agree to <Link href="#" className="text-primary hover:text-primary-600 dark:text-primary-400">privacy policy & terms</Link>
+                        I agree to <Link href="/legal/privacy-policy" className="text-primary hover:text-primary-600 dark:text-primary-400">privacy policy</Link> & <Link href="/legal/terms" className="text-primary hover:text-primary-600 dark:text-primary-400">terms</Link>
                       </FormLabel>
                       <FormMessage />
                     </div>

@@ -19,6 +19,10 @@ import Settings from "@/pages/settings";
 import Billing from "@/pages/settings/billing";
 import PaymentSuccess from "@/pages/settings/billing/success";
 
+// Legal pages
+import TermsOfService from "@/pages/legal/terms";
+import PrivacyPolicy from "@/pages/legal/privacy-policy";
+
 // Other pages
 import NotFound from "@/pages/not-found";
 
@@ -100,6 +104,10 @@ function App() {
             <PaymentSuccess />
           </ProtectedRoute>
         </Route>
+        
+        {/* Legal routes - publicly accessible */}
+        <Route path="/legal/terms" component={TermsOfService} />
+        <Route path="/legal/privacy-policy" component={PrivacyPolicy} />
 
         {/* Redirect root to dashboard if authenticated, otherwise to login */}
         <Route path="/">

@@ -91,7 +91,7 @@ export default function Login() {
             </div>
             
             {/* Copyright text at the bottom */}
-            <div className="absolute bottom-4 left-0 right-0 text-center text-white opacity-70 text-sm">
+            <div className="fixed bottom-4 left-0 w-[60%] text-center text-white opacity-70 text-sm">
               © {new Date().getFullYear()} Growvia. All rights reserved.
             </div>
           </div>

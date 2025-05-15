@@ -1,7 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { BarChart3, ChevronDown, Users, BarChart4, Star, CheckCircle2 } from "lucide-react";
+import { 
+  BarChart3, ChevronDown, Users, BarChart4, Star, CheckCircle2, ChevronRight,
+  Gift, Zap, MessageSquareCode, PanelTop, CreditCard, DollarSign 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // Import animations
 import { motion } from "framer-motion";
@@ -10,6 +14,152 @@ const LandingPage = () => {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [scrolled, setScrolled] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [activeSection, setActiveSection] = useState("program-variety");
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    "program-variety": true,
+    "advanced-rewards": false,
+    "easy-integration": false,
+    "partner-enablement": false,
+    "payouts": false
+  });
+  
+  // Refs for each section
+  const programVarietyRef = useRef<HTMLDivElement>(null);
+  const advancedRewardsRef = useRef<HTMLDivElement>(null);
+  const easyIntegrationRef = useRef<HTMLDivElement>(null);
+  const partnerEnablementRef = useRef<HTMLDivElement>(null);
+  const payoutsRef = useRef<HTMLDivElement>(null);
+  
+  // Feature sections content
+  const featureSections = [
+    {
+      id: "program-variety",
+      title: "Program variety",
+      ref: programVarietyRef,
+      description: "Different types of partnership programs to suit your business needs",
+      items: [
+        {
+          title: "All-in-one platform",
+          description: "Bring together your affiliate and referral programs within one account.",
+          icon: <BarChart3 className="h-5 w-5" />,
+        },
+        {
+          title: "Affiliate Programs",
+          description: "Create advanced affiliate programs with ease for your business growth.",
+          icon: <Users className="h-5 w-5" />,
+        },
+        {
+          title: "Refer-a-friend & Loyalty",
+          description: "Launch a refer-a-friend program that rewards both referrers and friends.",
+          icon: <Star className="h-5 w-5" />,
+        },
+        {
+          title: "Newsletter Referral",
+          description: "Grow your email subscriber list and increase engagement with referrals.",
+          icon: <CheckCircle2 className="h-5 w-5" />,
+        },
+      ]
+    },
+    {
+      id: "advanced-rewards",
+      title: "Advanced rewards",
+      ref: advancedRewardsRef,
+      description: "Motivating and meaningful partner incentives",
+      items: [
+        {
+          title: "Sophisticated commission structure",
+          description: "Use an advanced, performance-based reward model to incentivize your partners.",
+          icon: <Gift className="h-5 w-5" />,
+        },
+        {
+          title: "Link tracking",
+          description: "Use branded, personalized and direct links to track affiliate traffic.",
+          icon: <ChevronRight className="h-5 w-5" />,
+        },
+        {
+          title: "Coupon tracking",
+          description: "Set up personalized coupon codes and offer exclusive promotional rates.",
+          icon: <Zap className="h-5 w-5" />,
+        },
+        {
+          title: "Goal-based rewards",
+          description: "Keep your partners motivated by rewarding them for reaching set goals.",
+          icon: <Star className="h-5 w-5" />,
+        }
+      ]
+    },
+    {
+      id: "easy-integration",
+      title: "Easy integration",
+      ref: easyIntegrationRef,
+      description: "Seamless integration with your existing tools",
+      items: [
+        {
+          title: "Plug and play setup",
+          description: "Whatever tech stack you're using - we'll meet you there. Easily integrate with your website or app.",
+          icon: <MessageSquareCode className="h-5 w-5" />,
+        },
+        {
+          title: "API access",
+          description: "Full API access to customize and extend functionality as needed.",
+          icon: <MessageSquareCode className="h-5 w-5" />,
+        }
+      ]
+    },
+    {
+      id: "partner-enablement",
+      title: "Partner enablement",
+      ref: partnerEnablementRef,
+      description: "Partner engagement with white-label solutions",
+      items: [
+        {
+          title: "White-label partner experience",
+          description: "Create a unique partner portal with your branded look and feel.",
+          icon: <PanelTop className="h-5 w-5" />,
+        },
+        {
+          title: "Resource hub",
+          description: "Equip your partners with every tool they need to promote your products successfully.",
+          icon: <CheckCircle2 className="h-5 w-5" />,
+        },
+        {
+          title: "Reporting",
+          description: "Offer aggregated data about referral traffic and individual reporting for every unique affiliate link.",
+          icon: <BarChart3 className="h-5 w-5" />,
+        }
+      ]
+    },
+    {
+      id: "payouts",
+      title: "Payouts",
+      ref: payoutsRef,
+      description: "Hassle-free payout processing and automation",
+      items: [
+        {
+          title: "PayPal & Wise integrations",
+          description: "Process thousands of payouts to your global affiliate audience with a single click.",
+          icon: <CreditCard className="h-5 w-5" />,
+        },
+        {
+          title: "Payout automation",
+          description: "Set up a schedule to pay your partners on time every time with various integration options.",
+          icon: <DollarSign className="h-5 w-5" />,
+        },
+        {
+          title: "Payouts by Growvia",
+          description: "Let Growvia handle partner payments directly, consolidating your invoicing into a single charge.",
+          icon: <CreditCard className="h-5 w-5" />,
+        }
+      ]
+    }
+  ];
+  
+  const toggleSectionOpen = (sectionId: string) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
   
   // Detect dark mode
   useEffect(() => {
@@ -40,7 +190,7 @@ const LandingPage = () => {
     };
   }, []);
 
-  // Handle scroll effect for navbar with smooth progress
+  // Handle scroll effect for navbar with smooth progress and section tracking
   useEffect(() => {
     const handleScroll = () => {
       // Calculate scroll percentage (0 to 1) for the first 200px
@@ -54,13 +204,37 @@ const LandingPage = () => {
       if (isScrolled !== scrolled) {
         setScrolled(isScrolled);
       }
+      
+      // Check which section is currently visible
+      const sectionRefs = [
+        { id: "program-variety", ref: programVarietyRef },
+        { id: "advanced-rewards", ref: advancedRewardsRef },
+        { id: "easy-integration", ref: easyIntegrationRef },
+        { id: "partner-enablement", ref: partnerEnablementRef },
+        { id: "payouts", ref: payoutsRef }
+      ];
+      
+      // Find the section that's currently most visible in the viewport
+      for (const { id, ref } of sectionRefs) {
+        if (ref.current) {
+          const rect = ref.current.getBoundingClientRect();
+          const isVisible = 
+            rect.top <= 150 && // Section is at or above the 150px mark from the top
+            rect.bottom >= 150; // And the section bottom is below that mark
+          
+          if (isVisible) {
+            setActiveSection(id);
+            break;
+          }
+        }
+      }
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => {
       window.removeEventListener("scroll", handleScroll);
     };
-  }, [scrolled]);
+  }, [scrolled, programVarietyRef, advancedRewardsRef, easyIntegrationRef, partnerEnablementRef, payoutsRef]);
 
   // Statistics animation
   const stats = [
@@ -331,48 +505,104 @@ const LandingPage = () => {
             <div className="container mx-auto">
               <div className="flex justify-center overflow-x-auto py-1 no-scrollbar">
                 <div className="inline-flex p-1 bg-gray-100 dark:bg-slate-800 rounded-full">
-                  <a href="#program-variety" className="px-6 py-2 rounded-full bg-white dark:bg-slate-700 shadow-sm text-primary font-medium">
-                    Program variety
-                  </a>
-                  <a href="#advanced-rewards" className="px-6 py-2 rounded-full text-gray-600 dark:text-gray-400 font-medium hover:text-primary">
-                    Advanced rewards
-                  </a>
-                  <a href="#easy-integration" className="px-6 py-2 rounded-full text-gray-600 dark:text-gray-400 font-medium hover:text-primary">
-                    Easy integration
-                  </a>
-                  <a href="#partner-enablement" className="px-6 py-2 rounded-full text-gray-600 dark:text-gray-400 font-medium hover:text-primary">
-                    Partner enablement
-                  </a>
-                  <a href="#payouts" className="px-6 py-2 rounded-full text-gray-600 dark:text-gray-400 font-medium hover:text-primary">
-                    Payouts
-                  </a>
+                  {featureSections.map((section) => (
+                    <a 
+                      key={section.id}
+                      href={`#${section.id}`}
+                      className={`whitespace-nowrap px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                        activeSection === section.id
+                          ? 'bg-white dark:bg-slate-700 shadow-sm text-primary dark:text-primary-400'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                      }`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const element = document.getElementById(section.id);
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth' });
+                          setActiveSection(section.id);
+                          toggleSectionOpen(section.id);
+                        }
+                      }}
+                    >
+                      {section.title}
+                    </a>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
           
-          {/* Feature boxes */}
-          <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
-          >
-            {features.map((feature, index) => (
+          {/* Feature content sections with collapsible panels */}
+          <div className="space-y-12">
+            {featureSections.map((section) => (
               <motion.div 
-                key={index} 
-                className="bg-slate-50 dark:bg-slate-800 p-6 rounded-xl"
-                variants={itemVariants}
+                key={section.id}
+                id={section.id}
+                ref={section.ref}
+                className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
               >
-                <div className="bg-primary/10 p-3 inline-block rounded-lg mb-4">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
-                <p className="text-gray-600 dark:text-gray-400">{feature.description}</p>
+                <Collapsible 
+                  open={openSections[section.id]}
+                  onOpenChange={() => toggleSectionOpen(section.id)}
+                >
+                  <div className={`p-6 ${activeSection === section.id ? 'bg-primary/5 dark:bg-primary/10' : 'bg-white dark:bg-slate-800'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-primary/10 dark:bg-primary/20 p-3 rounded-lg">
+                          {section.id === "program-variety" && <BarChart3 className="h-6 w-6 text-primary" />}
+                          {section.id === "advanced-rewards" && <Gift className="h-6 w-6 text-primary" />}
+                          {section.id === "easy-integration" && <MessageSquareCode className="h-6 w-6 text-primary" />}
+                          {section.id === "partner-enablement" && <PanelTop className="h-6 w-6 text-primary" />}
+                          {section.id === "payouts" && <DollarSign className="h-6 w-6 text-primary" />}
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold">{section.title}</h3>
+                          <p className="text-gray-600 dark:text-gray-400">{section.description}</p>
+                        </div>
+                      </div>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="icon" className="rounded-full">
+                          <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${openSections[section.id] ? 'rotate-180' : ''}`} />
+                        </Button>
+                      </CollapsibleTrigger>
+                    </div>
+                  </div>
+                  
+                  <CollapsibleContent>
+                    <div className="p-6 pt-2 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-gray-700">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {section.items.map((item, index) => (
+                          <motion.div 
+                            key={index}
+                            className="flex items-start gap-4 p-4 rounded-lg bg-gray-50 dark:bg-slate-700"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ 
+                              duration: 0.3, 
+                              delay: index * 0.1,
+                              ease: "easeOut"
+                            }}
+                          >
+                            <div className="bg-primary/10 dark:bg-primary/20 p-2 rounded-lg shrink-0">
+                              {item.icon}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-base mb-1">{item.title}</h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-300">{item.description}</p>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 

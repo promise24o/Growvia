@@ -73,7 +73,7 @@ export function Sidebar() {
     <>
       <aside className={cn(
         "w-full md:w-64 bg-white dark:bg-[#25293c] shadow-md md:flex md:flex-col md:fixed md:inset-y-0 z-10 transition-all",
-        mobileMenuOpen ? "fixed inset-0" : "relative"
+        mobileMenuOpen ? "fixed inset-0" : "sticky top-0 h-screen"
       )}>
         <div className="p-4 border-b dark:border-slate-700/30">
           <div className="flex items-center justify-between">

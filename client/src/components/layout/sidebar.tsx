@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link as RouterLink, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
-import { PLAN_LIMITS, PLAN_NAMES, SubscriptionPlan } from "@/lib/types";
+import { PLAN_LIMITS, PLAN_NAMES, SubscriptionPlan, Organization } from "@/lib/types";
 import { 
   LayoutDashboard, 
   Store, 
@@ -12,7 +12,8 @@ import {
   Settings, 
   Menu, 
   X, 
-  LogOut
+  LogOut,
+  BarChart3
 } from "lucide-react";
 import { AvatarWithStatus } from "@/components/ui/avatar-with-status";
 import { Button } from "@/components/ui/button";
@@ -76,14 +77,14 @@ export function Sidebar() {
       )}>
         <div className="p-4 border-b">
           <div className="flex items-center justify-between">
-            <Link href="/dashboard">
-              <a className="flex items-center">
+            <RouterLink href="/dashboard">
+              <div className="flex items-center cursor-pointer">
                 <div className="bg-primary-600 text-white p-2 rounded">
-                  <Link className="h-5 w-5" />
+                  <BarChart3 className="h-5 w-5" />
                 </div>
                 <h1 className="ml-3 text-xl font-semibold text-slate-800 font-heading">AffiliateHub</h1>
-              </a>
-            </Link>
+              </div>
+            </RouterLink>
             <button 
               className="md:hidden text-slate-500 hover:text-slate-700"
               onClick={toggleMobileMenu}
@@ -187,9 +188,17 @@ export function Sidebar() {
 
       {/* Plan Modal */}
       <PlanModal 
-        open={planModalOpen} 
-        onClose={() => setPlanModalOpen(false)} 
-        currentPlan={organization?.plan as SubscriptionPlan}
+        trigger={
+          <Button 
+            variant="link" 
+            className="hidden"
+            onClick={() => setPlanModalOpen(true)}
+          >
+            Upgrade Plan
+          </Button>
+        }
+        currentPlan={organization?.plan || "free_trial"}
+        trialDaysLeft={organization?.trialEndsAt ? Math.max(0, Math.ceil((new Date(organization.trialEndsAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 7}
       />
     </>
   );

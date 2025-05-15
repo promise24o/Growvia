@@ -9,8 +9,10 @@ import {
   insertConversionSchema,
   UserRole,
   PLAN_LIMITS,
-  SubscriptionPlan
+  SubscriptionPlan,
+  PaymentGateway
 } from "@shared/schema";
+import { setupPaymentRoutes } from "./services/payment";
 import { randomBytes } from "crypto";
 import jwt from "jsonwebtoken";
 
@@ -714,6 +716,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: error.message });
     }
   });
+
+  // Set up payment routes for subscription plans
+  setupPaymentRoutes(app);
 
   const httpServer = createServer(app);
 

@@ -6,10 +6,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Check, CreditCard } from "lucide-react";
 import { SubscriptionPlan, PLAN_NAMES } from "@/lib/types";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { usePayment, PaymentGateway } from "@/lib/payment";
 
 interface PlanFeature {
   label: string;
@@ -33,7 +34,10 @@ interface PlanModalProps {
 
 export function PlanModal({ open, onClose, currentPlan = SubscriptionPlan.STARTER }: PlanModalProps) {
   const { toast } = useToast();
+  const { processPayment } = usePayment();
   const [processing, setProcessing] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
 
   const plans: Plan[] = [
     {
@@ -105,9 +109,9 @@ export function PlanModal({ open, onClose, currentPlan = SubscriptionPlan.STARTE
       return;
     }
 
-    setProcessing(true);
-    
+    // For Free Trial plan, activate immediately
     if (plan === SubscriptionPlan.FREE_TRIAL) {
+      setProcessing(true);
       // Start free trial immediately
       setTimeout(() => {
         toast({
@@ -120,7 +124,9 @@ export function PlanModal({ open, onClose, currentPlan = SubscriptionPlan.STARTE
       return;
     }
     
+    // For Enterprise plan, show contact sales message
     if (plan === SubscriptionPlan.ENTERPRISE) {
+      setProcessing(true);
       // For Enterprise, redirect to contact sales
       setTimeout(() => {
         toast({
@@ -133,88 +139,192 @@ export function PlanModal({ open, onClose, currentPlan = SubscriptionPlan.STARTE
       return;
     }
     
-    // For paid plans, initiate payment flow with Flutterwave/Paystack
-    setTimeout(() => {
+    // For paid plans, show payment options
+    setSelectedPlan(plan);
+    setShowPaymentOptions(true);
+  };
+  
+  // Handle payment processing with selected gateway
+  const handlePayment = async (gateway: PaymentGateway) => {
+    if (!selectedPlan) return;
+    
+    setProcessing(true);
+    
+    try {
+      const response = await processPayment(selectedPlan, gateway);
+      
+      if (response.success) {
+        // Payment initialization successful
+        toast({
+          title: "Payment initialized",
+          description: "You will be redirected to complete your payment.",
+        });
+        // The payment process will redirect the user
+      } else {
+        // Payment initialization failed
+        toast({
+          title: "Payment failed",
+          description: response.message || "Failed to initialize payment. Please try again.",
+          variant: "destructive",
+        });
+        setProcessing(false);
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
       toast({
-        title: "Plan upgrade initiated",
-        description: `You will be redirected to complete payment for the ${PLAN_NAMES[plan]} plan.`,
+        title: "Payment error",
+        description: "An unexpected error occurred. Please try again later.",
+        variant: "destructive",
       });
       setProcessing(false);
-      onClose();
-    }, 1000);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Choose a Plan</DialogTitle>
-        </DialogHeader>
+        {!showPaymentOptions ? (
+          // Plan selection view
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold">Choose a Plan</DialogTitle>
+            </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
-          {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className={`border rounded-xl p-6 relative transition-all ${
-                plan.current
-                  ? "border-primary-600"
-                  : "border-slate-200 hover:border-primary-600"
-              }`}
-            >
-              {plan.popular && (
-                <div className="absolute -top-3 right-4 bg-success-500 text-white px-3 py-1 text-xs font-medium rounded-full">
-                  {plan.id === SubscriptionPlan.FREE_TRIAL ? "Free Trial" : "Popular"}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
+              {plans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className={`border rounded-xl p-6 relative transition-all ${
+                    plan.current
+                      ? "border-primary-600"
+                      : "border-slate-200 hover:border-primary-600"
+                  }`}
+                >
+                  {plan.popular && (
+                    <div className="absolute -top-3 right-4 bg-success-500 text-white px-3 py-1 text-xs font-medium rounded-full">
+                      {plan.id === SubscriptionPlan.FREE_TRIAL ? "Free Trial" : "Popular"}
+                    </div>
+                  )}
+                  
+                  <h3 className="font-semibold text-lg mb-2">{plan.name}</h3>
+                  <div className="flex items-baseline mb-4">
+                    <span className={plan.id === SubscriptionPlan.ENTERPRISE ? "text-xl" : "text-3xl"} style={{fontWeight: 700}}>
+                      {plan.price}
+                    </span>
+                    {plan.id !== SubscriptionPlan.ENTERPRISE && (
+                      <span className="text-slate-600 ml-1">/mo</span>
+                    )}
+                  </div>
+
+                  <ul className="space-y-3 mb-6">
+                    {plan.features.map((feature, index) => (
+                      <li key={index} className="flex items-start">
+                        <Check className="h-4 w-4 text-success-500 mt-1 mr-2" />
+                        <span className="text-sm text-slate-600">{feature.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button
+                    variant={plan.current ? "outline" : plan.id === SubscriptionPlan.GROWTH ? "default" : "outline"}
+                    className="w-full"
+                    disabled={plan.current || processing}
+                    onClick={() => handleUpgrade(plan.id)}
+                  >
+                    {plan.current
+                      ? "Current Plan"
+                      : plan.id === SubscriptionPlan.FREE_TRIAL
+                      ? "Start Free Trial"
+                      : plan.id === SubscriptionPlan.ENTERPRISE
+                      ? "Contact Sales"
+                      : "Upgrade Plan"}
+                  </Button>
                 </div>
-              )}
-              
-              <h3 className="font-semibold text-lg mb-2">{plan.name}</h3>
-              <div className="flex items-baseline mb-4">
-                <span className={plan.id === SubscriptionPlan.ENTERPRISE ? "text-xl" : "text-3xl"} style={{fontWeight: 700}}>
-                  {plan.price}
-                </span>
-                {plan.id !== SubscriptionPlan.ENTERPRISE && (
-                  <span className="text-slate-600 ml-1">/mo</span>
-                )}
-              </div>
-
-              <ul className="space-y-3 mb-6">
-                {plan.features.map((feature, index) => (
-                  <li key={index} className="flex items-start">
-                    <Check className="h-4 w-4 text-success-500 mt-1 mr-2" />
-                    <span className="text-sm text-slate-600">{feature.label}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Button
-                variant={plan.current ? "outline" : plan.id === SubscriptionPlan.GROWTH ? "default" : "outline"}
-                className="w-full"
-                disabled={plan.current || processing}
-                onClick={() => handleUpgrade(plan.id)}
-              >
-                {plan.current
-                  ? "Current Plan"
-                  : plan.id === SubscriptionPlan.FREE_TRIAL
-                  ? "Start Free Trial"
-                  : plan.id === SubscriptionPlan.ENTERPRISE
-                  ? "Contact Sales"
-                  : "Upgrade Plan"}
-              </Button>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-200 pt-4 mt-4 bg-slate-50 -mx-6 -mb-6 px-6 py-4 rounded-b-xl">
-          <p className="text-sm text-slate-600 mb-4 sm:mb-0">
-            Need a custom plan?{" "}
-            <a href="#" className="text-primary-600 font-medium">
-              Contact our sales team
-            </a>
-          </p>
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
+            <DialogFooter className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-200 pt-4 mt-4 bg-slate-50 -mx-6 -mb-6 px-6 py-4 rounded-b-xl">
+              <p className="text-sm text-slate-600 mb-4 sm:mb-0">
+                Need a custom plan?{" "}
+                <a href="#" className="text-primary-600 font-medium">
+                  Contact our sales team
+                </a>
+              </p>
+              <Button variant="outline" onClick={onClose}>
+                Close
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          // Payment method selection view
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold">Select Payment Method</DialogTitle>
+            </DialogHeader>
+            
+            <div className="mt-4">
+              <p className="text-sm text-slate-600 mb-6">
+                You're upgrading to the <span className="font-semibold">{selectedPlan && PLAN_NAMES[selectedPlan]}</span> plan 
+                at <span className="font-semibold">${selectedPlan && PLAN_LIMITS[selectedPlan].price}/month</span>. 
+                Please select your preferred payment method to continue.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Flutterwave Option */}
+                <div className="border rounded-xl p-6 hover:border-primary-600 cursor-pointer transition-all" 
+                     onClick={() => !processing && handlePayment(PaymentGateway.FLUTTERWAVE)}>
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center">
+                      <div className="bg-orange-100 p-2 rounded-md mr-3">
+                        <CreditCard className="h-6 w-6 text-orange-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Flutterwave</h3>
+                        <p className="text-sm text-slate-600">Pay with card, bank or mobile money</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Paystack Option */}
+                <div className="border rounded-xl p-6 hover:border-primary-600 cursor-pointer transition-all"
+                     onClick={() => !processing && handlePayment(PaymentGateway.PAYSTACK)}>
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center">
+                      <div className="bg-green-100 p-2 rounded-md mr-3">
+                        <CreditCard className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Paystack</h3>
+                        <p className="text-sm text-slate-600">Pay with card or bank transfer</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter className="flex items-center justify-between border-t border-slate-200 pt-4 mt-6 bg-slate-50 -mx-6 -mb-6 px-6 py-4 rounded-b-xl">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowPaymentOptions(false);
+                  setSelectedPlan(null);
+                }}
+                disabled={processing}
+              >
+                Back to Plans
+              </Button>
+              
+              <div className="flex items-center">
+                {processing && <p className="text-sm text-slate-600 mr-4">Processing...</p>}
+                <Button variant="outline" onClick={onClose} disabled={processing}>
+                  Cancel
+                </Button>
+              </div>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

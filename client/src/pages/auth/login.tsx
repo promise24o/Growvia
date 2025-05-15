@@ -79,14 +79,14 @@ export default function Login() {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="relative w-full max-w-xl mx-auto p-8 flex flex-col items-center">
             {/* Text above the illustration */}
-            <div className="text-center mb-6 text-white">
-              <h2 className="text-3xl font-bold mb-4">Welcome to Growvia</h2>
+            <div className="text-center mb-12 text-white">
+              <h2 className="text-3xl font-bold mb-4">Welcome to <span className="text-primary">Growvia</span></h2>
               <p className="text-lg mb-2">The complete affiliate marketing platform</p>
               <p className="text-base opacity-80">Manage marketers, track conversions, and process commissions with our powerful SaaS solution.</p>
             </div>
             
             {/* Reduced size character image */}
-            <div className="w-[75%] mx-auto">
+            <div className="w-[70%] mx-auto mt-6">
               <img src={loginCharacter} alt="Login" className="max-w-full z-10" />
             </div>
             

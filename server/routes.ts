@@ -337,39 +337,9 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
     }
   });
 
-  // Debugging route to check token content
-  router.get("/auth/debug-token", authenticate, async (req, res) => {
-    try {
-      const authHeader = req.headers.authorization;
-      const token = authHeader?.split(" ")[1];
-      
-      if (!token) {
-        return res.status(401).json({ message: "No token provided" });
-      }
-      
-      // Check the decoded contents of the token
-      const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-      
-      // Check what's in the req.user object
-      const userInRequest = (req as any).user;
-      
-      return res.json({
-        decoded,
-        userInRequest,
-        message: "This is for debugging purposes only"
-      });
-    } catch (error: any) {
-      console.error("Debug token error:", error);
-      return res.status(500).json({ message: error.message });
-    }
-  });
-
   router.get("/auth/me", authenticate, async (req, res) => {
     try {
-      const userId = (req as any).user.userId;
-      
-      // Log user identification for debugging
-      console.log('Auth/me request - User ID from token:', userId);
+      const userId = (req as any).user.id;
       
       // Get user details
       const user = await storage.getUser(userId);

@@ -72,7 +72,7 @@ export default function Register() {
   }
   
   return (
-    <div className="min-h-screen flex authentication-wrapper">
+    <div className="min-h-screen flex authentication-wrapper max-h-screen overflow-hidden">
       {/* Logo for mobile */}
       <div className="absolute top-6 left-6 md:flex items-center z-50 hidden md:visible">
         <Link href="/" className="flex items-center">
@@ -84,7 +84,7 @@ export default function Register() {
       </div>
       
       {/* Left Panel with Illustration - hidden on mobile */}
-      <div className="d-none d-xl-flex hidden lg:flex lg:w-[60%] relative bg-cover bg-center overflow-hidden" 
+      <div className="d-none d-xl-flex hidden lg:flex lg:w-[60%] relative bg-cover bg-center overflow-hidden fixed top-0 left-0 h-screen" 
            style={{ backgroundColor: '#161D31' }}>
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="relative w-full max-w-xl mx-auto p-8 flex flex-col items-center">
@@ -109,8 +109,8 @@ export default function Register() {
       </div>
       
       {/* Right Panel - Register Form */}
-      <div className="w-full lg:w-[40%] flex items-center justify-center p-5 md:p-8 bg-white dark:bg-[#283046]">
-        <div className="w-full max-w-[400px] mx-auto">
+      <div className="w-full lg:w-[40%] lg:ml-[60%] h-screen overflow-y-auto p-5 md:p-8 bg-white dark:bg-[#283046]">
+        <div className="w-full max-w-[400px] mx-auto py-6">
           {/* Mobile logo */}
           <div className="flex justify-center md:hidden mb-8">
             <Link href="/" className="flex items-center">

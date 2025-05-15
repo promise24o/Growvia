@@ -24,7 +24,7 @@ export default function PrivacyPolicy() {
         <Button 
           asChild 
           variant="ghost" 
-          className="mb-4 p-0 hover:bg-transparent hover:text-primary"
+          className="mb-4 hover:bg-transparent hover:text-primary p-3"
         >
           <Link href="/" className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />

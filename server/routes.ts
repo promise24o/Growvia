@@ -467,7 +467,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
   });
 
   // Affiliate links routes
-  app.get("/api/affiliate-links", authenticate, async (req, res) => {
+  router.get("/affiliate-links", authenticate, async (req, res) => {
     try {
       const userId = (req as any).user.id;
       
@@ -479,7 +479,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
     }
   });
 
-  app.post("/api/affiliate-links", authenticate, async (req, res) => {
+  router.post("/affiliate-links", authenticate, async (req, res) => {
     try {
       const userId = (req as any).user.id;
       const organizationId = (req as any).user.organizationId;
@@ -521,7 +521,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
     }
   });
 
-  app.get("/api/affiliate-links/:code/redirect", async (req, res) => {
+  router.get("/affiliate-links/:code/redirect", async (req, res) => {
     try {
       const { code } = req.params;
       
@@ -629,7 +629,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
     }
   });
 
-  app.get("/api/conversions", authenticate, async (req, res) => {
+  router.get("/conversions", authenticate, async (req, res) => {
     try {
       const userId = (req as any).user.id;
       const role = (req as any).user.role;
@@ -652,7 +652,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
   });
 
   // Analytics routes
-  app.get("/api/analytics/organization", authenticate, async (req, res) => {
+  router.get("/analytics/organization", authenticate, async (req, res) => {
     try {
       const organizationId = (req as any).user.organizationId;
       
@@ -668,7 +668,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
     }
   });
 
-  app.get("/api/analytics/user", authenticate, async (req, res) => {
+  router.get("/analytics/user", authenticate, async (req, res) => {
     try {
       const userId = (req as any).user.id;
       
@@ -681,7 +681,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
   });
 
   // Activities routes
-  app.get("/api/activities", authenticate, async (req, res) => {
+  router.get("/activities", authenticate, async (req, res) => {
     try {
       const organizationId = (req as any).user.organizationId;
       

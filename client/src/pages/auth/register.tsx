@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BarChart3, Eye, EyeOff, Facebook, Twitter, Github, Mail } from "lucide-react";
-import authRegisterIllustration from "@/assets/illustrations/auth-register-illustration.svg";
+import registerCharacter from "@/assets/illustrations/register-character.png";
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -79,7 +79,7 @@ export default function Register() {
           <div className="bg-primary text-white p-2 rounded">
             <BarChart3 className="h-5 w-5" />
           </div>
-          <span className="ml-2 text-xl font-bold text-slate-800 dark:text-white">Growvia</span>
+          <span className="ml-2 text-xl font-bold text-white">Growvia</span>
         </Link>
       </div>
       

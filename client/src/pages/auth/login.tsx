@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BarChart3, Eye, EyeOff, Facebook, Twitter, Github, Mail } from "lucide-react";
-import authLoginIllustration from "@/assets/illustrations/auth-login-illustration.svg";
+import loginCharacter from "@/assets/illustrations/login-character.png";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -69,7 +69,7 @@ export default function Login() {
           <div className="bg-primary text-white p-2 rounded">
             <BarChart3 className="h-5 w-5" />
           </div>
-          <span className="ml-2 text-xl font-bold text-slate-800 dark:text-white">Growvia</span>
+          <span className="ml-2 text-xl font-bold text-white">Growvia</span>
         </Link>
       </div>
       
@@ -77,8 +77,8 @@ export default function Login() {
       <div className="d-none d-xl-flex hidden lg:flex lg:w-[60%] relative bg-cover bg-center overflow-hidden" 
            style={{ backgroundColor: '#161D31' }}>
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative w-full max-w-[600px] mx-auto flex flex-col items-center">
-            <img src={authLoginIllustration} alt="Login" className="max-w-full z-10" />
+          <div className="relative w-full max-w-[700px] mx-auto flex flex-col items-center">
+            <img src={loginCharacter} alt="Login" className="max-w-full z-10" style={{ maxHeight: '85vh' }} />
           </div>
         </div>
       </div>

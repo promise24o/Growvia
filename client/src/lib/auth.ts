@@ -3,17 +3,17 @@ import { persist } from 'zustand/middleware';
 import { apiRequest } from './queryClient';
 
 interface User {
-  id: number;
+  id: string | number;
   name: string;
   email: string;
   role: string;
-  organizationId: number | null;
+  organizationId: string | number | null;
   avatar?: string | null;
   status?: string;
 }
 
 interface Organization {
-  id: number;
+  id: string | number;
   name: string;
   plan: string;
   logo?: string | null;
@@ -43,7 +43,28 @@ export const useAuth = create<AuthState>()(
       login: async (email: string, password: string) => {
         set({ isLoading: true });
         try {
-          const response = await apiRequest('POST', '/api/auth/login', { email, password });
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ email, password }),
+            credentials: 'include'
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage;
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.message || 'Login failed';
+            } catch (e) {
+              errorMessage = errorText || `Error ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+          }
+          
           const data = await response.json();
           
           set({
@@ -64,12 +85,33 @@ export const useAuth = create<AuthState>()(
       register: async (name: string, email: string, password: string, organizationName: string) => {
         set({ isLoading: true });
         try {
-          const response = await apiRequest('POST', '/api/auth/register', {
-            name,
-            email,
-            password,
-            organizationName
+          const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              name,
+              email,
+              password,
+              organizationName
+            }),
+            credentials: 'include'
           });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage;
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.message || 'Registration failed';
+            } catch (e) {
+              errorMessage = errorText || `Error ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+          }
+          
           const data = await response.json();
           
           set({
@@ -103,13 +145,22 @@ export const useAuth = create<AuthState>()(
         try {
           const response = await fetch('/api/auth/me', {
             headers: {
-              'Authorization': `Bearer ${get().token}`
+              'Authorization': `Bearer ${get().token}`,
+              'Accept': 'application/json'
             },
             credentials: 'include'
           });
           
           if (!response.ok) {
-            throw new Error('Failed to fetch user data');
+            const errorText = await response.text();
+            let errorMessage;
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.message || 'Failed to fetch user data';
+            } catch (e) {
+              errorMessage = errorText || `Error ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
           }
           
           const data = await response.json();
@@ -121,9 +172,13 @@ export const useAuth = create<AuthState>()(
           });
         } catch (error) {
           set({ isLoading: false });
+          console.error('Error fetching user data:', error);
           
           // If unauthorized, logout
-          if (error instanceof Error && error.message.includes('401')) {
+          if (error instanceof Error && (
+            error.message.includes('401') || 
+            error.message.includes('Unauthorized')
+          )) {
             get().logout();
           }
         }

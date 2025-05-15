@@ -29,17 +29,17 @@ interface SidebarLinkProps {
 
 function SidebarLink({ href, icon, label, active }: SidebarLinkProps) {
   return (
-    <Link href={href}>
-      <a className={cn(
-        "flex items-center px-4 py-3 rounded-lg transition-colors",
+    <RouterLink href={href}>
+      <div className={cn(
+        "flex items-center px-4 py-3 rounded-lg transition-colors cursor-pointer",
         active 
           ? "text-primary-600 bg-primary-50" 
           : "text-slate-600 hover:bg-slate-100"
       )}>
         {icon}
         <span className="ml-3 font-medium">{label}</span>
-      </a>
-    </Link>
+      </div>
+    </RouterLink>
   );
 }
 
@@ -198,7 +198,7 @@ export function Sidebar() {
           </Button>
         }
         currentPlan={organization?.plan || "free_trial"}
-        trialDaysLeft={organization?.trialEndsAt ? Math.max(0, Math.ceil((new Date(organization.trialEndsAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 7}
+        trialDaysLeft={7}
       />
     </>
   );

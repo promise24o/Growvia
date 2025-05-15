@@ -66,34 +66,36 @@ export default function Login() {
       {/* Left Panel with Illustration - hidden on mobile */}
       <div className="hidden lg:block lg:w-[60%] h-screen overflow-hidden fixed top-0 left-0" 
            style={{ backgroundColor: '#161D31' }}>
-        {/* Logo for large screens */}
-        <div className="absolute top-6 left-6 flex items-center z-50">
-          <Link href="/" className="flex items-center">
-            <div className="bg-primary text-white p-2 rounded">
-              <BarChart3 className="h-5 w-5" />
-            </div>
-            <span className="ml-2 text-xl font-bold text-white">Growvia</span>
-          </Link>
-        </div>
-        
-        <div className="flex items-center justify-center h-full">
-          <div className="relative w-full max-w-xl mx-auto p-8 flex flex-col items-center">
+        {/* Left side content wrapper */}
+        <div className="w-full h-full flex flex-col">
+          {/* Logo for large screens - always at top */}
+          <div className="p-6">
+            <Link href="/" className="flex items-center">
+              <div className="bg-primary text-white p-2 rounded">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <span className="ml-2 text-xl font-bold text-white">Growvia</span>
+            </Link>
+          </div>
+          
+          {/* Main content section - centered vertically */}
+          <div className="flex-grow flex flex-col justify-center items-center px-8">
             {/* Text above the illustration */}
-            <div className="text-center mb-6 text-white">
+            <div className="text-center mb-8 text-white w-full max-w-lg">
               <h2 className="text-3xl font-bold mb-4">Welcome to <span className="text-primary">Growvia</span></h2>
               <p className="text-lg mb-2">The complete affiliate marketing platform</p>
               <p className="text-base opacity-80">Manage marketers, track conversions, and process commissions with our powerful SaaS solution.</p>
             </div>
             
             {/* Character image */}
-            <div className="w-[70%] mx-auto mt-6">
-              <img src={loginCharacter} alt="Login" className="max-w-full z-10" />
+            <div className="w-[280px] mx-auto">
+              <img src={loginCharacter} alt="Login" className="max-w-full" />
             </div>
-            
-            {/* Copyright text at the bottom */}
-            <div className="absolute bottom-4 left-0 w-full text-center text-white opacity-70 text-sm">
-              © {new Date().getFullYear()} Growvia. All rights reserved.
-            </div>
+          </div>
+          
+          {/* Copyright text at the bottom - always at bottom */}
+          <div className="p-6 text-center text-white opacity-70 text-sm">
+            © {new Date().getFullYear()} Growvia. All rights reserved.
           </div>
         </div>
       </div>

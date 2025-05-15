@@ -74,8 +74,8 @@ export default function Analytics() {
     <DashboardLayout title="Analytics">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Performance Analytics</h1>
-          <p className="text-slate-500">Detailed insights into your affiliate program performance</p>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Performance Analytics</h1>
+          <p className="text-slate-500 dark:text-slate-300">Detailed insights into your affiliate program performance</p>
         </div>
         
         <div className="flex items-center space-x-4">
@@ -107,12 +107,12 @@ export default function Analytics() {
           <CardContent className="p-6">
             <div className="flex justify-between items-center mb-4">
               <div className="flex flex-col">
-                <span className="text-sm text-slate-500">Total Clicks</span>
-                <span className="text-2xl font-semibold text-slate-800">
+                <span className="text-sm text-slate-500 dark:text-slate-400">Total Clicks</span>
+                <span className="text-2xl font-semibold text-slate-800 dark:text-white">
                   {isLoading ? "..." : stats?.totalClicks.toLocaleString() || "0"}
                 </span>
               </div>
-              <div className="bg-primary-50 p-3 rounded-full text-primary-600">
+              <div className="bg-primary-50 dark:bg-primary/20 p-3 rounded-full text-primary-600 dark:text-primary">
                 <BarChart2 className="h-6 w-6" />
               </div>
             </div>
@@ -130,12 +130,12 @@ export default function Analytics() {
           <CardContent className="p-6">
             <div className="flex justify-between items-center mb-4">
               <div className="flex flex-col">
-                <span className="text-sm text-slate-500">Conversions</span>
-                <span className="text-2xl font-semibold text-slate-800">
+                <span className="text-sm text-slate-500 dark:text-slate-400">Conversions</span>
+                <span className="text-2xl font-semibold text-slate-800 dark:text-white">
                   {isLoading ? "..." : stats?.conversions.toString() || "0"}
                 </span>
               </div>
-              <div className="bg-success-50 p-3 rounded-full text-success-500">
+              <div className="bg-success-50 dark:bg-emerald-500/20 p-3 rounded-full text-success-500 dark:text-emerald-400">
                 <LineChartIcon className="h-6 w-6" />
               </div>
             </div>
@@ -153,8 +153,8 @@ export default function Analytics() {
           <CardContent className="p-6">
             <div className="flex justify-between items-center mb-4">
               <div className="flex flex-col">
-                <span className="text-sm text-slate-500">Conversion Rate</span>
-                <span className="text-2xl font-semibold text-slate-800">
+                <span className="text-sm text-slate-500 dark:text-slate-400">Conversion Rate</span>
+                <span className="text-2xl font-semibold text-slate-800 dark:text-white">
                   {isLoading 
                     ? "..." 
                     : stats 
@@ -163,7 +163,7 @@ export default function Analytics() {
                   }
                 </span>
               </div>
-              <div className="bg-warning-50 p-3 rounded-full text-warning-500">
+              <div className="bg-warning-50 dark:bg-amber-500/20 p-3 rounded-full text-warning-500 dark:text-amber-400">
                 <PieChartIcon className="h-6 w-6" />
               </div>
             </div>
@@ -181,12 +181,12 @@ export default function Analytics() {
           <CardContent className="p-6">
             <div className="flex justify-between items-center mb-4">
               <div className="flex flex-col">
-                <span className="text-sm text-slate-500">Revenue</span>
-                <span className="text-2xl font-semibold text-slate-800">
+                <span className="text-sm text-slate-500 dark:text-slate-400">Revenue</span>
+                <span className="text-2xl font-semibold text-slate-800 dark:text-white">
                   {isLoading ? "..." : `$${stats?.commissionEarned.toFixed(2)}` || "$0.00"}
                 </span>
               </div>
-              <div className="bg-error-50 p-3 rounded-full text-error-500">
+              <div className="bg-error-50 dark:bg-rose-500/20 p-3 rounded-full text-error-500 dark:text-rose-400">
                 <CalendarIcon className="h-6 w-6" />
               </div>
             </div>
@@ -250,7 +250,7 @@ export default function Analytics() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Top Referrers</CardTitle>
+                <CardTitle className="dark:text-white">Top Referrers</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px]">
@@ -326,7 +326,7 @@ export default function Analytics() {
         <TabsContent value="conversions">
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Conversion Analytics</CardTitle>
+              <CardTitle className="dark:text-white">Conversion Analytics</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[400px]">

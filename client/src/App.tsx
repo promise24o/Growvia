@@ -65,8 +65,7 @@ function App() {
     if (isAuthenticated && user && organization) {
       // If user is admin and onboarding is not completed, redirect to onboarding
       if (
-        user.role === 'admin' &&
-        organization && 
+        user.role === 'admin' && 
         organization.onboardingCompleted === false
       ) {
         navigate('/onboarding');

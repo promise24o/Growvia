@@ -15,8 +15,10 @@ interface User {
 interface Organization {
   id: string | number;
   name: string;
+  email: string;
   plan: string;
   logo?: string | null;
+  webhookUrl?: string | null;
   onboardingCompleted: boolean;
   position?: string | null;
   industry?: string | null;

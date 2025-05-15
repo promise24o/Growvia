@@ -1,0 +1,71 @@
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="200" cy="200" r="160" fill="#f0f0ff" />
+  
+  <!-- Couch -->
+  <path d="M100 260 L300 260 L300 210 C300 180 270 180 270 180 L130 180 C130 180 100 180 100 210 Z" fill="#d1d5db" />
+  <path d="M100 260 L120 280 L280 280 L300 260" fill="#9ca3af" />
+  <path d="M120 280 L140 320 L160 320 L150 280" fill="#9ca3af" />
+  <path d="M250 280 L240 320 L260 320 L280 280" fill="#9ca3af" />
+  
+  <!-- Character -->
+  <g transform="translate(150, 150)">
+    <!-- Body -->
+    <path d="M60 110 C60 70 90 50 100 50 C110 50 140 70 140 110 Z" fill="#6366f1" />
+    
+    <!-- Head -->
+    <circle cx="100" cy="50" r="30" fill="#f2d1b3" />
+    
+    <!-- Eyes -->
+    <ellipse cx="90" cy="45" rx="3" ry="5" fill="#333" />
+    <ellipse cx="110" cy="45" rx="3" ry="5" fill="#333" />
+    
+    <!-- Mouth -->
+    <path d="M92 60 Q100 65 108 60" stroke="#333" stroke-width="1.5" fill="none" />
+    
+    <!-- Hair -->
+    <path d="M75 30 C75 15 125 15 125 30 C125 5 75 5 75 30" fill="#333" />
+    <path d="M75 30 L75 60" stroke="#333" stroke-width="10" stroke-linecap="round" />
+    <path d="M125 30 L125 60" stroke="#333" stroke-width="10" stroke-linecap="round" />
+    
+    <!-- Arms -->
+    <path d="M70 80 L50 95" stroke="#6366f1" stroke-width="15" stroke-linecap="round" />
+    <path d="M130 80 L150 95" stroke="#6366f1" stroke-width="15" stroke-linecap="round" />
+    
+    <!-- Laptop -->
+    <rect x="60" y="95" width="80" height="60" rx="5" fill="#111827" />
+    <rect x="68" y="105" width="64" height="40" rx="2" fill="#1e40af" />
+    <circle cx="100" cy="155" r="3" fill="#6b7280" />
+  </g>
+  
+  <!-- Stats Card 1 -->
+  <g transform="translate(60, 110)">
+    <rect x="0" y="0" width="80" height="70" rx="8" fill="white" stroke="#e5e7eb" stroke-width="1" />
+    <text x="10" y="20" font-family="Arial" font-size="10" fill="#6b7280">Sessions</text>
+    <text x="10" y="35" font-family="Arial" font-size="10" fill="#6b7280">This Month</text>
+    
+    <!-- Bar chart -->
+    <rect x="15" y="45" width="6" height="15" fill="#a78bfa" />
+    <rect x="25" y="40" width="6" height="20" fill="#8b5cf6" />
+    <rect x="35" y="50" width="6" height="10" fill="#a78bfa" />
+    <rect x="45" y="35" width="6" height="25" fill="#8b5cf6" />
+    <rect x="55" y="45" width="6" height="15" fill="#a78bfa" />
+    <rect x="65" y="30" width="6" height="30" fill="#8b5cf6" />
+    
+    <text x="10" y="65" font-family="Arial" font-size="12" font-weight="bold" fill="#111827">45.1k</text>
+    <text x="50" y="65" font-family="Arial" font-size="10" fill="#10b981">+12.6%</text>
+  </g>
+  
+  <!-- Stats Card 2 -->
+  <g transform="translate(260, 140)">
+    <rect x="0" y="0" width="80" height="70" rx="8" fill="white" stroke="#e5e7eb" stroke-width="1" />
+    <text x="10" y="20" font-family="Arial" font-size="10" fill="#6b7280">Sales</text>
+    <text x="10" y="35" font-family="Arial" font-size="10" fill="#6b7280">This Month</text>
+    
+    <!-- Chart line -->
+    <path d="M10 55 C25 65 30 40 45 45 C60 50 65 35 70 25" stroke="#10b981" stroke-width="2" fill="none" />
+    
+    <text x="10" y="65" font-family="Arial" font-size="12" font-weight="bold" fill="#111827">175k</text>
+    <text x="50" y="65" font-family="Arial" font-size="10" fill="#10b981">+16.2%</text>
+  </g>
+</svg>

@@ -212,10 +212,8 @@ export default function Register() {
           <CardFooter className="border-t px-6 py-4 dark:border-slate-700/30">
             <p className="text-sm text-slate-600 dark:text-slate-400 text-center w-full">
               Already have an account?{" "}
-              <Link href="/login">
-                <a className="text-primary hover:text-primary-600 font-medium dark:text-primary-400 dark:hover:text-primary-300">
-                  Sign in
-                </a>
+              <Link href="/login" className="text-primary hover:text-primary-600 font-medium dark:text-primary-400 dark:hover:text-primary-300">
+                Sign in
               </Link>
             </p>
           </CardFooter>

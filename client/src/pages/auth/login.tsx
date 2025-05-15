@@ -153,11 +153,13 @@ export default function Login() {
                       Remember Me
                     </label>
                   </div>
-                  <Link href="#">
-                    <a className="text-sm text-primary hover:text-primary-600 font-medium dark:text-primary-400 dark:hover:text-primary-300">
-                      Forgot Password?
-                    </a>
-                  </Link>
+                  <button
+                    type="button"
+                    className="text-sm text-primary hover:text-primary-600 font-medium dark:text-primary-400 dark:hover:text-primary-300"
+                    onClick={() => console.log('Forgot password clicked')}
+                  >
+                    Forgot Password?
+                  </button>
                 </div>
                 
                 <Button 
@@ -174,10 +176,8 @@ export default function Login() {
             <div className="w-full text-center">
               <p className="text-sm text-slate-600 dark:text-slate-400">
                 New on our platform?{" "}
-                <Link href="/register">
-                  <a className="text-primary hover:text-primary-600 font-medium dark:text-primary-400 dark:hover:text-primary-300">
-                    Create an account
-                  </a>
+                <Link href="/register" className="text-primary hover:text-primary-600 font-medium dark:text-primary-400 dark:hover:text-primary-300">
+                  Create an account
                 </Link>
               </p>
             </div>

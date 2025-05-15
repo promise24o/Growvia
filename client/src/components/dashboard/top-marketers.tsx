@@ -71,7 +71,7 @@ export function TopMarketers({ limit = 4 }: TopMarketersProps) {
     <Card>
       <CardContent className="p-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-slate-800 text-lg">Top Marketers</h3>
+          <h3 className="font-semibold text-slate-800 dark:text-white text-lg">Top Marketers</h3>
           <Link href="/marketers">
             <Button variant="link" className="text-primary-600 hover:text-primary-700 text-sm font-medium p-0 h-auto">
               View All

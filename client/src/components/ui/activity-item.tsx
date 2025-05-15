@@ -43,14 +43,14 @@ export function ActivityItem({ activity }: ActivityItemProps) {
       case "affiliate_link":
       case "affiliate_link_created":
       case "system_update":
-        return "bg-primary-100 text-primary-600";
+        return "bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400";
       case "conversion":
       case "conversion_created":
-        return "bg-success-50 text-success-500";
+        return "bg-success-50 dark:bg-emerald-900/30 text-success-500 dark:text-emerald-400";
       case "payout":
-        return "bg-warning-50 text-warning-500";
+        return "bg-warning-50 dark:bg-amber-900/30 text-warning-500 dark:text-amber-400";
       default:
-        return "bg-slate-100 text-slate-600";
+        return "bg-slate-100 dark:bg-slate-700/30 text-slate-600 dark:text-slate-300";
     }
   };
 
@@ -80,10 +80,10 @@ export function ActivityItem({ activity }: ActivityItemProps) {
         </div>
       </div>
       <div className="ml-3">
-        <p className="text-sm text-slate-800 whitespace-normal">
+        <p className="text-sm text-slate-800 dark:text-slate-200 whitespace-normal">
           {activity.description}
         </p>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
           {formatDate(activity.createdAt)}
         </p>
       </div>

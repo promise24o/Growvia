@@ -23,7 +23,7 @@ export function RecentActivities({ limit = 5 }: RecentActivitiesProps) {
     <Card>
       <CardContent className="p-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-slate-800 text-lg">Recent Activities</h3>
+          <h3 className="font-semibold text-slate-800 dark:text-white text-lg">Recent Activities</h3>
           <Link href="/analytics">
             <Button variant="link" className="text-primary-600 hover:text-primary-700 text-sm font-medium p-0 h-auto">
               View All
@@ -49,7 +49,7 @@ export function RecentActivities({ limit = 5 }: RecentActivitiesProps) {
               <ActivityItem key={activity.id} activity={activity} />
             ))
           ) : (
-            <p className="text-sm text-slate-500 text-center py-4">No recent activities found</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">No recent activities found</p>
           )}
         </div>
       </CardContent>

@@ -62,36 +62,36 @@ export default function Login() {
   }
   
   return (
-    <div className="min-h-screen flex authentication-wrapper max-h-screen overflow-hidden">
-      {/* Logo for mobile */}
-      <div className="absolute top-6 left-6 md:flex items-center z-50 hidden md:visible">
-        <Link href="/" className="flex items-center">
-          <div className="bg-primary text-white p-2 rounded">
-            <BarChart3 className="h-5 w-5" />
-          </div>
-          <span className="ml-2 text-xl font-bold text-white">Growvia</span>
-        </Link>
-      </div>
-      
+    <div className="min-h-screen flex flex-col lg:flex-row authentication-wrapper">
       {/* Left Panel with Illustration - hidden on mobile */}
-      <div className="d-none d-xl-flex hidden lg:flex lg:w-[60%] relative bg-cover bg-center overflow-hidden fixed top-0 left-0 h-screen" 
+      <div className="hidden lg:block lg:w-[60%] h-screen overflow-hidden fixed top-0 left-0" 
            style={{ backgroundColor: '#161D31' }}>
-        <div className="absolute inset-0 flex items-center justify-center">
+        {/* Logo for large screens */}
+        <div className="absolute top-6 left-6 flex items-center z-50">
+          <Link href="/" className="flex items-center">
+            <div className="bg-primary text-white p-2 rounded">
+              <BarChart3 className="h-5 w-5" />
+            </div>
+            <span className="ml-2 text-xl font-bold text-white">Growvia</span>
+          </Link>
+        </div>
+        
+        <div className="flex items-center justify-center h-full">
           <div className="relative w-full max-w-xl mx-auto p-8 flex flex-col items-center">
             {/* Text above the illustration */}
-            <div className="text-center mb-12 text-white">
+            <div className="text-center mb-6 text-white">
               <h2 className="text-3xl font-bold mb-4">Welcome to <span className="text-primary">Growvia</span></h2>
               <p className="text-lg mb-2">The complete affiliate marketing platform</p>
               <p className="text-base opacity-80">Manage marketers, track conversions, and process commissions with our powerful SaaS solution.</p>
             </div>
             
-            {/* Reduced size character image */}
+            {/* Character image */}
             <div className="w-[70%] mx-auto mt-6">
               <img src={loginCharacter} alt="Login" className="max-w-full z-10" />
             </div>
             
             {/* Copyright text at the bottom */}
-            <div className="fixed bottom-4 left-0 w-[60%] text-center text-white opacity-70 text-sm">
+            <div className="absolute bottom-4 left-0 w-full text-center text-white opacity-70 text-sm">
               © {new Date().getFullYear()} Growvia. All rights reserved.
             </div>
           </div>
@@ -99,8 +99,8 @@ export default function Login() {
       </div>
       
       {/* Right Panel - Login Form */}
-      <div className="w-full lg:w-[40%] lg:ml-[60%] h-screen overflow-y-auto p-5 md:p-8 bg-white dark:bg-[#283046]">
-        <div className="w-full max-w-[400px] mx-auto py-6">
+      <div className="w-full lg:w-[40%] lg:ml-[60%] min-h-screen overflow-y-auto p-5 md:p-8 bg-white dark:bg-[#283046] flex flex-col">
+        <div className="w-full max-w-[400px] mx-auto py-6 flex-1">
           {/* Mobile logo */}
           <div className="flex justify-center md:hidden mb-8">
             <Link href="/" className="flex items-center">

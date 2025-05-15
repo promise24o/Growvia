@@ -39,14 +39,14 @@ export function TopMarketers({ limit = 4 }: TopMarketersProps) {
       header: "Conversions",
       accessorKey: "conversions",
       cell: (data: Marketer) => (
-        <p className="text-sm text-slate-800">{data.conversions}</p>
+        <p className="text-sm text-slate-800 dark:text-slate-200">{data.conversions}</p>
       )
     },
     {
       header: "Revenue",
       accessorKey: "revenue",
       cell: (data: Marketer) => (
-        <p className="text-sm text-slate-800">${data.revenue.toFixed(2)}</p>
+        <p className="text-sm text-slate-800 dark:text-slate-200">${data.revenue.toFixed(2)}</p>
       )
     },
     {
@@ -87,7 +87,7 @@ export function TopMarketers({ limit = 4 }: TopMarketersProps) {
             loadingRows={limit}
             emptyState={
               <div className="py-8 text-center">
-                <p className="text-sm text-slate-500 mb-4">No marketers found</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">No marketers found</p>
                 <Link href="/marketers">
                   <Button size="sm" variant="outline">Invite Marketers</Button>
                 </Link>

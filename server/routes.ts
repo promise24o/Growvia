@@ -13,6 +13,7 @@ import {
   SubscriptionPlan,
   PaymentGateway
 } from "@shared/schema";
+import { z } from "zod";
 import { setupPaymentRoutes } from "./services/payment";
 import { handleTrialExpiry, setTrialEndDate } from "./services/subscription";
 import { randomBytes } from "crypto";

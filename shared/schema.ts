@@ -41,6 +41,12 @@ export const organizations = pgTable("organizations", {
   plan: text("plan").notNull().default(SubscriptionPlan.FREE_TRIAL),
   trialEndsAt: timestamp("trial_ends_at"),
   webhookUrl: text("webhook_url"),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+  position: text("position"),
+  industry: text("industry"),
+  companySize: text("company_size"),
+  signingFrequency: text("signing_frequency"),
+  creationFrequency: text("creation_frequency"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

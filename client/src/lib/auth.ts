@@ -138,6 +138,10 @@ export const useAuth = create<AuthState>()(
       },
       
       logout: () => {
+        // Force clear localStorage completely to ensure no stale data
+        localStorage.removeItem('auth-storage');
+        
+        // Clear state
         set({
           user: null,
           organization: null,
@@ -151,10 +155,12 @@ export const useAuth = create<AuthState>()(
         
         set({ isLoading: true });
         try {
-          const response = await fetch('/api/auth/me', {
+          // Add cache-busting query param to ensure we always get fresh data
+          const response = await fetch(`/api/auth/me?t=${Date.now()}`, {
             headers: {
               'Authorization': `Bearer ${get().token}`,
-              'Accept': 'application/json'
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate'
             },
             credentials: 'include'
           });

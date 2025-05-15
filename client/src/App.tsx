@@ -8,6 +8,7 @@ import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
 import ForgotPassword from "@/pages/auth/forgot-password";
 import ResetPassword from "@/pages/auth/reset-password";
+import Onboarding from "@/pages/onboarding";
 
 // Dashboard pages
 import Dashboard from "@/pages/dashboard";
@@ -49,7 +50,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  const { isAuthenticated, fetchUserData } = useAuth();
+  const { isAuthenticated, fetchUserData, user } = useAuth();
+  const [, navigate] = useLocation();
 
   // Fetch user data when the app loads if the user is authenticated
   useEffect(() => {
@@ -57,6 +59,20 @@ function App() {
       fetchUserData();
     }
   }, [isAuthenticated, fetchUserData]);
+  
+  // Check if user needs to complete onboarding
+  useEffect(() => {
+    if (isAuthenticated && user && user.organization) {
+      // If user is admin and onboarding is not completed, redirect to onboarding
+      if (
+        user.role === 'admin' &&
+        user.organization && 
+        user.organization.onboardingCompleted === false
+      ) {
+        navigate('/onboarding');
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   return (
     <TooltipProvider>
@@ -66,6 +82,11 @@ function App() {
         <Route path="/register" component={Register} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
+        <Route path="/onboarding">
+          <ProtectedRoute>
+            <Onboarding />
+          </ProtectedRoute>
+        </Route>
 
         {/* Protected routes */}
         <Route path="/dashboard">

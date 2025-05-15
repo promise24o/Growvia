@@ -17,6 +17,12 @@ interface Organization {
   name: string;
   plan: string;
   logo?: string | null;
+  onboardingCompleted: boolean;
+  position?: string | null;
+  industry?: string | null;
+  companySize?: string | null;
+  signingFrequency?: string | null;
+  creationFrequency?: string | null;
 }
 
 interface AuthState {

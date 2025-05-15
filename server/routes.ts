@@ -15,6 +15,15 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { setupPaymentRoutes } from "./services/payment";
+
+// Onboarding schema
+const onboardingSchema = z.object({
+  position: z.string().min(1, { message: "Position is required" }),
+  industry: z.string().min(1, { message: "Industry is required" }),
+  companySize: z.string().min(1, { message: "Company size is required" }),
+  signingFrequency: z.string().min(1, { message: "Signing frequency is required" }),
+  creationFrequency: z.string().min(1, { message: "Creation frequency is required" }),
+});
 import { handleTrialExpiry, setTrialEndDate } from "./services/subscription";
 import { randomBytes } from "crypto";
 import jwt from "jsonwebtoken";
@@ -403,6 +412,53 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
       return res.json(organization);
     } catch (error: any) {
       return res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Onboarding route for organizations
+  app.post("/api/organizations/onboarding", authenticate, authorize([UserRole.ADMIN]), async (req, res) => {
+    try {
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(404).json({ message: "No organization associated with this user" });
+      }
+      
+      // Validate onboarding data
+      const validatedData = onboardingSchema.parse(req.body);
+      
+      // Update organization with onboarding data
+      const organization = await storage.updateOrganization(organizationId, {
+        position: validatedData.position,
+        industry: validatedData.industry,
+        companySize: validatedData.companySize,
+        signingFrequency: validatedData.signingFrequency,
+        creationFrequency: validatedData.creationFrequency,
+        onboardingCompleted: true
+      });
+      
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      // Create activity for completed onboarding
+      await storage.createActivity({
+        organizationId,
+        userId: (req as any).user.id,
+        type: "onboarding_completed",
+        description: "Organization completed the onboarding process"
+      });
+      
+      return res.json({
+        success: true,
+        message: "Onboarding completed successfully",
+        organization
+      });
+    } catch (error: any) {
+      console.error("Onboarding error:", error);
+      return res.status(error.status || 500).json({ 
+        message: error.message || "An error occurred during onboarding" 
+      });
     }
   });
 

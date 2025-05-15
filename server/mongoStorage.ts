@@ -29,23 +29,53 @@ const toPlainObject = <T>(doc: mongoose.Document | null): T | undefined => {
 
 export class MongoStorage implements IStorage {
   // Helper to convert MongoDB ObjectId to string or null
-  private convertId(id: mongoose.Types.ObjectId | null): number | null {
+  private convertId(id: mongoose.Types.ObjectId | null): string | null {
     if (!id) return null;
-    // For compatibility with the existing API, convert ObjectId to a number
-    // In a real app, you might want to keep it as a string instead
-    const idStr = id.toString();
-    let numId = 0;
-    for (let i = 0; i < idStr.length; i++) {
-      numId += idStr.charCodeAt(i);
+    return id.toString();
+  }
+  
+  // Helper to convert string ID to MongoDB ObjectId
+  private toObjectId(id: string | number | null): mongoose.Types.ObjectId | null {
+    if (!id) return null;
+    try {
+      return new mongoose.Types.ObjectId(id.toString());
+    } catch (error) {
+      console.error('Error converting to ObjectId:', error);
+      return null;
     }
-    return numId % 10000; // Keep ID within a reasonable numeric range
   }
 
   // Organizations
-  async getOrganization(id: number): Promise<any | undefined> {
+  async getOrganization(id: string | number): Promise<any | undefined> {
     try {
+      // Try to find by _id first if we can convert to ObjectId
+      const objectId = this.toObjectId(id);
+      if (objectId) {
+        const org = await Organization.findById(objectId);
+        if (org) {
+          const result = toPlainObject<IOrganization>(org);
+          if (result) {
+            return {
+              ...result,
+              id: this.convertId(result._id)
+            };
+          }
+        }
+      }
+      
+      // Fallback to legacy id field
       const org = await Organization.findOne({ id });
-      return toPlainObject(org);
+      if (org) {
+        const result = toPlainObject<IOrganization>(org);
+        if (result) {
+          return {
+            ...result,
+            id: this.convertId(result._id)
+          };
+        }
+      }
+      
+      return undefined;
     } catch (error) {
       console.error('Error getting organization:', error);
       return undefined;
@@ -154,12 +184,18 @@ export class MongoStorage implements IStorage {
 
   async createUser(userData: any): Promise<any> {
     try {
+      // If organizationId is provided, convert it to ObjectId
+      let organizationId = null;
+      if (userData.organizationId) {
+        organizationId = this.toObjectId(userData.organizationId);
+      }
+      
       const newUser = new User({
         name: userData.name,
         email: userData.email,
         password: userData.password,
         role: userData.role,
-        organizationId: userData.organizationId,
+        organizationId: organizationId,
         avatar: userData.avatar || null,
         status: userData.status || 'active'
       });
@@ -173,7 +209,8 @@ export class MongoStorage implements IStorage {
       
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
+        organizationId: result.organizationId ? this.convertId(result.organizationId) : null
       };
     } catch (error) {
       console.error('Error creating user:', error);
@@ -540,11 +577,23 @@ export class MongoStorage implements IStorage {
 
   async createActivity(activityData: any): Promise<any> {
     try {
+      // Convert IDs to ObjectId if they exist
+      let organizationId = null;
+      let userId = null;
+      
+      if (activityData.organizationId) {
+        organizationId = this.toObjectId(activityData.organizationId);
+      }
+      
+      if (activityData.userId) {
+        userId = this.toObjectId(activityData.userId);
+      }
+      
       const newActivity = new Activity({
         type: activityData.type,
         description: activityData.description,
-        organizationId: activityData.organizationId || null,
-        userId: activityData.userId || null,
+        organizationId: organizationId,
+        userId: userId,
         metadata: activityData.metadata || {}
       });
       
@@ -557,7 +606,9 @@ export class MongoStorage implements IStorage {
       
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
+        organizationId: result.organizationId ? this.convertId(result.organizationId) : null,
+        userId: result.userId ? this.convertId(result.userId) : null
       };
     } catch (error) {
       console.error('Error creating activity:', error);

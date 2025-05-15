@@ -23,53 +23,53 @@ import * as crypto from "crypto";
 
 export interface IStorage {
   // Organizations
-  getOrganization(id: number): Promise<Organization | undefined>;
+  getOrganization(id: string | number): Promise<Organization | undefined>;
   getOrganizationByEmail(email: string): Promise<Organization | undefined>;
   createOrganization(org: InsertOrganization): Promise<Organization>;
-  updateOrganization(id: number, org: Partial<Organization>): Promise<Organization | undefined>;
+  updateOrganization(id: string | number, org: Partial<Organization>): Promise<Organization | undefined>;
   
   // Users
-  getUser(id: number): Promise<User | undefined>;
+  getUser(id: string | number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  getUsersByOrganization(orgId: number): Promise<User[]>;
+  getUsersByOrganization(orgId: string | number): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
+  updateUser(id: string | number, user: Partial<User>): Promise<User | undefined>;
   verifyPassword(password: string, hash: string): boolean;
   
   // Apps
-  getApp(id: number): Promise<App | undefined>;
-  getAppsByOrganization(orgId: number): Promise<App[]>;
+  getApp(id: string | number): Promise<App | undefined>;
+  getAppsByOrganization(orgId: string | number): Promise<App[]>;
   createApp(app: InsertApp): Promise<App>;
-  updateApp(id: number, app: Partial<App>): Promise<App | undefined>;
-  deleteApp(id: number): Promise<boolean>;
+  updateApp(id: string | number, app: Partial<App>): Promise<App | undefined>;
+  deleteApp(id: string | number): Promise<boolean>;
   
   // Affiliate Links
-  getAffiliateLink(id: number): Promise<AffiliateLink | undefined>;
+  getAffiliateLink(id: string | number): Promise<AffiliateLink | undefined>;
   getAffiliateLinkByCode(code: string): Promise<AffiliateLink | undefined>;
-  getAffiliateLinksByUser(userId: number): Promise<AffiliateLink[]>;
+  getAffiliateLinksByUser(userId: string | number): Promise<AffiliateLink[]>;
   createAffiliateLink(link: InsertAffiliateLink): Promise<AffiliateLink>;
-  incrementLinkClicks(id: number): Promise<boolean>;
+  incrementLinkClicks(id: string | number): Promise<boolean>;
   
   // Conversions
-  getConversion(id: number): Promise<Conversion | undefined>;
-  getConversionsByLink(linkId: number): Promise<Conversion[]>;
-  getConversionsByUser(userId: number): Promise<Conversion[]>;
-  getConversionsByOrganization(orgId: number): Promise<Conversion[]>;
+  getConversion(id: string | number): Promise<Conversion | undefined>;
+  getConversionsByLink(linkId: string | number): Promise<Conversion[]>;
+  getConversionsByUser(userId: string | number): Promise<Conversion[]>;
+  getConversionsByOrganization(orgId: string | number): Promise<Conversion[]>;
   createConversion(conversion: InsertConversion): Promise<Conversion>;
-  updateConversionStatus(id: number, status: string): Promise<Conversion | undefined>;
+  updateConversionStatus(id: string | number, status: string): Promise<Conversion | undefined>;
   
   // Activities
-  getActivitiesByOrganization(orgId: number, limit?: number): Promise<Activity[]>;
+  getActivitiesByOrganization(orgId: string | number, limit?: number): Promise<Activity[]>;
   createActivity(activity: InsertActivity): Promise<Activity>;
   
   // Payouts
-  getPayout(id: number): Promise<Payout | undefined>;
-  getPayoutsByUser(userId: number): Promise<Payout[]>;
+  getPayout(id: string | number): Promise<Payout | undefined>;
+  getPayoutsByUser(userId: string | number): Promise<Payout[]>;
   createPayout(payout: InsertPayout): Promise<Payout>;
-  updatePayoutStatus(id: number, status: string, reference?: string): Promise<Payout | undefined>;
+  updatePayoutStatus(id: string | number, status: string, reference?: string): Promise<Payout | undefined>;
   
   // Notification Settings
-  getNotificationSettings(userId: number): Promise<NotificationSetting | undefined>;
+  getNotificationSettings(userId: string | number): Promise<NotificationSetting | undefined>;
   createOrUpdateNotificationSettings(settings: InsertNotificationSetting): Promise<NotificationSetting>;
   
   // Analytics

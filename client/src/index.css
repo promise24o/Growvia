@@ -180,4 +180,14 @@
   .dark .overflow-x-auto {
     background-image: linear-gradient(to right, hsl(228 30% 10%), hsl(228 30% 10%)), linear-gradient(to right, hsl(228 30% 10%), hsl(228 30% 10%)), linear-gradient(to right, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0)), linear-gradient(to left, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0));
   }
+  
+  /* Landing page header glassmorphism effects */
+  .dark header[data-scroll-progress] {
+    color-scheme: dark;
+  }
+  
+  /* Enhance glassmorphism in dark mode */
+  .dark header[data-scroll-progress="100"] {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
 }

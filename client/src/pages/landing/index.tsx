@@ -7,12 +7,50 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
 const LandingPage = () => {
+  const [scrollProgress, setScrollProgress] = useState(0);
   const [scrolled, setScrolled] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Detect dark mode
+  useEffect(() => {
+    // Check if document has .dark class or preferred color scheme is dark
+    const checkDarkMode = () => {
+      const isDark = 
+        document.documentElement.classList.contains('dark') || 
+        window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setIsDarkMode(isDark);
+    };
+    
+    checkDarkMode();
+    
+    // Listen for changes in color scheme preference
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQuery.addEventListener('change', checkDarkMode);
+    
+    // Listen for class changes on document for theme toggle
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, { 
+      attributes: true, 
+      attributeFilter: ['class'] 
+    });
+    
+    return () => {
+      mediaQuery.removeEventListener('change', checkDarkMode);
+      observer.disconnect();
+    };
+  }, []);
 
-  // Handle scroll effect for navbar
+  // Handle scroll effect for navbar with smooth progress
   useEffect(() => {
     const handleScroll = () => {
-      const isScrolled = window.scrollY > 10;
+      // Calculate scroll percentage (0 to 1) for the first 200px
+      const scrollY = window.scrollY;
+      const maxScrollForEffect = 200;
+      const progress = Math.min(scrollY / maxScrollForEffect, 1);
+      setScrollProgress(progress);
+      
+      // Set scrolled state for classes toggle
+      const isScrolled = scrollY > 10;
       if (isScrolled !== scrolled) {
         setScrolled(isScrolled);
       }
@@ -73,11 +111,23 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Navigation */}
+      {/* Navigation with smooth glassmorphism effect */}
       <header
-        className={`sticky top-0 z-50 transition-all duration-300 ${
-          scrolled ? "bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-sm" : "bg-transparent"
-        }`}
+        className="sticky top-0 z-50 transition-all duration-300"
+        style={{
+          backgroundColor: scrollProgress > 0 
+            ? isDarkMode 
+              ? `rgba(15, 23, 42, ${scrollProgress * 0.85})` // Dark slate color for dark mode
+              : `rgba(255, 255, 255, ${scrollProgress * 0.85})` // White for light mode
+            : 'transparent',
+          backdropFilter: `blur(${scrollProgress * 8}px)`,
+          boxShadow: scrollProgress > 0 
+            ? isDarkMode
+              ? `0 4px 15px -3px rgba(0, 0, 0, ${scrollProgress * 0.25})` // Darker shadow for dark mode
+              : `0 4px 6px -1px rgba(0, 0, 0, ${scrollProgress * 0.05})` // Light shadow for light mode
+            : 'none'
+        }}
+        data-scroll-progress={Math.round(scrollProgress * 100)}
       >
         <div className="container mx-auto flex items-center justify-between py-4">
           <div className="flex items-center">
@@ -90,7 +140,13 @@ const LandingPage = () => {
             
             <nav className="hidden md:flex ml-12 space-x-8">
               <div className="relative group">
-                <button className="flex items-center text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary-400 transition-colors">
+                <button 
+                  className={`flex items-center transition-colors duration-300 ${
+                    scrollProgress > 0.5 
+                      ? 'text-gray-800 dark:text-gray-200' 
+                      : 'text-gray-700 dark:text-gray-300'
+                  } hover:text-primary dark:hover:text-primary-400`}
+                >
                   Features <ChevronDown className="h-4 w-4 ml-1" />
                 </button>
                 <div className="absolute left-0 mt-2 w-64 rounded-md shadow-lg bg-white dark:bg-slate-900 ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
@@ -104,7 +160,13 @@ const LandingPage = () => {
               </div>
               
               <div className="relative group">
-                <button className="flex items-center text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary-400 transition-colors">
+                <button 
+                  className={`flex items-center transition-colors duration-300 ${
+                    scrollProgress > 0.5 
+                      ? 'text-gray-800 dark:text-gray-200' 
+                      : 'text-gray-700 dark:text-gray-300'
+                  } hover:text-primary dark:hover:text-primary-400`}
+                >
                   Services <ChevronDown className="h-4 w-4 ml-1" />
                 </button>
                 <div className="absolute left-0 mt-2 w-64 rounded-md shadow-lg bg-white dark:bg-slate-900 ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
@@ -116,12 +178,25 @@ const LandingPage = () => {
                 </div>
               </div>
               
-              <Link href="/pricing" className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary-400 transition-colors">
+              <Link 
+                href="/pricing" 
+                className={`transition-colors duration-300 ${
+                  scrollProgress > 0.5 
+                    ? 'text-gray-800 dark:text-gray-200' 
+                    : 'text-gray-700 dark:text-gray-300'
+                } hover:text-primary dark:hover:text-primary-400`}
+              >
                 Pricing
               </Link>
               
               <div className="relative group">
-                <button className="flex items-center text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary-400 transition-colors">
+                <button 
+                  className={`flex items-center transition-colors duration-300 ${
+                    scrollProgress > 0.5 
+                      ? 'text-gray-800 dark:text-gray-200' 
+                      : 'text-gray-700 dark:text-gray-300'
+                  } hover:text-primary dark:hover:text-primary-400`}
+                >
                   Resources <ChevronDown className="h-4 w-4 ml-1" />
                 </button>
                 <div className="absolute left-0 mt-2 w-64 rounded-md shadow-lg bg-white dark:bg-slate-900 ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
@@ -137,10 +212,23 @@ const LandingPage = () => {
           
           <div className="flex items-center space-x-4">
             <Link href="/login">
-              <Button variant="outline" className="rounded-full px-6">Log in</Button>
+              <Button 
+                variant={scrollProgress > 0.5 ? "outline" : "ghost"} 
+                className="rounded-full px-6 transition-all duration-300"
+              >
+                Log in
+              </Button>
             </Link>
             <Link href="/register">
-              <Button className="rounded-full px-6 bg-primary hover:bg-primary-600">Sign up</Button>
+              <Button 
+                className={`rounded-full px-6 transition-all duration-300 ${
+                  scrollProgress > 0.5 
+                    ? 'bg-primary hover:bg-primary-600' 
+                    : 'bg-primary/90 hover:bg-primary'
+                }`}
+              >
+                Sign up
+              </Button>
             </Link>
           </div>
         </div>

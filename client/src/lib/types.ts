@@ -103,6 +103,11 @@ export interface Product {
   growth: number;
 }
 
+export enum PaymentGateway {
+  FLUTTERWAVE = 'flutterwave',
+  PAYSTACK = 'paystack',
+}
+
 export enum SubscriptionPlan {
   FREE_TRIAL = 'free_trial',
   STARTER = 'starter',

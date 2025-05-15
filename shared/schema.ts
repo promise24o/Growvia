@@ -8,6 +8,12 @@ export enum UserRole {
   MARKETER = "marketer",
 }
 
+// Payment gateways
+export enum PaymentGateway {
+  FLUTTERWAVE = "flutterwave",
+  PAYSTACK = "paystack",
+}
+
 // Subscription plans
 export enum SubscriptionPlan {
   FREE_TRIAL = "free_trial",

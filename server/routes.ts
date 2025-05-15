@@ -13,6 +13,7 @@ import {
   PaymentGateway
 } from "@shared/schema";
 import { setupPaymentRoutes } from "./services/payment";
+import { handleTrialExpiry, setTrialEndDate } from "./services/subscription";
 import { randomBytes } from "crypto";
 import jwt from "jsonwebtoken";
 
@@ -42,6 +43,12 @@ const authenticate = async (req: Request, res: Response, next: NextFunction) => 
       organizationId: decoded.organizationId,
       role: decoded.role
     };
+    
+    // Check if the user belongs to an organization and has admin role
+    if (decoded.organizationId && decoded.role === UserRole.ADMIN) {
+      // Check if trial has expired and handle it if needed
+      await handleTrialExpiry(decoded.organizationId);
+    }
     
     next();
   } catch (error) {
@@ -80,6 +87,9 @@ const generateToken = (user: { id: number, organizationId: number | null, role: 
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up payment routes
+  setupPaymentRoutes(app);
+  
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     try {
@@ -141,12 +151,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Email already in use for an organization" });
       }
       
-      // Create organization
+      // Create organization with free trial plan
       const organization = await storage.createOrganization({
         name: validatedData.organizationName,
         email: validatedData.email,
-        plan: SubscriptionPlan.STARTER
+        plan: SubscriptionPlan.FREE_TRIAL
       });
+      
+      // Set trial end date (7 days from now)
+      await setTrialEndDate(organization.id);
       
       // Create admin user
       const user = await storage.createUser({

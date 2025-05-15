@@ -136,8 +136,8 @@ const LandingPage = () => {
       description: "Hassle-free payout processing and automation",
       items: [
         {
-          title: "PayPal & Wise integrations",
-          description: "Process thousands of payouts to your global affiliate audience with a single click.",
+          title: "Paystack & Flutterwave integrations",
+          description: "Process thousands of payouts to your Nigerian affiliate audience with a single click.",
           icon: <CreditCard className="h-5 w-5" />,
         },
         {

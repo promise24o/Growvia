@@ -131,7 +131,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
       const user = await storage.getUserByEmail(email);
       
       // If no user found, return success anyway for security reasons
-      if (!user) {
+      if (!user || !user.id) {
         return res.status(200).json({ 
           message: "If your email exists in our system, you will receive a password reset link shortly" 
         });

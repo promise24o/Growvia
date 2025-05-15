@@ -690,22 +690,68 @@ const LandingPage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-primary">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6 text-white">Manage your partnerships like never before</h2>
-            <p className="text-xl text-primary-100 mb-10 max-w-2xl mx-auto">
-              Start your free 7-day trial today. Sign up in seconds. No credit card required. Your account will be deleted if you don't upgrade to a paid plan after the trial period.
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Button size="lg" className="rounded-full px-8 py-6 bg-white text-primary hover:bg-gray-100 text-lg">
-                Get started now
-              </Button>
-              <Button size="lg" variant="outline" className="rounded-full px-8 py-6 text-white border-white hover:bg-primary-600 text-lg">
-                Contact sales
-              </Button>
-            </div>
+      <section className="relative py-24 overflow-hidden">
+        {/* Background with gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary to-purple-700">
+          {/* Decorative elements */}
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-10">
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-white rounded-full"></div>
+            <div className="absolute top-60 -right-20 w-60 h-60 bg-white rounded-full"></div>
+            <div className="absolute -bottom-40 left-1/3 w-80 h-80 bg-white rounded-full"></div>
           </div>
+          
+          {/* Animated dots pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute inset-0" style={{ 
+              backgroundImage: 'radial-gradient(white 1px, transparent 0)', 
+              backgroundSize: '40px 40px',
+              backgroundPosition: '0 0' 
+            }}></div>
+          </div>
+        </div>
+        
+        <div className="container relative mx-auto px-4 z-10">
+          <motion.div 
+            className="max-w-4xl mx-auto text-center"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            {/* Title with gradient text */}
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-6 text-white drop-shadow-md">
+              Manage your partnerships <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-primary-200">like never before</span>
+            </h2>
+            
+            {/* Subtitle with highlight box */}
+            <div className="relative mb-12">
+              <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-2xl transform -rotate-1"></div>
+              <p className="relative text-xl text-white py-4 px-6 max-w-2xl mx-auto leading-relaxed">
+                Start your free 7-day trial today. Sign up in seconds. <span className="font-bold">No credit card required.</span> Your account will be deleted if you don't upgrade to a paid plan after the trial period.
+              </p>
+            </div>
+            
+            {/* CTA buttons with enhanced styling */}
+            <div className="flex flex-col sm:flex-row justify-center gap-6">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+              >
+                <Button size="lg" className="rounded-full px-10 py-7 bg-white text-primary hover:bg-gray-100 font-bold text-lg shadow-xl">
+                  Get started now
+                </Button>
+              </motion.div>
+              
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+              >
+                <Button size="lg" variant="outline" className="rounded-full px-10 py-7 text-white border-white border-2 hover:bg-white/10 font-bold text-lg backdrop-blur-sm">
+                  Contact sales
+                </Button>
+              </motion.div>
+            </div>
+          </motion.div>
         </div>
       </section>
 

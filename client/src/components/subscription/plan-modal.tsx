@@ -37,13 +37,26 @@ export function PlanModal({ open, onClose, currentPlan = SubscriptionPlan.STARTE
 
   const plans: Plan[] = [
     {
+      id: SubscriptionPlan.FREE_TRIAL,
+      name: PLAN_NAMES[SubscriptionPlan.FREE_TRIAL],
+      price: "$0",
+      current: currentPlan === SubscriptionPlan.FREE_TRIAL,
+      popular: currentPlan !== SubscriptionPlan.FREE_TRIAL,
+      features: [
+        { label: "1 App", available: true },
+        { label: "10 Marketers", available: true },
+        { label: "Basic Analytics", available: true },
+        { label: `7 Days Trial`, available: true },
+      ],
+    },
+    {
       id: SubscriptionPlan.STARTER,
       name: PLAN_NAMES[SubscriptionPlan.STARTER],
       price: "$29",
       current: currentPlan === SubscriptionPlan.STARTER,
       features: [
         { label: "1 App", available: true },
-        { label: "10 Marketers", available: true },
+        { label: "50 Marketers", available: true },
         { label: "Basic Analytics", available: true },
         { label: "Email Support", available: true },
       ],
@@ -56,7 +69,7 @@ export function PlanModal({ open, onClose, currentPlan = SubscriptionPlan.STARTE
       current: currentPlan === SubscriptionPlan.GROWTH,
       features: [
         { label: "5 Apps", available: true },
-        { label: "50 Marketers", available: true },
+        { label: "300 Marketers", available: true },
         { label: "Advanced Analytics", available: true },
         { label: "Priority Support", available: true },
       ],
@@ -68,7 +81,7 @@ export function PlanModal({ open, onClose, currentPlan = SubscriptionPlan.STARTE
       current: currentPlan === SubscriptionPlan.PRO,
       features: [
         { label: "Unlimited Apps", available: true },
-        { label: "200 Marketers", available: true },
+        { label: "1,000 Marketers", available: true },
         { label: "Premium Analytics", available: true },
         { label: "24/7 Support", available: true },
       ],
@@ -94,7 +107,33 @@ export function PlanModal({ open, onClose, currentPlan = SubscriptionPlan.STARTE
 
     setProcessing(true);
     
-    // In a real implementation, this would call an API to upgrade the plan
+    if (plan === SubscriptionPlan.FREE_TRIAL) {
+      // Start free trial immediately
+      setTimeout(() => {
+        toast({
+          title: "Free Trial Activated",
+          description: `Your 7-day free trial has been activated. Enjoy all features!`,
+        });
+        setProcessing(false);
+        onClose();
+      }, 1000);
+      return;
+    }
+    
+    if (plan === SubscriptionPlan.ENTERPRISE) {
+      // For Enterprise, redirect to contact sales
+      setTimeout(() => {
+        toast({
+          title: "Contact request sent",
+          description: `Our sales team will contact you soon about the ${PLAN_NAMES[plan]} plan.`,
+        });
+        setProcessing(false);
+        onClose();
+      }, 1000);
+      return;
+    }
+    
+    // For paid plans, initiate payment flow with Flutterwave/Paystack
     setTimeout(() => {
       toast({
         title: "Plan upgrade initiated",
@@ -112,7 +151,7 @@ export function PlanModal({ open, onClose, currentPlan = SubscriptionPlan.STARTE
           <DialogTitle className="text-xl font-semibold">Choose a Plan</DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
           {plans.map((plan) => (
             <div
               key={plan.id}
@@ -124,7 +163,7 @@ export function PlanModal({ open, onClose, currentPlan = SubscriptionPlan.STARTE
             >
               {plan.popular && (
                 <div className="absolute -top-3 right-4 bg-success-500 text-white px-3 py-1 text-xs font-medium rounded-full">
-                  Popular
+                  {plan.id === SubscriptionPlan.FREE_TRIAL ? "Free Trial" : "Popular"}
                 </div>
               )}
               
@@ -155,6 +194,8 @@ export function PlanModal({ open, onClose, currentPlan = SubscriptionPlan.STARTE
               >
                 {plan.current
                   ? "Current Plan"
+                  : plan.id === SubscriptionPlan.FREE_TRIAL
+                  ? "Start Free Trial"
                   : plan.id === SubscriptionPlan.ENTERPRISE
                   ? "Contact Sales"
                   : "Upgrade Plan"}

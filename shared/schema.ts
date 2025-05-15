@@ -10,6 +10,7 @@ export enum UserRole {
 
 // Subscription plans
 export enum SubscriptionPlan {
+  FREE_TRIAL = "free_trial",
   STARTER = "starter",
   GROWTH = "growth",
   PRO = "pro",
@@ -18,10 +19,11 @@ export enum SubscriptionPlan {
 
 // Plan limitations
 export const PLAN_LIMITS = {
-  [SubscriptionPlan.STARTER]: { apps: 1, marketers: 10 },
-  [SubscriptionPlan.GROWTH]: { apps: 5, marketers: 50 },
-  [SubscriptionPlan.PRO]: { apps: 999999, marketers: 200 },
-  [SubscriptionPlan.ENTERPRISE]: { apps: 999999, marketers: 999999 },
+  [SubscriptionPlan.FREE_TRIAL]: { apps: 1, marketers: 10, durationDays: 7 },
+  [SubscriptionPlan.STARTER]: { apps: 1, marketers: 50, price: 29 },
+  [SubscriptionPlan.GROWTH]: { apps: 5, marketers: 300, price: 79 },
+  [SubscriptionPlan.PRO]: { apps: 999999, marketers: 1000, price: 199 },
+  [SubscriptionPlan.ENTERPRISE]: { apps: 999999, marketers: 999999, price: null },
 };
 
 // Organizations
@@ -30,7 +32,8 @@ export const organizations = pgTable("organizations", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   logo: text("logo"),
-  plan: text("plan").notNull().default(SubscriptionPlan.STARTER),
+  plan: text("plan").notNull().default(SubscriptionPlan.FREE_TRIAL),
+  trialEndsAt: timestamp("trial_ends_at"),
   webhookUrl: text("webhook_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

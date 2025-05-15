@@ -14,6 +14,7 @@ export interface Organization {
   email: string;
   logo?: string | null;
   plan: SubscriptionPlan;
+  trialEndsAt?: string | null;
   webhookUrl?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -103,6 +104,7 @@ export interface Product {
 }
 
 export enum SubscriptionPlan {
+  FREE_TRIAL = 'free_trial',
   STARTER = 'starter',
   GROWTH = 'growth',
   PRO = 'pro',
@@ -110,6 +112,7 @@ export enum SubscriptionPlan {
 }
 
 export const PLAN_NAMES = {
+  [SubscriptionPlan.FREE_TRIAL]: 'Free Trial',
   [SubscriptionPlan.STARTER]: 'Starter',
   [SubscriptionPlan.GROWTH]: 'Growth',
   [SubscriptionPlan.PRO]: 'Pro',
@@ -117,10 +120,11 @@ export const PLAN_NAMES = {
 };
 
 export const PLAN_LIMITS = {
-  [SubscriptionPlan.STARTER]: { apps: 1, marketers: 10 },
-  [SubscriptionPlan.GROWTH]: { apps: 5, marketers: 50 },
-  [SubscriptionPlan.PRO]: { apps: 999999, marketers: 200 },
-  [SubscriptionPlan.ENTERPRISE]: { apps: 999999, marketers: 999999 }
+  [SubscriptionPlan.FREE_TRIAL]: { apps: 1, marketers: 10, durationDays: 7, price: 0 },
+  [SubscriptionPlan.STARTER]: { apps: 1, marketers: 50, price: 29 },
+  [SubscriptionPlan.GROWTH]: { apps: 5, marketers: 300, price: 79 },
+  [SubscriptionPlan.PRO]: { apps: 999999, marketers: 1000, price: 199 },
+  [SubscriptionPlan.ENTERPRISE]: { apps: 999999, marketers: 999999, price: null }
 };
 
 export interface StatsResponse {

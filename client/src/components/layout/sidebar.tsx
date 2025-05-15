@@ -17,6 +17,7 @@ import {
 import { AvatarWithStatus } from "@/components/ui/avatar-with-status";
 import { Button } from "@/components/ui/button";
 import { PlanModal } from "@/components/subscription/plan-modal";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 interface SidebarLinkProps {
   href: string;
@@ -155,6 +156,11 @@ export function Sidebar() {
                 </div>
               </div>
             )}
+            
+            <div className="mt-4 flex items-center justify-between p-2">
+              <div className="text-sm font-medium text-slate-500">Appearance</div>
+              <ThemeToggle />
+            </div>
             
             {user && (
               <div className="mt-4 flex items-center p-2 rounded-lg hover:bg-slate-100">

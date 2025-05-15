@@ -2,7 +2,6 @@ import { Switch, Route, useLocation } from "wouter";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "@/components/theme/theme-provider";
 
 // Auth pages
 import Login from "@/pages/auth/login";
@@ -104,12 +103,13 @@ function App() {
 
         {/* Redirect root to dashboard if authenticated, otherwise to login */}
         <Route path="/">
-          {isAuthenticated ? 
+          {isAuthenticated ? (
             <ProtectedRoute>
               <Dashboard />
-            </ProtectedRoute> : 
+            </ProtectedRoute>
+          ) : (
             <Login />
-          }
+          )}
         </Route>
 
         {/* 404 route */}

@@ -1,6 +1,6 @@
 import { Switch, Route, useLocation } from "wouter";
 import { useEffect } from "react";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Auth pages

@@ -17,6 +17,15 @@ import { setupPaymentRoutes } from "./services/payment";
 import { handleTrialExpiry, setTrialEndDate } from "./services/subscription";
 import { randomBytes } from "crypto";
 import jwt from "jsonwebtoken";
+import { 
+  generatePasswordResetToken, 
+  verifyPasswordResetToken, 
+  removePasswordResetToken 
+} from "./utils/token";
+import { 
+  sendPasswordResetEmail, 
+  sendPasswordResetSuccessEmail 
+} from "./utils/email";
 
 const JWT_SECRET = process.env.JWT_SECRET || "affiliate-hub-secret-key-change-in-production";
 const TOKEN_EXPIRY = "7d";
@@ -98,6 +107,114 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
   setupPaymentRoutes(app);
   
   // Authentication routes
+  
+  // Forgot password route - initiates the password reset
+  router.post("/auth/forgot-password", async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      
+      // If no user found, return success anyway for security reasons
+      if (!user) {
+        return res.status(200).json({ 
+          message: "If your email exists in our system, you will receive a password reset link shortly" 
+        });
+      }
+      
+      // Generate password reset token
+      const resetToken = generatePasswordResetToken(user.id);
+      
+      // Build reset URL
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const resetUrl = `${baseUrl}/reset-password?id=${user.id}&token=${resetToken}`;
+      
+      // Send password reset email
+      const emailSent = await sendPasswordResetEmail(user, resetToken, resetUrl);
+      
+      if (!emailSent) {
+        console.error(`Failed to send password reset email to ${user.email}`);
+        return res.status(500).json({ message: "Failed to send password reset email" });
+      }
+      
+      return res.status(200).json({ 
+        message: "If your email exists in our system, you will receive a password reset link shortly" 
+      });
+    } catch (error: any) {
+      console.error('Forgot password error:', error);
+      return res.status(500).json({ message: "An error occurred processing your request" });
+    }
+  });
+  
+  // Reset password route - validates token and resets password
+  router.post("/auth/reset-password", async (req: Request, res: Response) => {
+    try {
+      const { userId, token, newPassword } = req.body;
+      
+      if (!userId || !token || !newPassword) {
+        return res.status(400).json({ message: "User ID, token, and new password are required" });
+      }
+      
+      // Validate token
+      const isValidToken = verifyPasswordResetToken(userId, token);
+      
+      if (!isValidToken) {
+        return res.status(401).json({ message: "Invalid or expired token" });
+      }
+      
+      // Find user
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Update user's password
+      await storage.updateUser(userId, { 
+        password: newPassword  // Note: Storage layer should handle password hashing
+      });
+      
+      // Remove the used token
+      removePasswordResetToken(userId);
+      
+      // Send confirmation email
+      await sendPasswordResetSuccessEmail(user);
+      
+      return res.status(200).json({ message: "Password has been reset successfully" });
+    } catch (error: any) {
+      console.error('Reset password error:', error);
+      return res.status(500).json({ message: "An error occurred processing your request" });
+    }
+  });
+  
+  // Verify password reset token route - checks if a token is valid
+  router.post("/auth/verify-reset-token", async (req: Request, res: Response) => {
+    try {
+      const { userId, token } = req.body;
+      
+      if (!userId || !token) {
+        return res.status(400).json({ message: "User ID and token are required" });
+      }
+      
+      // Validate token
+      const isValidToken = verifyPasswordResetToken(userId, token);
+      
+      if (!isValidToken) {
+        return res.status(401).json({ message: "Invalid or expired token" });
+      }
+      
+      return res.status(200).json({ valid: true });
+    } catch (error: any) {
+      console.error('Verify reset token error:', error);
+      return res.status(500).json({ message: "An error occurred processing your request" });
+    }
+  });
+  
   router.post("/auth/login", async (req: Request, res: Response) => {
     try {
       const validatedData = loginSchema.parse(req.body);

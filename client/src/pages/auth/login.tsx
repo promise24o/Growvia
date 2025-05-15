@@ -179,13 +179,12 @@ export default function Login() {
                       <FormLabel className="text-slate-700 dark:text-slate-300">
                         Password
                       </FormLabel>
-                      <button
-                        type="button"
+                      <Link
+                        href="/forgot-password"
                         className="text-xs text-primary hover:text-primary-600 font-medium dark:text-primary-400 dark:hover:text-primary-300"
-                        onClick={() => console.log("Forgot password clicked")}
                       >
                         Forgot Password?
-                      </button>
+                      </Link>
                     </div>
                     <div className="relative">
                       <FormControl>

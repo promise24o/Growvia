@@ -63,6 +63,7 @@ const authenticate = async (req: Request, res: Response, next: NextFunction) => 
     // Add user info to request object
     (req as any).user = {
       id: decoded.userId,
+      userId: decoded.userId, // Add userId for consistency
       organizationId: decoded.organizationId,
       role: decoded.role
     };

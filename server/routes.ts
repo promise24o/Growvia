@@ -55,8 +55,9 @@ const TOKEN_EXPIRY = "7d";
 const storage: IStorage = new MongoStorage();
 
 interface JwtPayload {
-  userId: number;
-  organizationId: number | null;
+  userId: string;
+  id?: string;
+  organizationId: string | null;
   role: string;
 }
 
@@ -75,10 +76,17 @@ const authenticate = async (
 
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
+    // Make sure we have userId available 
+    const userId = decoded.userId || decoded.id;
+    
+    if (!userId) {
+      return res.status(401).json({ message: "Invalid token structure" });
+    }
+
     // Add user info to request object
     (req as any).user = {
-      id: decoded.userId,
-      userId: decoded.userId, // Add userId for consistency
+      id: userId,
+      userId: userId, // Add userId for consistency
       organizationId: decoded.organizationId,
       role: decoded.role,
     };
@@ -417,9 +425,9 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid email or password" });
       }
 
-      // Generate JWT token
+      // Generate JWT token - use toString() for MongoDB ObjectIDs
       const token = generateToken({
-        id: user._id,
+        userId: user._id ? user._id.toString() : user.id,
         organizationId: user.organizationId,
         role: user.role,
       });
@@ -428,11 +436,12 @@ export async function registerRoutes(
       return res.json({
         token,
         user: {
-          id: user.id,
+          id: user._id ? user._id.toString() : user.id,
           name: user.name,
           email: user.email,
           role: user.role,
           organizationId: user.organizationId,
+          status: user.status,
         },
       });
     } catch (error: any) {

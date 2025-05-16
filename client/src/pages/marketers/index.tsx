@@ -64,7 +64,10 @@ export default function Marketers() {
   // Invite marketer mutation
   const inviteMarketerMutation = useMutation({
     mutationFn: async (marketer: InviteFormValues) => {
-      const response = await apiRequest('POST', '/api/marketers', marketer);
+      const response = await apiRequest('POST', '/api/marketers/invite', marketer);
+      if (!response.ok) {
+        throw new Error('Failed to send invitation');
+      }
       return response.json();
     },
     onSuccess: (data) => {

@@ -1680,9 +1680,9 @@ export async function registerRoutes(
   // Invite a new marketer (organization admins only)
   app.post("/api/marketers/invite", authenticate, async (req, res) => {
     try {
-      const { name, email, phone } = req.body;
+      const { name, email } = req.body;
       
-      if (!name || !email || !phone) {
+      if (!name || !email) {
         return res.status(400).json({ message: "Missing required fields" });
       }
       

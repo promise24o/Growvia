@@ -46,7 +46,7 @@ async function createAdminUser() {
     const existingAdmin = await User.findOne({ email: 'admin@admin.com' });
     
     // The admin password (will be hashed)
-    const password = 'password123';
+    const password = 'adminpassword';
     const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
     
     if (existingAdmin) {

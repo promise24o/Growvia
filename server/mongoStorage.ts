@@ -42,26 +42,29 @@ export class MongoStorage implements IStorage {
       
       if (!existingAdmin) {
         console.log('Creating admin user...');
-        // Create a hashed password for the admin user
-        const hashedPassword = crypto.createHash('sha256').update('password123').digest('hex');
         
-        // Create the admin user with management role
+        // Create the admin user with management role - let the schema handle password hashing
         const adminUser = new User({
           name: 'System Administrator',
           email: 'admin@admin.com',
-          password: hashedPassword,
+          password: 'password123', // Will be hashed by the pre-save hook
           role: 'management',
           status: 'active',
           avatar: null,
           organizationId: null, // Not associated with any organization
-          createdAt: new Date(),
-          updatedAt: new Date()
         });
         
         await adminUser.save();
         console.log('Admin user created successfully');
       } else {
         console.log('Admin user already exists');
+        
+        // If needed, update the admin user to ensure it has the right role
+        if (existingAdmin.role !== 'management') {
+          existingAdmin.role = 'management';
+          await existingAdmin.save();
+          console.log('Updated admin user role to management');
+        }
       }
     } catch (error) {
       console.error('Failed to seed admin user:', error);

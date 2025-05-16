@@ -1,16 +1,17 @@
-import express, { type Request, Response, NextFunction } from "express";
+import dotenv from "dotenv";
+import express, { NextFunction, type Request, Response } from "express";
+import { connectToDatabase } from "./db";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
-import { connectToDatabase } from './db';
-
+import { log, serveStatic, setupVite } from "./vite";
+dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Add middleware to properly set headers for API requests
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api')) {
-    res.setHeader('Content-Type', 'application/json');
+  if (req.path.startsWith("/api")) {
+    res.setHeader("Content-Type", "application/json");
   }
   next();
 });
@@ -48,15 +49,15 @@ app.use((req, res, next) => {
 (async () => {
   // Connect to MongoDB before initializing routes
   await connectToDatabase();
-  
+
   // Create separate router for API routes to ensure they're handled properly
   const apiRouter = express.Router();
-  
+
   // Register API routes separately
   const server = await registerRoutes(app, apiRouter);
-  
+
   // Mount API router after all middlewares but before Vite
-  app.use('/api', apiRouter);
+  app.use("/api", apiRouter);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -75,15 +76,16 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+  // Load port from .env, default to 5000 if not set
+  const port = parseInt(process.env.PORT || "5000");
+  server.listen(
+    {
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    },
+    () => {
+      log(`serving on port ${port}`);
+    }
+  );
 })();

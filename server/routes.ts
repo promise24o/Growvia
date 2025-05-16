@@ -12,28 +12,25 @@ import { randomBytes } from "crypto";
 import type { Express, NextFunction, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
-import { z } from "zod";
 import multer from "multer";
-import { uploadFile } from './utils/fileUpload';
-import { sendMarketerInvitationEmail, sendMarketerApprovalEmail, sendMarketerRejectionEmail } from './utils/email';
+import { z } from "zod";
+import { AffiliateLink, App, Conversion, Organization, User } from "./models";
+import MarketerApplication from "./models/MarketerApplication";
 import { MongoStorage } from "./mongoStorage";
 import { setupPaymentRoutes } from "./services/payment";
 import { handleTrialExpiry, setTrialEndDate } from "./services/subscription";
 import { IStorage } from "./storage";
 import {
+  sendMarketerApprovalEmail,
+  sendMarketerInvitationEmail,
+  sendMarketerRejectionEmail,
+} from "./utils/email";
+import { uploadFile } from "./utils/fileUpload";
+import {
   generatePasswordResetToken,
   removePasswordResetToken,
   verifyPasswordResetToken,
 } from "./utils/token";
-import {
-  User,
-  Organization,
-  App,
-  AffiliateLink,
-  Conversion
-} from './models';
-import MarketerApplication from './models/MarketerApplication';
-
 
 // Onboarding schema
 const onboardingSchema = z.object({
@@ -67,7 +64,7 @@ interface JwtPayload {
 const authenticate = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
@@ -80,7 +77,7 @@ const authenticate = async (
 
     // For debugging token contents
     console.log("Token decoded:", decoded);
-    
+
     // Accept any identifier from the token
     const userId = decoded.userId || decoded.id || decoded.sub;
 
@@ -124,15 +121,15 @@ const authorize = (roles: string[]) => {
 // Middleware specifically for management role (system administrators)
 const requireManagement = (req: Request, res: Response, next: NextFunction) => {
   const user = (req as any).user;
-  
+
   if (!user) {
     return res.status(401).json({ message: "Authentication required" });
   }
-  
+
   if (user.role !== UserRole.MANAGEMENT) {
     return res.status(403).json({ message: "Management access required" });
   }
-  
+
   next();
 };
 
@@ -152,131 +149,167 @@ const generateToken = (user: {
 
 export async function registerRoutes(
   app: Express,
-  apiRouter?: any,
+  apiRouter?: any
 ): Promise<Server> {
   // Determine which router to use for API routes
   const router = apiRouter || app;
-  
+
   // Ensure all API responses are JSON
   router.use((req, res, next) => {
-    res.setHeader('Content-Type', 'application/json');
+    res.setHeader("Content-Type", "application/json");
     next();
   });
 
   // Set up payment routes on main app
   setupPaymentRoutes(app);
-  
-  // Management dashboard routes (system admin only)
-  router.get("/management/users", authenticate, requireManagement, async (req, res) => {
-    try {
-      // Get all users in the system
-      const users = await User.find().sort({ createdAt: -1 });
-      return res.json(users.map(user => ({
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        organizationId: user.organizationId,
-        createdAt: user.createdAt
-      })));
-    } catch (error: any) {
-      return res.status(500).json({ message: error.message });
-    }
-  });
 
-  router.get("/management/organizations", authenticate, requireManagement, async (req, res) => {
-    try {
-      // Get all organizations in the system
-      const organizations = await Organization.find().sort({ createdAt: -1 });
-      return res.json(organizations.map(org => ({
-        id: org._id,
-        name: org.name,
-        email: org.email,
-        plan: org.plan,
-        createdAt: org.createdAt,
-        trialEndsAt: org.trialEndsAt,
-        onboardingCompleted: org.onboardingCompleted
-      })));
-    } catch (error: any) {
-      return res.status(500).json({ message: error.message });
-    }
-  });
-  
-  router.get("/management/analytics", authenticate, requireManagement, async (req, res) => {
-    try {
-      // Get platform-wide analytics
-      const userCount = await User.countDocuments();
-      const organizationCount = await Organization.countDocuments();
-      const appCount = await App.countDocuments();
-      const linkCount = await AffiliateLink.countDocuments();
-      const conversionCount = await Conversion.countDocuments();
-      
-      // Active users by role
-      const adminCount = await User.countDocuments({ role: UserRole.ADMIN });
-      const marketerCount = await User.countDocuments({ role: UserRole.MARKETER });
-      
-      // Plan distribution
-      const freeTrial = await Organization.countDocuments({ plan: SubscriptionPlan.FREE_TRIAL });
-      const starter = await Organization.countDocuments({ plan: SubscriptionPlan.STARTER });
-      const growth = await Organization.countDocuments({ plan: SubscriptionPlan.GROWTH });
-      const pro = await Organization.countDocuments({ plan: SubscriptionPlan.PRO });
-      const enterprise = await Organization.countDocuments({ plan: SubscriptionPlan.ENTERPRISE });
-      
-      return res.json({
-        userCount,
-        organizationCount,
-        appCount,
-        linkCount,
-        conversionCount,
-        usersByRole: {
-          admin: adminCount,
-          marketer: marketerCount
-        },
-        organizationsByPlan: {
-          freeTrial,
-          starter,
-          growth,
-          pro,
-          enterprise
-        }
-      });
-    } catch (error: any) {
-      return res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // User actions (suspend, activate, change role)
-  router.patch("/management/users/:userId", authenticate, requireManagement, async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const { status, role } = req.body;
-      
-      const updates: any = {};
-      if (status) updates.status = status;
-      if (role) updates.role = role;
-      
-      const user = await User.findByIdAndUpdate(
-        userId,
-        { $set: updates },
-        { new: true }
-      );
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+  // Management dashboard routes (system admin only)
+  router.get(
+    "/management/users",
+    authenticate,
+    requireManagement,
+    async (req, res) => {
+      try {
+        // Get all users in the system
+        const users = await User.find().sort({ createdAt: -1 });
+        return res.json(
+          users.map((user) => ({
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            status: user.status,
+            organizationId: user.organizationId,
+            createdAt: user.createdAt,
+          }))
+        );
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message });
       }
-      
-      return res.json({
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status
-      });
-    } catch (error: any) {
-      return res.status(500).json({ message: error.message });
     }
-  });
+  );
+
+  router.get(
+    "/management/organizations",
+    authenticate,
+    requireManagement,
+    async (req, res) => {
+      try {
+        // Get all organizations in the system
+        const organizations = await Organization.find().sort({ createdAt: -1 });
+        return res.json(
+          organizations.map((org) => ({
+            id: org._id,
+            name: org.name,
+            email: org.email,
+            plan: org.plan,
+            createdAt: org.createdAt,
+            trialEndsAt: org.trialEndsAt,
+            onboardingCompleted: org.onboardingCompleted,
+          }))
+        );
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  router.get(
+    "/management/analytics",
+    authenticate,
+    requireManagement,
+    async (req, res) => {
+      try {
+        // Get platform-wide analytics
+        const userCount = await User.countDocuments();
+        const organizationCount = await Organization.countDocuments();
+        const appCount = await App.countDocuments();
+        const linkCount = await AffiliateLink.countDocuments();
+        const conversionCount = await Conversion.countDocuments();
+
+        // Active users by role
+        const adminCount = await User.countDocuments({ role: UserRole.ADMIN });
+        const marketerCount = await User.countDocuments({
+          role: UserRole.MARKETER,
+        });
+
+        // Plan distribution
+        const freeTrial = await Organization.countDocuments({
+          plan: SubscriptionPlan.FREE_TRIAL,
+        });
+        const starter = await Organization.countDocuments({
+          plan: SubscriptionPlan.STARTER,
+        });
+        const growth = await Organization.countDocuments({
+          plan: SubscriptionPlan.GROWTH,
+        });
+        const pro = await Organization.countDocuments({
+          plan: SubscriptionPlan.PRO,
+        });
+        const enterprise = await Organization.countDocuments({
+          plan: SubscriptionPlan.ENTERPRISE,
+        });
+
+        return res.json({
+          userCount,
+          organizationCount,
+          appCount,
+          linkCount,
+          conversionCount,
+          usersByRole: {
+            admin: adminCount,
+            marketer: marketerCount,
+          },
+          organizationsByPlan: {
+            freeTrial,
+            starter,
+            growth,
+            pro,
+            enterprise,
+          },
+        });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  // User actions (suspend, activate, change role)
+  router.patch(
+    "/management/users/:userId",
+    authenticate,
+    requireManagement,
+    async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const { status, role } = req.body;
+
+        const updates: any = {};
+        if (status) updates.status = status;
+        if (role) updates.role = role;
+
+        const user = await User.findByIdAndUpdate(
+          userId,
+          { $set: updates },
+          { new: true }
+        );
+
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        return res.json({
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+        });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message });
+      }
+    }
+  );
 
   // Authentication routes
 
@@ -311,7 +344,7 @@ export async function registerRoutes(
       const emailSent = await sendPasswordResetEmail(
         user,
         resetToken,
-        resetUrl,
+        resetUrl
       );
 
       if (!emailSent) {
@@ -407,7 +440,7 @@ export async function registerRoutes(
           .status(500)
           .json({ message: "An error occurred processing your request" });
       }
-    },
+    }
   );
 
   router.post("/auth/login", async (req: Request, res: Response) => {
@@ -425,7 +458,7 @@ export async function registerRoutes(
       // For this implementation, we're using a simple hash check in the storage layer
       const isPasswordValid = await storage.verifyPassword(
         validatedData.password,
-        user.password,
+        user.password
       );
 
       if (!isPasswordValid) {
@@ -435,13 +468,21 @@ export async function registerRoutes(
       // Generate JWT token - use toString() for MongoDB ObjectIDs
       // Handle different types of user objects (from MongoDB or from MemStorage)
       const tokenPayload = {
-        id: user._id ? user._id.toString() : (user.id ? user.id.toString() : null),
-        organizationId: user.organizationId ? user.organizationId.toString() : null,
-        role: user.role
+        id: user._id
+          ? user._id.toString()
+          : user.id
+          ? user.id.toString()
+          : null,
+        organizationId: user.organizationId
+          ? user.organizationId.toString()
+          : null,
+        role: user.role,
       };
-      
+
       console.log("Generating token with payload:", tokenPayload);
-      const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+      const token = jwt.sign(tokenPayload, JWT_SECRET, {
+        expiresIn: TOKEN_EXPIRY,
+      });
 
       // Return user info and token
       return res.json({
@@ -473,7 +514,7 @@ export async function registerRoutes(
 
       // Check if organization with this email already exists
       const existingOrg = await storage.getOrganizationByEmail(
-        validatedData.email,
+        validatedData.email
       );
 
       if (existingOrg) {
@@ -537,7 +578,7 @@ export async function registerRoutes(
     try {
       // Log the entire decoded token for debugging
       console.log("Auth/me request - Full token data:", (req as any).user);
-      
+
       // Try to get user ID from various possible properties in the token
       const userId = (req as any).user.id || (req as any).user.sub;
 
@@ -545,33 +586,35 @@ export async function registerRoutes(
       console.log("Auth/me request - User ID from token:", userId);
 
       if (!userId) {
-        return res.status(401).json({ message: "Invalid token - no user identifier found" });
+        return res
+          .status(401)
+          .json({ message: "Invalid token - no user identifier found" });
       }
 
       // Get user details - try both storage and direct MongoDB query
       let user = null;
-      
+
       try {
         // First try the storage service
         user = await storage.getUser(userId);
       } catch (err) {
         console.log("Error getting user from storage:", err);
       }
-      
+
       // If not found in storage, try direct MongoDB query
       if (!user) {
         try {
           user = await User.findById(userId);
-          
+
           if (user) {
             user = {
               id: user._id.toString(),
               name: user.name,
-              email: user.email, 
+              email: user.email,
               role: user.role,
-              status: user.status || 'active',
+              status: user.status || "active",
               organizationId: user.organizationId,
-              avatar: user.avatar
+              avatar: user.avatar,
             };
           }
         } catch (err) {
@@ -590,7 +633,7 @@ export async function registerRoutes(
           organization = await storage.getOrganization(user.organizationId);
         } catch (err) {
           console.log("Error getting organization from storage:", err);
-          
+
           // Try direct MongoDB query if storage fails
           try {
             const orgDoc = await Organization.findById(user.organizationId);
@@ -599,7 +642,7 @@ export async function registerRoutes(
                 id: orgDoc._id.toString(),
                 name: orgDoc.name,
                 plan: orgDoc.plan,
-                logo: orgDoc.logo
+                logo: orgDoc.logo,
               };
             }
           } catch (orgErr) {
@@ -614,7 +657,7 @@ export async function registerRoutes(
           name: user.name,
           email: user.email,
           role: user.role,
-          status: user.status || 'active',
+          status: user.status || "active",
           avatar: user.avatar,
         },
         organization: organization
@@ -670,7 +713,7 @@ export async function registerRoutes(
 
         const organization = await storage.updateOrganization(
           organizationId,
-          req.body,
+          req.body
         );
 
         if (!organization) {
@@ -681,7 +724,7 @@ export async function registerRoutes(
       } catch (error: any) {
         return res.status(500).json({ message: error.message });
       }
-    },
+    }
   );
 
   // Onboarding route for organizations
@@ -735,7 +778,7 @@ export async function registerRoutes(
           message: error.message || "An error occurred during onboarding",
         });
       }
-    },
+    }
   );
 
   // User/Marketer routes
@@ -753,18 +796,51 @@ export async function registerRoutes(
             .json({ message: "No organization associated with this user" });
         }
 
+        // Fetch users with MARKETER role from User table
         const users = await storage.getUsersByOrganization(organizationId);
+        const approvedMarketers = users
+          .filter((user) => user.role === UserRole.MARKETER)
+          .map((user) => ({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            status: user.status,
+            role: user.role,
+            createdAt: user.createdAt,
+            source: "user",
+          }));
 
-        // Filter to only get marketers
-        const marketers = users.filter(
-          (user) => user.role === UserRole.MARKETER,
+        // Fetch invited and pending marketers from MarketerApplication table
+        const marketerApplications = await storage.getMarketerApplications({
+          organizationId,
+          status: { $in: ["invited", "pending"] },
+        });
+
+        const invitedMarketers = marketerApplications.map((app) => ({
+          id: app._id.toString(),
+          name: app.name,
+          email: app.email,
+          phone: app.phone,
+          status: app.status,
+          role: UserRole.MARKETER,
+          createdAt: app.applicationDate,
+          source: "application",
+        }));
+
+        // Combine and sort marketers by createdAt (newest first)
+        const allMarketers = [...approvedMarketers, ...invitedMarketers].sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
 
-        return res.json(marketers);
+        return res.json(allMarketers);
       } catch (error: any) {
-        return res.status(500).json({ message: error.message });
+        console.error("Error fetching marketers:", error);
+        return res
+          .status(500)
+          .json({ message: error.message || "Internal server error" });
       }
-    },
+    }
   );
 
   app.post(
@@ -789,7 +865,7 @@ export async function registerRoutes(
 
         const marketers = await storage.getUsersByOrganization(organizationId);
         const marketerCount = marketers.filter(
-          (u) => u.role === UserRole.MARKETER,
+          (u) => u.role === UserRole.MARKETER
         ).length;
 
         const planLimits = PLAN_LIMITS[organization.plan as SubscriptionPlan];
@@ -829,12 +905,16 @@ export async function registerRoutes(
             email: marketer.email,
             status: marketer.status,
           },
-          inviteLink: `${req.protocol}://${req.get("host")}/marketer/accept-invite?email=${marketer.email}&token=${temporaryPassword}`,
+          inviteLink: `${req.protocol}://${req.get(
+            "host"
+          )}/marketer/accept-invite?email=${
+            marketer.email
+          }&token=${temporaryPassword}`,
         });
       } catch (error: any) {
         return res.status(500).json({ message: error.message });
       }
-    },
+    }
   );
 
   router.get("/marketers/top", authenticate, async (req, res) => {
@@ -925,7 +1005,7 @@ export async function registerRoutes(
       } catch (error: any) {
         return res.status(400).json({ message: error.message });
       }
-    },
+    }
   );
 
   router.get("/apps/top", authenticate, async (req, res) => {
@@ -1092,7 +1172,9 @@ export async function registerRoutes(
           organizationId: organization.id,
           userId: user.id,
           type: "conversion_created",
-          description: `New conversion for "${app.name}" - $${amount.toFixed(2)}`,
+          description: `New conversion for "${app.name}" - $${amount.toFixed(
+            2
+          )}`,
         });
 
         // In a real implementation, you might want to send a notification to the user
@@ -1102,7 +1184,7 @@ export async function registerRoutes(
           try {
             // In a real implementation, you would use axios to call the webhook
             console.log(
-              `Would call webhook at ${organization.webhookUrl} with conversion data`,
+              `Would call webhook at ${organization.webhookUrl} with conversion data`
             );
           } catch (webhookError) {
             console.error("Webhook delivery failed:", webhookError);
@@ -1126,8 +1208,9 @@ export async function registerRoutes(
 
       if (role === UserRole.ADMIN && organizationId) {
         // Admins see all conversions for their organization
-        conversions =
-          await storage.getConversionsByOrganization(organizationId);
+        conversions = await storage.getConversionsByOrganization(
+          organizationId
+        );
       } else {
         // Marketers see only their own conversions
         conversions = await storage.getConversionsByUser(userId);
@@ -1184,7 +1267,7 @@ export async function registerRoutes(
       const limit = parseInt(req.query.limit as string) || 10;
       const activities = await storage.getActivitiesByOrganization(
         organizationId,
-        limit,
+        limit
       );
 
       return res.json(activities);
@@ -1234,7 +1317,7 @@ export async function registerRoutes(
 
   // Set up payment routes for subscription plans
   setupPaymentRoutes(app);
-  
+
   // Configure multer for file uploads
   const upload = multer({
     storage: multer.memoryStorage(),
@@ -1244,597 +1327,776 @@ export async function registerRoutes(
     fileFilter: (req, file, cb) => {
       // Accept documents (PDF, DOC, DOCX), images (JPEG, PNG), and common spreadsheet formats
       const allowedMimeTypes = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'image/jpeg',
-        'image/png',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/jpeg",
+        "image/png",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       ];
-      
+
       if (allowedMimeTypes.includes(file.mimetype)) {
         cb(null, true);
       } else {
-        cb(new Error('Invalid file type. Only PDF, DOC, DOCX, JPG, PNG, XLS and XLSX files are allowed.'));
+        cb(
+          new Error(
+            "Invalid file type. Only PDF, DOC, DOCX, JPG, PNG, XLS and XLSX files are allowed."
+          )
+        );
       }
-    }
+    },
   });
 
   // Marketer Application Routes
-  
+
   // Invite a new marketer (organization admins only)
-  router.post("/marketer-applications/invite", authenticate, authorize([UserRole.ADMIN]), async (req: Request, res: Response) => {
-    try {
-      const { name, email, phone } = req.body;
-      
-      if (!name || !email) {
-        return res.status(400).json({ message: "Name and email are required" });
-      }
-      
-      // Get the organization from the authenticated user
-      const organizationId = (req as any).user.organizationId;
-      const userId = (req as any).user.id;
-      
-      if (!organizationId) {
-        return res.status(400).json({ message: "User is not associated with an organization" });
-      }
-      
-      // Check if this email is already used by another marketer application
-      const existingApplication = await MarketerApplication.findOne({ email });
-      if (existingApplication) {
-        return res.status(400).json({ message: "An application with this email already exists" });
-      }
-      
-      // Check if user with this email already exists
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ message: "A user with this email already exists" });
-      }
-      
-      // Get the organization details
-      const organization = await Organization.findById(organizationId);
-      if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
-      }
-      
-      // Check if the organization is on a paid plan (or has slots available in free trial)
-      if (organization.plan === SubscriptionPlan.FREE_TRIAL) {
-        // Check if they've reached the limit for marketers in free trial
-        const currentMarketers = await User.countDocuments({ 
-          organizationId: organizationId,
-          role: UserRole.MARKETER
+  router.post(
+    "/marketer-applications/invite",
+    authenticate,
+    authorize([UserRole.ADMIN]),
+    async (req: Request, res: Response) => {
+      try {
+        const { name, email, phone } = req.body;
+
+        if (!name || !email) {
+          return res
+            .status(400)
+            .json({ message: "Name and email are required" });
+        }
+
+        // Get the organization from the authenticated user
+        const organizationId = (req as any).user.organizationId;
+        const userId = (req as any).user.id;
+
+        if (!organizationId) {
+          return res
+            .status(400)
+            .json({ message: "User is not associated with an organization" });
+        }
+
+        // Check if this email is already used by another marketer application
+        const existingApplication = await MarketerApplication.findOne({
+          email,
         });
-        
-        if (currentMarketers >= PLAN_LIMITS[SubscriptionPlan.FREE_TRIAL].marketers) {
-          return res.status(403).json({ 
-            message: "You've reached the maximum number of marketers for your trial plan. Please upgrade your subscription." 
+        if (existingApplication) {
+          return res
+            .status(400)
+            .json({ message: "An application with this email already exists" });
+        }
+
+        // Check if user with this email already exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+          return res
+            .status(400)
+            .json({ message: "A user with this email already exists" });
+        }
+
+        // Get the organization details
+        const organization = await Organization.findById(organizationId);
+        if (!organization) {
+          return res.status(404).json({ message: "Organization not found" });
+        }
+
+        // Check if the organization is on a paid plan (or has slots available in free trial)
+        if (organization.plan === SubscriptionPlan.FREE_TRIAL) {
+          // Check if they've reached the limit for marketers in free trial
+          const currentMarketers = await User.countDocuments({
+            organizationId: organizationId,
+            role: UserRole.MARKETER,
           });
-        }
-      }
-      
-      // Generate a random token for the invitation link
-      const applicationToken = randomBytes(32).toString('hex');
-      const tokenExpiry = new Date();
-      tokenExpiry.setDate(tokenExpiry.getDate() + 7); // Token valid for 7 days
-      
-      // Create the marketer application
-      const application = await MarketerApplication.create({
-        name,
-        email,
-        phone: phone || '',
-        organizationId,
-        invitedBy: userId,
-        applicationDate: new Date(),
-        status: 'invited',
-        applicationToken,
-        tokenExpiry
-      });
-      
-      // Generate the invitation URL
-      const baseUrl = process.env.NODE_ENV === 'production' 
-        ? `https://${req.get('host')}` 
-        : `http://localhost:5000`;
-      
-      const invitationUrl = `${baseUrl}/apply/marketer/${applicationToken}`;
-      
-      // Send the invitation email
-      await sendMarketerInvitationEmail(application, organization, invitationUrl);
-      
-      // Create activity record
-      await storage.createActivity({
-        organizationId,
-        userId,
-        type: 'marketer_invited',
-        description: `${(req as any).user.name || 'Admin'} invited ${name} as a marketer`
-      });
-      
-      return res.status(201).json({
-        message: "Invitation sent successfully",
-        application: {
-          id: application._id,
-          name: application.name,
-          email: application.email,
-          status: application.status,
-          applicationDate: application.applicationDate
-        }
-      });
-    } catch (error: any) {
-      console.error("Error inviting marketer:", error);
-      return res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // Get all marketer applications for an organization
-  router.get("/marketer-applications", authenticate, authorize([UserRole.ADMIN]), async (req: Request, res: Response) => {
-    try {
-      const organizationId = (req as any).user.organizationId;
-      const { status } = req.query;
-      
-      let query: any = { organizationId };
-      
-      // Add status filter if provided
-      if (status && ['invited', 'pending', 'approved', 'rejected'].includes(status as string)) {
-        query.status = status;
-      }
-      
-      const applications = await MarketerApplication.find(query)
-        .sort({ applicationDate: -1 });
-      
-      return res.json(applications.map(app => ({
-        id: app._id,
-        name: app.name,
-        email: app.email,
-        phone: app.phone,
-        status: app.status,
-        applicationDate: app.applicationDate,
-        resumeUrl: app.resumeUrl,
-        kycDocUrl: app.kycDocUrl,
-        socialMedia: app.socialMedia,
-        experience: app.experience,
-        skills: app.skills,
-        reviewedAt: app.reviewedAt,
-        reviewNotes: app.reviewNotes
-      })));
-    } catch (error: any) {
-      console.error("Error fetching marketer applications:", error);
-      return res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // Get a specific marketer application
-  router.get("/marketer-applications/:id", authenticate, authorize([UserRole.ADMIN]), async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      const organizationId = (req as any).user.organizationId;
-      
-      const application = await MarketerApplication.findOne({
-        _id: id,
-        organizationId
-      });
-      
-      if (!application) {
-        return res.status(404).json({ message: "Application not found" });
-      }
-      
-      return res.json({
-        id: application._id,
-        name: application.name,
-        email: application.email,
-        phone: application.phone,
-        status: application.status,
-        applicationDate: application.applicationDate,
-        resumeUrl: application.resumeUrl,
-        kycDocUrl: application.kycDocUrl,
-        socialMedia: application.socialMedia,
-        experience: application.experience,
-        skills: application.skills,
-        reviewedAt: application.reviewedAt,
-        reviewNotes: application.reviewNotes
-      });
-    } catch (error: any) {
-      console.error("Error fetching marketer application:", error);
-      return res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // Verify application token (public route)
-  router.get("/marketer-applications/verify/:token", async (req: Request, res: Response) => {
-    try {
-      const { token } = req.params;
-      
-      // Find application by token
-      const application = await MarketerApplication.findOne({
-        applicationToken: token,
-        tokenExpiry: { $gt: new Date() } // Token not expired
-      });
-      
-      if (!application) {
-        return res.status(404).json({ message: "Invalid or expired invitation" });
-      }
-      
-      // Get organization details
-      const organization = await Organization.findById(application.organizationId);
-      
-      if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
-      }
-      
-      return res.json({
-        valid: true,
-        application: {
-          id: application._id,
-          name: application.name,
-          email: application.email,
-          organization: {
-            name: organization.name,
-            id: organization._id
+
+          if (
+            currentMarketers >=
+            PLAN_LIMITS[SubscriptionPlan.FREE_TRIAL].marketers
+          ) {
+            return res.status(403).json({
+              message:
+                "You've reached the maximum number of marketers for your trial plan. Please upgrade your subscription.",
+            });
           }
         }
-      });
-    } catch (error: any) {
-      console.error("Error verifying application token:", error);
-      return res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // Submit application (public route)
-  router.post("/marketer-applications/submit/:token", upload.fields([
-    { name: 'resume', maxCount: 1 },
-    { name: 'kycDocument', maxCount: 1 }
-  ]), async (req: Request, res: Response) => {
-    try {
-      const { token } = req.params;
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      const { 
-        experience, 
-        skills,
-        twitter,
-        instagram,
-        linkedin,
-        facebook
-      } = req.body;
-      
-      // Find application by token
-      const application = await MarketerApplication.findOne({
-        applicationToken: token,
-        tokenExpiry: { $gt: new Date() } // Token not expired
-      });
-      
-      if (!application) {
-        return res.status(404).json({ message: "Invalid or expired invitation" });
-      }
-      
-      // Update application status
-      application.status = 'pending';
-      application.experience = experience;
-      application.skills = skills ? skills.split(',').map((s: string) => s.trim()) : [];
-      
-      // Add social media links if provided
-      application.socialMedia = {
-        twitter: twitter || undefined,
-        instagram: instagram || undefined,
-        linkedin: linkedin || undefined,
-        facebook: facebook || undefined
-      };
-      
-      // Upload resume if provided
-      if (files.resume && files.resume[0]) {
-        const resumeFile = files.resume[0];
-        const resumeFileName = `organizations/${application.organizationId}/marketers/${application._id}/resume-${Date.now()}-${resumeFile.originalname}`;
-        
-        const resumeUrl = await uploadFile(
-          resumeFile.buffer,
-          resumeFileName,
-          resumeFile.mimetype
+
+        // Generate a random token for the invitation link
+        const applicationToken = randomBytes(32).toString("hex");
+        const tokenExpiry = new Date();
+        tokenExpiry.setDate(tokenExpiry.getDate() + 7); // Token valid for 7 days
+
+        // Create the marketer application
+        const application = await MarketerApplication.create({
+          name,
+          email,
+          phone: phone || "",
+          organizationId,
+          invitedBy: userId,
+          applicationDate: new Date(),
+          status: "invited",
+          applicationToken,
+          tokenExpiry,
+        });
+
+        // Generate the invitation URL
+        const baseUrl =
+          process.env.NODE_ENV === "production"
+            ? `https://${req.get("host")}`
+            : `http://localhost:5000`;
+
+        const invitationUrl = `${baseUrl}/apply/marketer/${applicationToken}`;
+
+        // Send the invitation email
+        await sendMarketerInvitationEmail(
+          application,
+          organization,
+          invitationUrl
         );
-        
-        application.resumeUrl = resumeUrl;
-      }
-      
-      // Upload KYC document if provided
-      if (files.kycDocument && files.kycDocument[0]) {
-        const kycFile = files.kycDocument[0];
-        const kycFileName = `organizations/${application.organizationId}/marketers/${application._id}/kyc-${Date.now()}-${kycFile.originalname}`;
-        
-        const kycDocUrl = await uploadFile(
-          kycFile.buffer,
-          kycFileName,
-          kycFile.mimetype
-        );
-        
-        application.kycDocUrl = kycDocUrl;
-      }
-      
-      await application.save();
-      
-      // Get organization for activity
-      const organization = await Organization.findById(application.organizationId);
-      
-      if (organization) {
+
         // Create activity record
         await storage.createActivity({
-          organizationId: application.organizationId,
-          type: 'marketer_applied',
-          description: `${application.name} submitted their application to ${organization.name}`
+          organizationId,
+          userId,
+          type: "marketer_invited",
+          description: `${
+            (req as any).user.name || "Admin"
+          } invited ${name} as a marketer`,
         });
+
+        return res.status(201).json({
+          message: "Invitation sent successfully",
+          application: {
+            id: application._id,
+            name: application.name,
+            phone: application.phone,
+            email: application.email,
+            status: application.status,
+            applicationDate: application.applicationDate,
+          },
+        });
+      } catch (error: any) {
+        console.error("Error inviting marketer:", error);
+        return res.status(500).json({ message: error.message });
       }
-      
-      return res.status(200).json({
-        message: "Application submitted successfully",
-        application: {
+    }
+  );
+
+  // Get all marketer applications for an organization
+  router.get(
+    "/marketer-applications",
+    authenticate,
+    authorize([UserRole.ADMIN]),
+    async (req: Request, res: Response) => {
+      try {
+        const organizationId = (req as any).user.organizationId;
+        const { status } = req.query;
+
+        let query: any = { organizationId };
+
+        // Add status filter if provided
+        if (
+          status &&
+          ["invited", "pending", "approved", "rejected"].includes(
+            status as string
+          )
+        ) {
+          query.status = status;
+        }
+
+        const applications = await MarketerApplication.find(query).sort({
+          applicationDate: -1,
+        });
+
+        return res.json(
+          applications.map((app) => ({
+            id: app._id,
+            name: app.name,
+            email: app.email,
+            phone: app.phone,
+            status: app.status,
+            applicationDate: app.applicationDate,
+            resumeUrl: app.resumeUrl,
+            kycDocUrl: app.kycDocUrl,
+            socialMedia: app.socialMedia,
+            experience: app.experience,
+            skills: app.skills,
+            reviewedAt: app.reviewedAt,
+            reviewNotes: app.reviewNotes,
+          }))
+        );
+      } catch (error: any) {
+        console.error("Error fetching marketer applications:", error);
+        return res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  // Get a specific marketer application
+  router.get(
+    "/marketer-applications/:id",
+    authenticate,
+    authorize([UserRole.ADMIN]),
+    async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+        const organizationId = (req as any).user.organizationId;
+
+        const application = await MarketerApplication.findOne({
+          _id: id,
+          organizationId,
+        });
+
+        if (!application) {
+          return res.status(404).json({ message: "Application not found" });
+        }
+
+        return res.json({
           id: application._id,
           name: application.name,
           email: application.email,
-          status: application.status
-        }
-      });
-    } catch (error: any) {
-      console.error("Error submitting application:", error);
-      return res.status(500).json({ message: error.message });
-    }
-  });
-  
-  // Review marketer application (approve/reject)
-  router.post("/marketer-applications/:id/review", authenticate, authorize([UserRole.ADMIN]), async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      const { approved, notes } = req.body;
-      const organizationId = (req as any).user.organizationId;
-      const reviewerId = (req as any).user.id;
-      
-      if (approved === undefined) {
-        return res.status(400).json({ message: "'approved' field is required" });
-      }
-      
-      // Find the application
-      const application = await MarketerApplication.findOne({
-        _id: id,
-        organizationId,
-        status: 'pending' // Only pending applications can be reviewed
-      });
-      
-      if (!application) {
-        return res.status(404).json({ message: "Application not found or not in pending status" });
-      }
-      
-      // Get the organization
-      const organization = await Organization.findById(organizationId);
-      if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
-      }
-      
-      // Update the application status
-      application.status = approved ? 'approved' : 'rejected';
-      application.reviewedBy = reviewerId;
-      application.reviewedAt = new Date();
-      application.reviewNotes = notes || '';
-      
-      // If approved, create a user account for the marketer
-      if (approved) {
-        // Check if the organization has reached its marketer limit
-        const currentMarketers = await User.countDocuments({ 
-          organizationId: organizationId,
-          role: UserRole.MARKETER
+          phone: application.phone,
+          status: application.status,
+          applicationDate: application.applicationDate,
+          resumeUrl: application.resumeUrl,
+          kycDocUrl: application.kycDocUrl,
+          socialMedia: application.socialMedia,
+          experience: application.experience,
+          skills: application.skills,
+          reviewedAt: application.reviewedAt,
+          reviewNotes: application.reviewNotes,
         });
-        
-        const planLimit = PLAN_LIMITS[organization.plan].marketers;
-        
-        if (currentMarketers >= planLimit) {
-          return res.status(403).json({ 
-            message: `You've reached the maximum number of marketers (${planLimit}) for your plan. Please upgrade your subscription.` 
+      } catch (error: any) {
+        console.error("Error fetching marketer application:", error);
+        return res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  // Verify application token (public route)
+  router.get(
+    "/marketer-applications/verify/:token",
+    async (req: Request, res: Response) => {
+      try {
+        const { token } = req.params;
+
+        // Find application by token
+        const application = await MarketerApplication.findOne({
+          applicationToken: token,
+          tokenExpiry: { $gt: new Date() }, // Token not expired
+        });
+
+        if (!application) {
+          return res
+            .status(404)
+            .json({ message: "Invalid or expired invitation" });
+        }
+
+        // Get organization details
+        const organization = await Organization.findById(
+          application.organizationId
+        );
+
+        if (!organization) {
+          return res.status(404).json({ message: "Organization not found" });
+        }
+
+        return res.json({
+          valid: true,
+          application: {
+            id: application._id,
+            name: application.name,
+            email: application.email,
+            organization: {
+              name: organization.name,
+              id: organization._id,
+            },
+          },
+        });
+      } catch (error: any) {
+        console.error("Error verifying application token:", error);
+        return res.status(500).json({ message: error.message });
+      }
+    }
+  );
+
+  // Submit application (public route)
+  router.post(
+    "/marketer-applications/submit/:token",
+    upload.fields([
+      { name: "resume", maxCount: 1 },
+      { name: "kycDocument", maxCount: 1 },
+    ]),
+    async (req: Request, res: Response) => {
+      try {
+        const { token } = req.params;
+        const files = req.files as {
+          [fieldname: string]: Express.Multer.File[];
+        };
+        const { experience, skills, twitter, instagram, linkedin, facebook } =
+          req.body;
+
+        // Find application by token
+        const application = await MarketerApplication.findOne({
+          applicationToken: token,
+          tokenExpiry: { $gt: new Date() }, // Token not expired
+        });
+
+        if (!application) {
+          return res
+            .status(404)
+            .json({ message: "Invalid or expired invitation" });
+        }
+
+        // Update application status
+        application.status = "pending";
+        application.experience = experience;
+        application.skills = skills
+          ? skills.split(",").map((s: string) => s.trim())
+          : [];
+
+        // Add social media links if provided
+        application.socialMedia = {
+          twitter: twitter || undefined,
+          instagram: instagram || undefined,
+          linkedin: linkedin || undefined,
+          facebook: facebook || undefined,
+        };
+
+        // Upload resume if provided
+        if (files.resume && files.resume[0]) {
+          const resumeFile = files.resume[0];
+          const resumeFileName = `organizations/${
+            application.organizationId
+          }/marketers/${application._id}/resume-${Date.now()}-${
+            resumeFile.originalname
+          }`;
+
+          const resumeUrl = await uploadFile(
+            resumeFile.buffer,
+            resumeFileName,
+            resumeFile.mimetype
+          );
+
+          application.resumeUrl = resumeUrl;
+        }
+
+        // Upload KYC document if provided
+        if (files.kycDocument && files.kycDocument[0]) {
+          const kycFile = files.kycDocument[0];
+          const kycFileName = `organizations/${
+            application.organizationId
+          }/marketers/${application._id}/kyc-${Date.now()}-${
+            kycFile.originalname
+          }`;
+
+          const kycDocUrl = await uploadFile(
+            kycFile.buffer,
+            kycFileName,
+            kycFile.mimetype
+          );
+
+          application.kycDocUrl = kycDocUrl;
+        }
+
+        await application.save();
+
+        // Get organization for activity
+        const organization = await Organization.findById(
+          application.organizationId
+        );
+
+        if (organization) {
+          // Create activity record
+          await storage.createActivity({
+            organizationId: application.organizationId,
+            type: "marketer_applied",
+            description: `${application.name} submitted their application to ${organization.name}`,
           });
         }
-        
-        // Generate a random password for the new user
-        const tempPassword = randomBytes(8).toString('hex');
-        
-        // Create the user
-        const user = await User.create({
-          name: application.name,
-          email: application.email,
-          password: tempPassword, // This will be hashed by the User model pre-save hook
-          role: UserRole.MARKETER,
-          organizationId: application.organizationId,
-          status: 'active'
+
+        return res.status(200).json({
+          message: "Application submitted successfully",
+          application: {
+            id: application._id,
+            name: application.name,
+            email: application.email,
+            status: application.status,
+          },
         });
-        
-        // Link the user to the application
-        application.user = user._id;
-        
-        // Send approval email with password
-        await sendMarketerApprovalEmail(application, organization);
-        
-        // Create activity
-        await storage.createActivity({
-          organizationId,
-          userId: reviewerId,
-          type: 'marketer_approved',
-          description: `${(req as any).user.name || 'Admin'} approved ${application.name} as a marketer`
-        });
-      } else {
-        // Send rejection email
-        await sendMarketerRejectionEmail(application, organization, notes);
-        
-        // Create activity
-        await storage.createActivity({
-          organizationId,
-          userId: reviewerId,
-          type: 'marketer_rejected',
-          description: `${(req as any).user.name || 'Admin'} rejected ${application.name}'s application`
-        });
+      } catch (error: any) {
+        console.error("Error submitting application:", error);
+        return res.status(500).json({ message: error.message });
       }
-      
-      await application.save();
-      
-      return res.json({
-        message: approved ? "Application approved successfully" : "Application rejected",
-        application: {
-          id: application._id,
-          name: application.name,
-          email: application.email,
-          status: application.status,
-          reviewedAt: application.reviewedAt
+    }
+  );
+
+  // Review marketer application (approve/reject)
+  router.post(
+    "/marketer-applications/:id/review",
+    authenticate,
+    authorize([UserRole.ADMIN]),
+    async (req: Request, res: Response) => {
+      try {
+        const { id } = req.params;
+        const { approved, notes } = req.body;
+        const organizationId = (req as any).user.organizationId;
+        const reviewerId = (req as any).user.id;
+
+        if (approved === undefined) {
+          return res
+            .status(400)
+            .json({ message: "'approved' field is required" });
         }
-      });
-    } catch (error: any) {
-      console.error("Error reviewing application:", error);
-      return res.status(500).json({ message: error.message });
+
+        // Find the application
+        const application = await MarketerApplication.findOne({
+          _id: id,
+          organizationId,
+          status: "pending", // Only pending applications can be reviewed
+        });
+
+        if (!application) {
+          return res
+            .status(404)
+            .json({
+              message: "Application not found or not in pending status",
+            });
+        }
+
+        // Get the organization
+        const organization = await Organization.findById(organizationId);
+        if (!organization) {
+          return res.status(404).json({ message: "Organization not found" });
+        }
+
+        // Update the application status
+        application.status = approved ? "approved" : "rejected";
+        application.reviewedBy = reviewerId;
+        application.reviewedAt = new Date();
+        application.reviewNotes = notes || "";
+
+        // If approved, create a user account for the marketer
+        if (approved) {
+          // Check if the organization has reached its marketer limit
+          const currentMarketers = await User.countDocuments({
+            organizationId: organizationId,
+            role: UserRole.MARKETER,
+          });
+
+          const planLimit = PLAN_LIMITS[organization.plan].marketers;
+
+          if (currentMarketers >= planLimit) {
+            return res.status(403).json({
+              message: `You've reached the maximum number of marketers (${planLimit}) for your plan. Please upgrade your subscription.`,
+            });
+          }
+
+          // Generate a random password for the new user
+          const tempPassword = randomBytes(8).toString("hex");
+
+          // Create the user
+          const user = await User.create({
+            name: application.name,
+            email: application.email,
+            password: tempPassword, // This will be hashed by the User model pre-save hook
+            role: UserRole.MARKETER,
+            organizationId: application.organizationId,
+            status: "active",
+          });
+
+          // Link the user to the application
+          application.user = user._id;
+
+          // Send approval email with password
+          await sendMarketerApprovalEmail(application, organization);
+
+          // Create activity
+          await storage.createActivity({
+            organizationId,
+            userId: reviewerId,
+            type: "marketer_approved",
+            description: `${(req as any).user.name || "Admin"} approved ${
+              application.name
+            } as a marketer`,
+          });
+        } else {
+          // Send rejection email
+          await sendMarketerRejectionEmail(application, organization, notes);
+
+          // Create activity
+          await storage.createActivity({
+            organizationId,
+            userId: reviewerId,
+            type: "marketer_rejected",
+            description: `${(req as any).user.name || "Admin"} rejected ${
+              application.name
+            }'s application`,
+          });
+        }
+
+        await application.save();
+
+        return res.json({
+          message: approved
+            ? "Application approved successfully"
+            : "Application rejected",
+          application: {
+            id: application._id,
+            name: application.name,
+            email: application.email,
+            status: application.status,
+            reviewedAt: application.reviewedAt,
+          },
+        });
+      } catch (error: any) {
+        console.error("Error reviewing application:", error);
+        return res.status(500).json({ message: error.message });
+      }
     }
-  });
-  
+  );
+
   // Invite a new marketer (organization admins only)
-  app.post("/api/marketers/invite", authenticate, async (req, res) => {
-    try {
-      const { name, email } = req.body;
-      
-      if (!name || !email) {
-        return res.status(400).json({ message: "Missing required fields" });
+  app.post(
+    "/api/marketers/invite",
+    authenticate,
+    authorize([UserRole.ADMIN]),
+    async (req, res) => {
+      try {
+        const { name, email, phone } = req.body;
+
+        if (!name || !email || !phone) {
+          return res.status(400).json({ message: "Missing required fields" });
+        }
+
+        const userId = (req as any).user.id;
+        const organizationId = (req as any).user.organizationId;
+
+        if (!organizationId) {
+          return res
+            .status(403)
+            .json({ message: "Only organization admins can invite marketers" });
+        }
+
+        const user = await storage.getUser(userId);
+        const organization = await storage.getOrganization(organizationId);
+
+        if (!user || !organization) {
+          return res
+            .status(404)
+            .json({ message: "User or organization not found" });
+        }
+
+        const existingApplications = await storage.getMarketerApplications({
+          organizationId,
+          email,
+        });
+
+        if (existingApplications.length > 0) {
+          const existingApp = existingApplications[0];
+          const baseUrl =
+            process.env.NODE_ENV === "production"
+              ? "https://growvia.com"
+              : `http://${req.hostname}:5000`;
+          const invitationUrl = `${baseUrl}/marketer/onboarding/${existingApp.applicationToken}`;
+
+          return res.status(200).json({
+            message: "Marketer already invited",
+            application: existingApp,
+            inviteLink: invitationUrl,
+          });
+        }
+
+        const application = await storage.createMarketerApplication({
+          name,
+          email,
+          phone,
+          organizationId,
+          invitedBy: userId,
+          status: "invited",
+          applicationToken: randomBytes(32).toString("hex"),
+        });
+
+        const baseUrl =
+          process.env.NODE_ENV === "production"
+            ? "https://growvia.com"
+            : `http://${req.hostname}:5000`;
+        const invitationUrl = `${baseUrl}/marketer/onboarding/${application.applicationToken}`;
+
+        await sendMarketerInvitationEmail(
+          application,
+          organization,
+          invitationUrl
+        );
+
+        await storage.createActivity({
+          type: "marketer_invited",
+          description: `${user.name} invited ${name} as a marketer`,
+          organizationId,
+          userId,
+          metadata: { marketerEmail: email },
+        });
+
+        return res.status(201).json({
+          message: "Marketer invitation sent successfully",
+          application,
+          inviteLink: invitationUrl,
+        });
+      } catch (error: any) {
+        console.error("Error inviting marketer:", error);
+        return res
+          .status(500)
+          .json({ message: error.message || "Internal server error" });
       }
-      
-      // Get the organization ID from the token
-      const userId = (req as any).user.id;
-      const organizationId = (req as any).user.organizationId;
-      
-      if (!organizationId) {
-        return res.status(403).json({ message: "Only organization admins can invite marketers" });
-      }
-      
-      // Check if user is admin of this organization
-      const user = await storage.getUser(userId);
-      const organization = await storage.getOrganization(organizationId);
-      
-      if (!user || !organization) {
-        return res.status(404).json({ message: "User or organization not found" });
-      }
-      
-      // Check if this email is already invited or already has an application
-      const existingApplications = await storage.getMarketerApplications({
-        organizationId,
-        email
-      });
-      
-      if (existingApplications.length > 0) {
-        return res.status(409).json({ message: "A marketer with this email has already been invited or has an application" });
-      }
-      
-      // Create the application with 'invited' status
-      const application = await storage.createMarketerApplication({
-        name,
-        email,
-        phone,
-        organizationId,
-        invitedBy: userId,
-        status: 'invited'
-      });
-      
-      // Generate the invitation URL with the application token
-      const baseUrl = process.env.NODE_ENV === 'production' 
-        ? `https://growvia.com` 
-        : `http://${req.hostname}:5000`;
-        
-      const invitationUrl = `${baseUrl}/marketer/onboarding/${application.applicationToken}`;
-      
-      // Send the invitation email
-      await sendMarketerInvitationEmail(application, organization, invitationUrl);
-      
-      // Create activity log
-      await storage.createActivity({
-        type: 'marketer_invited',
-        description: `${user.name} invited ${name} as a marketer`,
-        organizationId,
-        userId,
-        metadata: { marketerEmail: email }
-      });
-      
-      return res.status(201).json({
-        message: "Marketer invitation sent successfully",
-        application
-      });
-    } catch (error: any) {
-      console.error('Error inviting marketer:', error);
-      return res.status(500).json({ message: error.message || "Internal server error" });
     }
-  });
-  
+  );
+
+
+  app.post(
+    "/api/marketers/resend-invite",
+    authenticate,
+    authorize([UserRole.ADMIN]),
+    async (req, res) => {
+      try {
+        const { email } = req.body;
+
+        if (!email) {
+          return res.status(400).json({ message: "Email is required" });
+        }
+
+        const userId = (req as any).user.id;
+        const organizationId = (req as any).user.organizationId;
+
+        const existingApplications = await storage.getMarketerApplications({
+          organizationId,
+          email,
+        });
+
+        if (existingApplications.length === 0) {
+          return res
+            .status(404)
+            .json({ message: "No existing invitation found for this email" });
+        }
+
+        const application = existingApplications[0];
+        const organization = await storage.getOrganization(organizationId);
+
+        const baseUrl =
+          process.env.NODE_ENV === "production"
+            ? `https://growvia.com`
+            : `http://${req.hostname}:5000`;
+
+        const invitationUrl = `${baseUrl}/marketer/onboarding/${application.applicationToken}`;
+
+        await sendMarketerInvitationEmail(
+          application,
+          organization,
+          invitationUrl
+        );
+
+        return res.status(200).json({
+          message: "Invitation resent successfully",
+          application,
+          inviteLink: invitationUrl,
+        });
+      } catch (error: any) {
+        console.error("Error resending marketer invite:", error);
+        return res
+          .status(500)
+          .json({ message: error.message || "Internal server error" });
+      }
+    }
+  );
+
   // Get marketer application by token (for onboarding)
   app.get("/api/marketers/application/:token", async (req, res) => {
     try {
       const { token } = req.params;
-      
+
       if (!token) {
-        return res.status(400).json({ message: "Application token is required" });
+        return res
+          .status(400)
+          .json({ message: "Application token is required" });
       }
-      
+
       const application = await storage.getMarketerApplicationByToken(token);
-      
+
       if (!application) {
-        return res.status(404).json({ message: "Application not found or token expired" });
+        return res
+          .status(404)
+          .json({ message: "Application not found or token expired" });
       }
-      
+
       return res.status(200).json({ application });
     } catch (error: any) {
-      console.error('Error fetching marketer application:', error);
-      return res.status(500).json({ message: error.message || "Internal server error" });
+      console.error("Error fetching marketer application:", error);
+      return res
+        .status(500)
+        .json({ message: error.message || "Internal server error" });
     }
   });
-  
+
   // Submit marketer application with resume and KYC document
   app.post("/api/marketers/application/:token/submit", async (req, res) => {
     try {
       const { token } = req.params;
-      const { 
-        experience, 
-        skills,
-        socialMedia 
-      } = req.body;
-      
+      const { experience, skills, socialMedia } = req.body;
+
       if (!token) {
-        return res.status(400).json({ message: "Application token is required" });
+        return res
+          .status(400)
+          .json({ message: "Application token is required" });
       }
-      
+
       // Get the application
       const application = await storage.getMarketerApplicationByToken(token);
-      
+
       if (!application) {
-        return res.status(404).json({ message: "Application not found or token expired" });
+        return res
+          .status(404)
+          .json({ message: "Application not found or token expired" });
       }
-      
-      if (application.status !== 'invited') {
-        return res.status(400).json({ message: `Application is already in '${application.status}' status` });
+
+      if (application.status !== "invited") {
+        return res
+          .status(400)
+          .json({
+            message: `Application is already in '${application.status}' status`,
+          });
       }
-      
+
       // Process file uploads if included in the request
       let resumeUrl = null;
       let kycDocUrl = null;
-      
+
       if (req.files) {
         const files = req.files as any;
-        
+
         if (files.resume) {
           const resumeFile = files.resume[0];
           resumeUrl = await uploadFile(
             resumeFile.buffer,
-            `resume_${application._id}_${Date.now()}.${resumeFile.originalname.split('.').pop()}`,
+            `resume_${application._id}_${Date.now()}.${resumeFile.originalname
+              .split(".")
+              .pop()}`,
             resumeFile.mimetype
           );
         }
-        
+
         if (files.kycDocument) {
           const kycFile = files.kycDocument[0];
           kycDocUrl = await uploadFile(
             kycFile.buffer,
-            `kyc_${application._id}_${Date.now()}.${kycFile.originalname.split('.').pop()}`,
+            `kyc_${application._id}_${Date.now()}.${kycFile.originalname
+              .split(".")
+              .pop()}`,
             kycFile.mimetype
           );
         }
       }
-      
+
       // Update the application
       const updatedApplication = await storage.updateMarketerApplication(
         application._id,
         {
-          status: 'pending',
+          status: "pending",
           experience: experience || null,
           skills: skills || [],
           socialMedia: socialMedia || {},
@@ -1842,127 +2104,163 @@ export async function registerRoutes(
           kycDocUrl: kycDocUrl || application.kycDocUrl,
         }
       );
-      
+
       // Create activity log
       await storage.createActivity({
-        type: 'marketer_application_submitted',
+        type: "marketer_application_submitted",
         description: `${application.name} submitted their marketer application`,
         organizationId: application.organizationId,
-        metadata: { applicationId: application._id }
+        metadata: { applicationId: application._id },
       });
-      
+
       return res.status(200).json({
         message: "Application submitted successfully",
-        application: updatedApplication
+        application: updatedApplication,
       });
     } catch (error: any) {
-      console.error('Error submitting marketer application:', error);
-      return res.status(500).json({ message: error.message || "Internal server error" });
+      console.error("Error submitting marketer application:", error);
+      return res
+        .status(500)
+        .json({ message: error.message || "Internal server error" });
     }
   });
-  
+
   // Get all marketer applications for organization
   app.get("/api/marketers/applications", authenticate, async (req, res) => {
     try {
       const organizationId = (req as any).user.organizationId;
-      
+
       if (!organizationId) {
-        return res.status(403).json({ message: "Only organization users can view applications" });
+        return res
+          .status(403)
+          .json({ message: "Only organization users can view applications" });
       }
-      
+
       const status = req.query.status as string;
       const email = req.query.email as string;
-      
+
       // Fetch applications with optional filters
       const applications = await storage.getMarketerApplications({
         organizationId,
         ...(status && { status }),
-        ...(email && { email })
+        ...(email && { email }),
       });
-      
+
       return res.status(200).json(applications);
     } catch (error: any) {
-      console.error('Error fetching marketer applications:', error);
-      return res.status(500).json({ message: error.message || "Internal server error" });
+      console.error("Error fetching marketer applications:", error);
+      return res
+        .status(500)
+        .json({ message: error.message || "Internal server error" });
     }
   });
-  
+
   // Review marketer application (approve/reject)
-  app.post("/api/marketers/applications/:id/review", authenticate, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { approved, notes } = req.body;
-      
-      if (approved === undefined) {
-        return res.status(400).json({ message: "The 'approved' field is required" });
-      }
-      
-      // Get the user info from authenticated request
-      const userId = (req as any).user.id;
-      const organizationId = (req as any).user.organizationId;
-      
-      if (!organizationId) {
-        return res.status(403).json({ message: "Only organization admins can review applications" });
-      }
-      
-      // Get the application
-      const application = await storage.getMarketerApplication(id);
-      
-      if (!application) {
-        return res.status(404).json({ message: "Application not found" });
-      }
-      
-      // Check if application belongs to this organization
-      if (application.organizationId.toString() !== organizationId.toString()) {
-        return res.status(403).json({ message: "Not authorized to review this application" });
-      }
-      
-      // Check if application is in pending status
-      if (application.status !== 'pending') {
-        return res.status(400).json({ message: `Application is not in 'pending' status (current status: ${application.status})` });
-      }
-      
-      // Review the application
-      const updatedApplication = await storage.reviewMarketerApplication(
-        id,
-        approved,
-        userId,
-        notes
-      );
-      
-      // Get the organization for email notification
-      const organization = await storage.getOrganization(organizationId);
-      
-      // Send email based on the review decision
-      if (approved) {
-        await sendMarketerApprovalEmail(updatedApplication, organization);
-      } else {
-        await sendMarketerRejectionEmail(updatedApplication, organization, notes);
-      }
-      
-      // Create activity log
-      const reviewer = await storage.getUser(userId);
-      await storage.createActivity({
-        type: approved ? 'marketer_application_approved' : 'marketer_application_rejected',
-        description: `${reviewer.name} ${approved ? 'approved' : 'rejected'} ${application.name}'s marketer application`,
-        organizationId,
-        userId,
-        metadata: { 
-          applicationId: application._id,
-          marketerEmail: application.email,
-          notes
+  app.post(
+    "/api/marketers/applications/:id/review",
+    authenticate,
+    async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { approved, notes } = req.body;
+
+        if (approved === undefined) {
+          return res
+            .status(400)
+            .json({ message: "The 'approved' field is required" });
         }
-      });
-      
-      return res.status(200).json({
-        message: `Application ${approved ? 'approved' : 'rejected'} successfully`,
-        application: updatedApplication
-      });
-    } catch (error: any) {
-      console.error('Error reviewing marketer application:', error);
-      return res.status(500).json({ message: error.message || "Internal server error" });
+
+        // Get the user info from authenticated request
+        const userId = (req as any).user.id;
+        const organizationId = (req as any).user.organizationId;
+
+        if (!organizationId) {
+          return res
+            .status(403)
+            .json({
+              message: "Only organization admins can review applications",
+            });
+        }
+
+        // Get the application
+        const application = await storage.getMarketerApplication(id);
+
+        if (!application) {
+          return res.status(404).json({ message: "Application not found" });
+        }
+
+        // Check if application belongs to this organization
+        if (
+          application.organizationId.toString() !== organizationId.toString()
+        ) {
+          return res
+            .status(403)
+            .json({ message: "Not authorized to review this application" });
+        }
+
+        // Check if application is in pending status
+        if (application.status !== "pending") {
+          return res
+            .status(400)
+            .json({
+              message: `Application is not in 'pending' status (current status: ${application.status})`,
+            });
+        }
+
+        // Review the application
+        const updatedApplication = await storage.reviewMarketerApplication(
+          id,
+          approved,
+          userId,
+          notes
+        );
+
+        // Get the organization for email notification
+        const organization = await storage.getOrganization(organizationId);
+
+        // Send email based on the review decision
+        if (approved) {
+          await sendMarketerApprovalEmail(updatedApplication, organization);
+        } else {
+          await sendMarketerRejectionEmail(
+            updatedApplication,
+            organization,
+            notes
+          );
+        }
+
+        // Create activity log
+        const reviewer = await storage.getUser(userId);
+        await storage.createActivity({
+          type: approved
+            ? "marketer_application_approved"
+            : "marketer_application_rejected",
+          description: `${reviewer.name} ${
+            approved ? "approved" : "rejected"
+          } ${application.name}'s marketer application`,
+          organizationId,
+          userId,
+          metadata: {
+            applicationId: application._id,
+            marketerEmail: application.email,
+            notes,
+          },
+        });
+
+        return res.status(200).json({
+          message: `Application ${
+            approved ? "approved" : "rejected"
+          } successfully`,
+          application: updatedApplication,
+        });
+      } catch (error: any) {
+        console.error("Error reviewing marketer application:", error);
+        return res
+          .status(500)
+          .json({ message: error.message || "Internal server error" });
+      }
     }
-  });
+  );
 
   const httpServer = createServer(app);
 

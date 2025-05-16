@@ -1,18 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { StatCard } from "@/components/ui/stat-card";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
-import { TopProducts } from "@/components/dashboard/top-products";
+import { QuickActions } from "@/components/dashboard/quick-actions";
 import { RecentActivities } from "@/components/dashboard/recent-activities";
 import { TopMarketers } from "@/components/dashboard/top-marketers";
-import { QuickActions } from "@/components/dashboard/quick-actions";
-import { StatsResponse } from "@/lib/types";
+import { TopProducts } from "@/components/dashboard/top-products";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { StatCard } from "@/components/ui/stat-card";
 import { useAuth } from "@/lib/auth";
-import { 
-  Users, 
-  Link, 
-  ShoppingCart, 
-  DollarSign 
+import { StatsResponse } from "@/lib/types";
+import { useQuery } from "@tanstack/react-query";
+import {
+  DollarSign,
+  Link,
+  ShoppingCart,
+  Users
 } from "lucide-react";
 
 export default function Dashboard() {

@@ -1,23 +1,22 @@
 import {
-  Organization,
-  InsertOrganization,
-  User,
-  InsertUser,
-  App,
-  InsertApp,
-  AffiliateLink,
-  InsertAffiliateLink,
-  Conversion,
-  InsertConversion,
   Activity,
+  AffiliateLink,
+  App,
+  Conversion,
   InsertActivity,
-  Payout,
-  InsertPayout,
-  NotificationSetting,
+  InsertAffiliateLink,
+  InsertApp,
+  InsertConversion,
   InsertNotificationSetting,
-  UserRole,
+  InsertOrganization,
+  InsertPayout,
+  InsertUser,
+  NotificationSetting,
+  Organization,
+  Payout,
   SubscriptionPlan,
-  PLAN_LIMITS,
+  User,
+  UserRole
 } from "@shared/schema";
 import * as crypto from "crypto";
 
@@ -26,54 +25,75 @@ export interface IStorage {
   getOrganization(id: string | number): Promise<Organization | undefined>;
   getOrganizationByEmail(email: string): Promise<Organization | undefined>;
   createOrganization(org: InsertOrganization): Promise<Organization>;
-  updateOrganization(id: string | number, org: Partial<Organization>): Promise<Organization | undefined>;
-  
+  updateOrganization(
+    id: string | number,
+    org: Partial<Organization>
+  ): Promise<Organization | undefined>;
+
   // Users
   getUser(id: string | number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUsersByOrganization(orgId: string | number): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
-  updateUser(id: string | number, user: Partial<User>): Promise<User | undefined>;
+  updateUser(
+    id: string | number,
+    user: Partial<User>
+  ): Promise<User | undefined>;
   verifyPassword(password: string, hash: string): boolean;
-  
+
   // Apps
   getApp(id: string | number): Promise<App | undefined>;
   getAppsByOrganization(orgId: string | number): Promise<App[]>;
   createApp(app: InsertApp): Promise<App>;
   updateApp(id: string | number, app: Partial<App>): Promise<App | undefined>;
   deleteApp(id: string | number): Promise<boolean>;
-  
+
   // Affiliate Links
   getAffiliateLink(id: string | number): Promise<AffiliateLink | undefined>;
   getAffiliateLinkByCode(code: string): Promise<AffiliateLink | undefined>;
   getAffiliateLinksByUser(userId: string | number): Promise<AffiliateLink[]>;
   createAffiliateLink(link: InsertAffiliateLink): Promise<AffiliateLink>;
   incrementLinkClicks(id: string | number): Promise<boolean>;
-  
+
   // Conversions
   getConversion(id: string | number): Promise<Conversion | undefined>;
   getConversionsByLink(linkId: string | number): Promise<Conversion[]>;
   getConversionsByUser(userId: string | number): Promise<Conversion[]>;
   getConversionsByOrganization(orgId: string | number): Promise<Conversion[]>;
   createConversion(conversion: InsertConversion): Promise<Conversion>;
-  updateConversionStatus(id: string | number, status: string): Promise<Conversion | undefined>;
-  
+  updateConversionStatus(
+    id: string | number,
+    status: string
+  ): Promise<Conversion | undefined>;
+
   // Activities
-  getActivitiesByOrganization(orgId: string | number, limit?: number): Promise<Activity[]>;
+  getActivitiesByOrganization(
+    orgId: string | number,
+    limit?: number
+  ): Promise<Activity[]>;
   createActivity(activity: InsertActivity): Promise<Activity>;
-  
+
   // Payouts
   getPayout(id: string | number): Promise<Payout | undefined>;
   getPayoutsByUser(userId: string | number): Promise<Payout[]>;
   createPayout(payout: InsertPayout): Promise<Payout>;
-  updatePayoutStatus(id: string | number, status: string, reference?: string): Promise<Payout | undefined>;
-  
+  updatePayoutStatus(
+    id: string | number,
+    status: string,
+    reference?: string
+  ): Promise<Payout | undefined>;
+
   // Notification Settings
-  getNotificationSettings(userId: string | number): Promise<NotificationSetting | undefined>;
-  createOrUpdateNotificationSettings(settings: InsertNotificationSetting): Promise<NotificationSetting>;
-  
+  getNotificationSettings(
+    userId: string | number
+  ): Promise<NotificationSetting | undefined>;
+  createOrUpdateNotificationSettings(
+    settings: InsertNotificationSetting
+  ): Promise<NotificationSetting>;
+
   // Marketer Applications
   createMarketerApplication(applicationData: any): Promise<any>;
+  deleteMarketerApplication(id: string | number): Promise<boolean>;
   getMarketerApplication(id: string | number): Promise<any | undefined>;
   getMarketerApplications(filters?: {
     organizationId?: string | number;
@@ -81,9 +101,17 @@ export interface IStorage {
     email?: string;
   }): Promise<any[]>;
   getMarketerApplicationByToken(token: string): Promise<any | undefined>;
-  updateMarketerApplication(id: string | number, data: Partial<any>): Promise<any | undefined>;
-  reviewMarketerApplication(id: string | number, approved: boolean, reviewerId: string | number, notes?: string): Promise<any>;
-  
+  updateMarketerApplication(
+    id: string | number,
+    data: Partial<any>
+  ): Promise<any | undefined>;
+  reviewMarketerApplication(
+    id: string | number,
+    approved: boolean,
+    reviewerId: string | number,
+    notes?: string
+  ): Promise<any>;
+
   // Analytics
   getOrganizationStats(orgId: number): Promise<{
     activeMarketers: number;
@@ -141,6 +169,31 @@ export class MemStorage implements IStorage {
     
     // Create sample data
     this.initializeSampleData();
+  }
+  createMarketerApplication(applicationData: any): Promise<any> {
+    throw new Error("Method not implemented.");
+  }
+  deleteMarketerApplication(id: string | number): Promise<boolean> {
+    throw new Error("Method not implemented.");
+  }
+  getMarketerApplication(id: string | number): Promise<any | undefined> {
+    throw new Error("Method not implemented.");
+  }
+  getMarketerApplications(filters?: {
+    organizationId?: string | number;
+    status?: string;
+    email?: string;
+  }): Promise<any[]> {
+    throw new Error("Method not implemented.");
+  }
+  getMarketerApplicationByToken(token: string): Promise<any | undefined> {
+    throw new Error("Method not implemented.");
+  }
+  updateMarketerApplication(id: string | number, data: Partial<any>): Promise<any | undefined> {
+    throw new Error("Method not implemented.");
+  }
+  reviewMarketerApplication(id: string | number, approved: boolean, reviewerId: string | number, notes?: string): Promise<any> {
+    throw new Error("Method not implemented.");
   }
 
   private initializeSampleData() {

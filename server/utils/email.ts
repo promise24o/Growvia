@@ -2,12 +2,12 @@ import nodemailer from 'nodemailer';
 
 // Configure nodemailer
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.example.com',
-  port: parseInt(process.env.EMAIL_PORT || '587'),
-  secure: process.env.EMAIL_SECURE === 'true',
+  host: "nl1-ts101.a2hosting.com",
+  port: 465,
+  secure: true, // use TLS
   auth: {
-    user: process.env.EMAIL_USER || 'noreply@growvia.com',
-    pass: process.env.EMAIL_PASSWORD || '',
+    user: "developer@antigravitygroup.ng",
+    pass: ")TukMui#YqwP",
   },
 });
 
@@ -22,15 +22,23 @@ export async function sendEmail(
   from = defaultFrom
 ): Promise<boolean> {
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from,
       to,
       subject,
       html,
     });
+
+    // Check if it was accepted by at least one recipient
+    if (info.rejected.length > 0 || info.accepted.length === 0) {
+      console.error("Email was rejected or not accepted:", info);
+      return false;
+    }
+
+    console.log("Email sent:", info.messageId);
     return true;
-  } catch (error) {
-    console.error('Error sending email:', error);
+  } catch (error: any) {
+    console.error("Error sending email:", error.message || error);
     return false;
   }
 }

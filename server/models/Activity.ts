@@ -15,15 +15,16 @@ const ActivitySchema = new Schema<IActivity>(
       type: String,
       required: true,
       enum: [
-        'conversion', 
-        'payout', 
-        'marketer_join', 
-        'app_created', 
-        'plan_changed',
-        'affiliate_link_created',
-        'settings_updated',
-        'organization_created',
-        'user_created'
+        "conversion",
+        "payout",
+        "marketer_join",
+        "app_created",
+        "plan_changed",
+        "affiliate_link_created",
+        "settings_updated",
+        "organization_created",
+        "user_created",
+        "marketer_invited",
       ],
     },
     description: {
@@ -32,12 +33,12 @@ const ActivitySchema = new Schema<IActivity>(
     },
     organizationId: {
       type: Schema.Types.ObjectId,
-      ref: 'Organization',
+      ref: "Organization",
       default: null,
     },
     userId: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
     },
     metadata: {

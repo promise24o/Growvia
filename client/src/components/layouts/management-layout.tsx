@@ -73,7 +73,7 @@ export default function ManagementLayout({ children }: ManagementLayoutProps) {
   ];
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-[#1e2130]">
+    <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 dark:bg-[#1e2130]">
       {/* Mobile sidebar toggle */}
       <div className="fixed top-4 left-4 z-50 md:hidden">
         <button
@@ -133,7 +133,7 @@ export default function ManagementLayout({ children }: ManagementLayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <div className={cn("flex-1 transition-all duration-300 ease-in-out", isSidebarOpen ? "md:ml-64" : "")}>
+      <main className="flex-1 md:ml-64 min-h-screen dark:bg-[#1e2130] flex flex-col relative">
         <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
           <div className="px-4 py-3.5 mx-auto max-w-7xl flex justify-between items-center">
             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Platform Management</h1>
@@ -152,8 +152,18 @@ export default function ManagementLayout({ children }: ManagementLayoutProps) {
             </div>
           </div>
         </header>
-        <main className="p-4 md:p-6 max-w-7xl mx-auto">{children}</main>
-      </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full overflow-y-auto">
+          {children}
+        </div>
+      </main>
+      
+      {/* Backdrop for mobile menu */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-10 md:hidden"
+          onClick={toggleSidebar}
+        />
+      )}
     </div>
   );
 }

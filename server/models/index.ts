@@ -6,3 +6,4 @@ export * from './Conversion';
 export * from './Activity';
 export * from './Payout';
 export * from './NotificationSetting';
+export * from './MarketerApplication';

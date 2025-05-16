@@ -1,104 +1,131 @@
 import mongoose, { Document, Schema } from 'mongoose';
-import { IUser } from './User';
-import { IOrganization } from './Organization';
+import crypto from 'crypto';
 
 export interface IMarketerApplication extends Document {
-  email: string;
   name: string;
+  email: string;
   phone: string;
-  applicationToken: string;
-  organizationId: mongoose.Types.ObjectId | string;
-  resumeUrl: string | null;
-  status: 'pending' | 'approved' | 'rejected';
-  kycData: {
-    address: string;
-    city: string;
-    state: string;
-    idType: string;
-    idNumber: string;
-    idDocumentUrl: string | null;
-  } | null;
-  invitedBy: mongoose.Types.ObjectId | string | null;
+  organizationId: mongoose.Types.ObjectId;
+  invitedBy: mongoose.Types.ObjectId;
   applicationDate: Date;
-  reviewedBy: mongoose.Types.ObjectId | string | null;
-  reviewedAt: Date | null;
-  reviewNotes: string | null;
-  user: mongoose.Types.ObjectId | string | null; // Linked user after approval
+  status: 'pending' | 'approved' | 'rejected' | 'invited';
+  applicationToken: string;
+  tokenExpiry: Date;
+  resumeUrl?: string;
+  kycDocUrl?: string;
+  socialMedia?: {
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+    facebook?: string;
+  };
+  experience?: string;
+  skills?: string[];
+  reviewedBy?: mongoose.Types.ObjectId;
+  reviewedAt?: Date;
+  reviewNotes?: string;
+  user?: mongoose.Types.ObjectId; // Link to the user account if approved
+  updatedAt: Date;
 }
 
 const MarketerApplicationSchema = new Schema<IMarketerApplication>({
-  email: { 
-    type: String, 
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  email: {
+    type: String,
     required: true,
     trim: true,
     lowercase: true,
     index: true
   },
-  name: { 
-    type: String, 
-    required: true,
-    trim: true 
-  },
-  phone: { 
-    type: String, 
-    required: false,
-    trim: true 
-  },
-  applicationToken: {
+  phone: {
     type: String,
     required: true,
-    unique: true,
-    index: true
+    trim: true
   },
   organizationId: {
     type: Schema.Types.ObjectId,
     ref: 'Organization',
     required: true
   },
-  resumeUrl: {
-    type: String,
-    default: null
-  },
-  status: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
-  },
-  kycData: {
-    address: String,
-    city: String,
-    state: String,
-    idType: String,
-    idNumber: String,
-    idDocumentUrl: String
-  },
   invitedBy: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    default: null
+    required: true
   },
   applicationDate: {
     type: Date,
     default: Date.now
   },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected', 'invited'],
+    default: 'invited'
+  },
+  applicationToken: {
+    type: String,
+    default: () => crypto.randomBytes(32).toString('hex'),
+    index: true
+  },
+  tokenExpiry: {
+    type: Date,
+    default: () => {
+      const date = new Date();
+      date.setDate(date.getDate() + 7); // Token expires in 7 days
+      return date;
+    }
+  },
+  resumeUrl: {
+    type: String
+  },
+  kycDocUrl: {
+    type: String
+  },
+  socialMedia: {
+    twitter: String,
+    instagram: String,
+    linkedin: String,
+    facebook: String
+  },
+  experience: {
+    type: String
+  },
+  skills: [{
+    type: String
+  }],
   reviewedBy: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
+    ref: 'User'
   },
   reviewedAt: {
-    type: Date,
-    default: null
+    type: Date
   },
   reviewNotes: {
-    type: String,
-    default: null
+    type: String
   },
   user: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
+    ref: 'User'
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: { createdAt: 'applicationDate', updatedAt: 'updatedAt' }
+});
+
+// Middleware to check token expiry before operations
+MarketerApplicationSchema.pre('findOne', function() {
+  // If finding by token, check if token is expired
+  if (this.getQuery().applicationToken) {
+    this.where({ tokenExpiry: { $gt: new Date() } });
   }
 });
 
-export default mongoose.model<IMarketerApplication>('MarketerApplication', MarketerApplicationSchema);
+// Create and export the model
+const MarketerApplication = mongoose.model<IMarketerApplication>('MarketerApplication', MarketerApplicationSchema);
+export default MarketerApplication;

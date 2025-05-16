@@ -13,6 +13,7 @@ import type { Express, NextFunction, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
+import multer from "multer";
 import { MongoStorage } from "./mongoStorage";
 import { setupPaymentRoutes } from "./services/payment";
 import { handleTrialExpiry, setTrialEndDate } from "./services/subscription";
@@ -20,7 +21,11 @@ import { IStorage } from "./storage";
 import {
   sendPasswordResetEmail,
   sendPasswordResetSuccessEmail,
+  sendMarketerInvitationEmail,
+  sendMarketerApprovalEmail,
+  sendMarketerRejectionEmail
 } from "./utils/email";
+import { uploadFile } from "./utils/fileUpload";
 import {
   generatePasswordResetToken,
   removePasswordResetToken,
@@ -33,6 +38,7 @@ import {
   AffiliateLink,
   Conversion
 } from './models';
+import MarketerApplication from './models/MarketerApplication';
 
 // Onboarding schema
 const onboardingSchema = z.object({
@@ -1227,6 +1233,289 @@ export async function registerRoutes(
 
   // Set up payment routes for subscription plans
   setupPaymentRoutes(app);
+  
+  // Marketer Application Routes
+  
+  // Invite a new marketer (organization admins only)
+  app.post("/api/marketers/invite", authenticate, async (req, res) => {
+    try {
+      const { name, email, phone } = req.body;
+      
+      if (!name || !email || !phone) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Get the organization ID from the token
+      const userId = (req as any).user.id;
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(403).json({ message: "Only organization admins can invite marketers" });
+      }
+      
+      // Check if user is admin of this organization
+      const user = await storage.getUser(userId);
+      const organization = await storage.getOrganization(organizationId);
+      
+      if (!user || !organization) {
+        return res.status(404).json({ message: "User or organization not found" });
+      }
+      
+      // Check if this email is already invited or already has an application
+      const existingApplications = await storage.getMarketerApplications({
+        organizationId,
+        email
+      });
+      
+      if (existingApplications.length > 0) {
+        return res.status(409).json({ message: "A marketer with this email has already been invited or has an application" });
+      }
+      
+      // Create the application with 'invited' status
+      const application = await storage.createMarketerApplication({
+        name,
+        email,
+        phone,
+        organizationId,
+        invitedBy: userId,
+        status: 'invited'
+      });
+      
+      // Generate the invitation URL with the application token
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? `https://growvia.com` 
+        : `http://${req.hostname}:5000`;
+        
+      const invitationUrl = `${baseUrl}/marketer/onboarding/${application.applicationToken}`;
+      
+      // Send the invitation email
+      await sendMarketerInvitationEmail(application, organization, invitationUrl);
+      
+      // Create activity log
+      await storage.createActivity({
+        type: 'marketer_invited',
+        description: `${user.name} invited ${name} as a marketer`,
+        organizationId,
+        userId,
+        metadata: { marketerEmail: email }
+      });
+      
+      return res.status(201).json({
+        message: "Marketer invitation sent successfully",
+        application
+      });
+    } catch (error: any) {
+      console.error('Error inviting marketer:', error);
+      return res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+  
+  // Get marketer application by token (for onboarding)
+  app.get("/api/marketers/application/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Application token is required" });
+      }
+      
+      const application = await storage.getMarketerApplicationByToken(token);
+      
+      if (!application) {
+        return res.status(404).json({ message: "Application not found or token expired" });
+      }
+      
+      return res.status(200).json({ application });
+    } catch (error: any) {
+      console.error('Error fetching marketer application:', error);
+      return res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+  
+  // Submit marketer application with resume and KYC document
+  app.post("/api/marketers/application/:token/submit", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { 
+        experience, 
+        skills,
+        socialMedia 
+      } = req.body;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Application token is required" });
+      }
+      
+      // Get the application
+      const application = await storage.getMarketerApplicationByToken(token);
+      
+      if (!application) {
+        return res.status(404).json({ message: "Application not found or token expired" });
+      }
+      
+      if (application.status !== 'invited') {
+        return res.status(400).json({ message: `Application is already in '${application.status}' status` });
+      }
+      
+      // Process file uploads if included in the request
+      let resumeUrl = null;
+      let kycDocUrl = null;
+      
+      if (req.files) {
+        const files = req.files as any;
+        
+        if (files.resume) {
+          const resumeFile = files.resume[0];
+          resumeUrl = await uploadFile(
+            resumeFile.buffer,
+            `resume_${application._id}_${Date.now()}.${resumeFile.originalname.split('.').pop()}`,
+            resumeFile.mimetype
+          );
+        }
+        
+        if (files.kycDocument) {
+          const kycFile = files.kycDocument[0];
+          kycDocUrl = await uploadFile(
+            kycFile.buffer,
+            `kyc_${application._id}_${Date.now()}.${kycFile.originalname.split('.').pop()}`,
+            kycFile.mimetype
+          );
+        }
+      }
+      
+      // Update the application
+      const updatedApplication = await storage.updateMarketerApplication(
+        application._id,
+        {
+          status: 'pending',
+          experience: experience || null,
+          skills: skills || [],
+          socialMedia: socialMedia || {},
+          resumeUrl: resumeUrl || application.resumeUrl,
+          kycDocUrl: kycDocUrl || application.kycDocUrl,
+        }
+      );
+      
+      // Create activity log
+      await storage.createActivity({
+        type: 'marketer_application_submitted',
+        description: `${application.name} submitted their marketer application`,
+        organizationId: application.organizationId,
+        metadata: { applicationId: application._id }
+      });
+      
+      return res.status(200).json({
+        message: "Application submitted successfully",
+        application: updatedApplication
+      });
+    } catch (error: any) {
+      console.error('Error submitting marketer application:', error);
+      return res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+  
+  // Get all marketer applications for organization
+  app.get("/api/marketers/applications", authenticate, async (req, res) => {
+    try {
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(403).json({ message: "Only organization users can view applications" });
+      }
+      
+      const status = req.query.status as string;
+      const email = req.query.email as string;
+      
+      // Fetch applications with optional filters
+      const applications = await storage.getMarketerApplications({
+        organizationId,
+        ...(status && { status }),
+        ...(email && { email })
+      });
+      
+      return res.status(200).json(applications);
+    } catch (error: any) {
+      console.error('Error fetching marketer applications:', error);
+      return res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
+  
+  // Review marketer application (approve/reject)
+  app.post("/api/marketers/applications/:id/review", authenticate, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { approved, notes } = req.body;
+      
+      if (approved === undefined) {
+        return res.status(400).json({ message: "The 'approved' field is required" });
+      }
+      
+      // Get the user info from authenticated request
+      const userId = (req as any).user.id;
+      const organizationId = (req as any).user.organizationId;
+      
+      if (!organizationId) {
+        return res.status(403).json({ message: "Only organization admins can review applications" });
+      }
+      
+      // Get the application
+      const application = await storage.getMarketerApplication(id);
+      
+      if (!application) {
+        return res.status(404).json({ message: "Application not found" });
+      }
+      
+      // Check if application belongs to this organization
+      if (application.organizationId.toString() !== organizationId.toString()) {
+        return res.status(403).json({ message: "Not authorized to review this application" });
+      }
+      
+      // Check if application is in pending status
+      if (application.status !== 'pending') {
+        return res.status(400).json({ message: `Application is not in 'pending' status (current status: ${application.status})` });
+      }
+      
+      // Review the application
+      const updatedApplication = await storage.reviewMarketerApplication(
+        id,
+        approved,
+        userId,
+        notes
+      );
+      
+      // Get the organization for email notification
+      const organization = await storage.getOrganization(organizationId);
+      
+      // Send email based on the review decision
+      if (approved) {
+        await sendMarketerApprovalEmail(updatedApplication, organization);
+      } else {
+        await sendMarketerRejectionEmail(updatedApplication, organization, notes);
+      }
+      
+      // Create activity log
+      const reviewer = await storage.getUser(userId);
+      await storage.createActivity({
+        type: approved ? 'marketer_application_approved' : 'marketer_application_rejected',
+        description: `${reviewer.name} ${approved ? 'approved' : 'rejected'} ${application.name}'s marketer application`,
+        organizationId,
+        userId,
+        metadata: { 
+          applicationId: application._id,
+          marketerEmail: application.email,
+          notes
+        }
+      });
+      
+      return res.status(200).json({
+        message: `Application ${approved ? 'approved' : 'rejected'} successfully`,
+        application: updatedApplication
+      });
+    } catch (error: any) {
+      console.error('Error reviewing marketer application:', error);
+      return res.status(500).json({ message: error.message || "Internal server error" });
+    }
+  });
 
   const httpServer = createServer(app);
 

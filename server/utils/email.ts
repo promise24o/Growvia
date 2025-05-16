@@ -1,45 +1,33 @@
 import nodemailer from 'nodemailer';
-import { User } from '@shared/schema';
 
-interface EmailConfig {
-  to: string;
-  subject: string;
-  text?: string;
-  html?: string;
-}
-
-// Create reusable transporter using SMTP
+// Configure nodemailer
 const transporter = nodemailer.createTransport({
-  host: 'nl1-ts101.a2hosting.com',
-  port: 465,
-  secure: true, // use TLS
+  host: process.env.EMAIL_HOST || 'smtp.example.com',
+  port: parseInt(process.env.EMAIL_PORT || '587'),
+  secure: process.env.EMAIL_SECURE === 'true',
   auth: {
-    user: 'developer@antigravitygroup.ng',
-    pass: ')TukMui#YqwP',
+    user: process.env.EMAIL_USER || 'noreply@growvia.com',
+    pass: process.env.EMAIL_PASSWORD || '',
   },
 });
 
-// Verify connection configuration
-transporter.verify(function (error, success) {
-  if (error) {
-    console.log('SMTP error:', error);
-  } else {
-    console.log('Server is ready to take our messages');
-  }
-});
+// Default sender address
+const defaultFrom = process.env.EMAIL_FROM || 'Growvia <noreply@growvia.com>';
 
-// Helper to send emails
-export async function sendEmail(config: EmailConfig): Promise<boolean> {
+// Helper function to send emails
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  from = defaultFrom
+): Promise<boolean> {
   try {
-    const emailOptions = {
-      from: '"Growvia" <developer@antigravitygroup.ng>',
-      to: config.to,
-      subject: config.subject,
-      text: config.text || '',
-      html: config.html || '',
-    };
-
-    await transporter.sendMail(emailOptions);
+    await transporter.sendMail({
+      from,
+      to,
+      subject,
+      html,
+    });
     return true;
   } catch (error) {
     console.error('Error sending email:', error);
@@ -47,223 +35,194 @@ export async function sendEmail(config: EmailConfig): Promise<boolean> {
   }
 }
 
-// Password reset email template
+// Send password reset email
 export async function sendPasswordResetEmail(
-  user: User,
+  user: any,
   resetToken: string,
   resetUrl: string
 ): Promise<boolean> {
-  const htmlTemplate = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Reset Your Password</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          line-height: 1.6;
-          color: #333;
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-        }
-        .header {
-          background-color: #6f42c1;
-          padding: 20px;
-          text-align: center;
-          border-radius: 10px 10px 0 0;
-        }
-        .header h1 {
-          color: white;
-          margin: 0;
-          font-size: 24px;
-        }
-        .content {
-          background-color: #f9f9f9;
-          padding: 20px;
-          border-radius: 0 0 10px 10px;
-          border: 1px solid #eee;
-          border-top: none;
-        }
-        .button {
-          display: inline-block;
-          background-color: #6f42c1;
-          color: white !important;
-          text-decoration: none;
-          padding: 12px 24px;
-          border-radius: 5px;
-          margin: 20px 0;
-          font-weight: bold;
-        }
-        .button:hover {
-          background-color: #5a32ad;
-        }
-        .footer {
-          font-size: 12px;
-          color: #777;
-          margin-top: 20px;
-          text-align: center;
-        }
-        .code {
-          font-family: monospace;
-          background-color: #f1f1f1;
-          padding: 2px 4px;
-          border-radius: 3px;
-          margin: 0 2px;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>Growvia Password Reset</h1>
+  const subject = "Reset Your Password - Growvia";
+  
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #4f46e5; padding: 20px; text-align: center;">
+        <h1 style="color: white; margin: 0;">Growvia</h1>
+        <p style="color: white; margin-top: 5px;">Affiliate Marketing Platform</p>
       </div>
-      <div class="content">
-        <p>Hello ${user.name},</p>
+      
+      <div style="padding: 20px; background-color: #f9fafb; border-radius: 0 0 5px 5px;">
+        <h2>Hello ${user.name},</h2>
+        <p>We received a request to reset your password. If you didn't make this request, you can safely ignore this email.</p>
+        <p>To reset your password, click the button below:</p>
         
-        <p>We received a request to reset your password for your Growvia account. To reset your password, please click the button below:</p>
-        
-        <div style="text-align: center;">
-          <a href="${resetUrl}" class="button">Reset Password</a>
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${resetUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
         </div>
         
         <p>This password reset link will expire in 1 hour for security reasons.</p>
         
-        <p>If you didn't request a password reset, please ignore this email or contact our support team if you have any concerns.</p>
-        
-        <p>Thank you,<br>The Growvia Team</p>
+        <p>Best regards,<br>The Growvia Team</p>
       </div>
-      <div class="footer">
+      
+      <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px;">
         <p>© ${new Date().getFullYear()} Growvia. All rights reserved.</p>
-        <p>This is an automated email, please do not reply to this message.</p>
+        <p>If you did not request a password reset, please contact support immediately.</p>
       </div>
-    </body>
-    </html>
+    </div>
   `;
-
-  const textTemplate = `
-    Hello ${user.name},
-
-    We received a request to reset your password for your Growvia account.
-    To reset your password, please visit the following link:
-    ${resetUrl}
-
-    This password reset link will expire in 1 hour for security reasons.
-
-    If you didn't request a password reset, please ignore this email or contact our support team if you have any concerns.
-
-    Thank you,
-    The Growvia Team
-  `;
-
-  return sendEmail({
-    to: user.email,
-    subject: 'Reset Your Growvia Password',
-    text: textTemplate,
-    html: htmlTemplate,
-  });
+  
+  return await sendEmail(user.email, subject, html);
 }
 
-// Password reset success email template
-export async function sendPasswordResetSuccessEmail(user: User): Promise<boolean> {
-  const htmlTemplate = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Password Reset Successful</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          line-height: 1.6;
-          color: #333;
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-        }
-        .header {
-          background-color: #28a745;
-          padding: 20px;
-          text-align: center;
-          border-radius: 10px 10px 0 0;
-        }
-        .header h1 {
-          color: white;
-          margin: 0;
-          font-size: 24px;
-        }
-        .content {
-          background-color: #f9f9f9;
-          padding: 20px;
-          border-radius: 0 0 10px 10px;
-          border: 1px solid #eee;
-          border-top: none;
-        }
-        .button {
-          display: inline-block;
-          background-color: #6f42c1;
-          color: white !important;
-          text-decoration: none;
-          padding: 12px 24px;
-          border-radius: 5px;
-          margin: 20px 0;
-          font-weight: bold;
-        }
-        .button:hover {
-          background-color: #5a32ad;
-        }
-        .footer {
-          font-size: 12px;
-          color: #777;
-          margin-top: 20px;
-          text-align: center;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>Password Reset Successful</h1>
+// Send password reset success email
+export async function sendPasswordResetSuccessEmail(
+  user: any
+): Promise<boolean> {
+  const subject = "Your Password Has Been Reset - Growvia";
+  
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #4f46e5; padding: 20px; text-align: center;">
+        <h1 style="color: white; margin: 0;">Growvia</h1>
+        <p style="color: white; margin-top: 5px;">Affiliate Marketing Platform</p>
       </div>
-      <div class="content">
-        <p>Hello ${user.name},</p>
+      
+      <div style="padding: 20px; background-color: #f9fafb; border-radius: 0 0 5px 5px;">
+        <h2>Hello ${user.name},</h2>
+        <p>Your password has been successfully reset.</p>
+        <p>You can now log in to your account with your new password.</p>
         
-        <p>Your Growvia account password has been successfully reset.</p>
-        
-        <p>If you did not make this change or if you believe an unauthorized person has accessed your account, please contact our support team immediately.</p>
-        
-        <div style="text-align: center;">
-          <a href="https://growvia.com/login" class="button">Login to Your Account</a>
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${process.env.NODE_ENV === 'production' ? 'https://growvia.com/login' : 'http://localhost:5000/login'}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Log In</a>
         </div>
         
-        <p>Thank you,<br>The Growvia Team</p>
+        <p>If you did not reset your password, please contact support immediately.</p>
+        
+        <p>Best regards,<br>The Growvia Team</p>
       </div>
-      <div class="footer">
+      
+      <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px;">
         <p>© ${new Date().getFullYear()} Growvia. All rights reserved.</p>
-        <p>This is an automated email, please do not reply to this message.</p>
       </div>
-    </body>
-    </html>
+    </div>
   `;
+  
+  return await sendEmail(user.email, subject, html);
+}
 
-  const textTemplate = `
-    Hello ${user.name},
-
-    Your Growvia account password has been successfully reset.
-
-    If you did not make this change or if you believe an unauthorized person has accessed your account, please contact our support team immediately.
-
-    You can login to your account here: https://growvia.com/login
-
-    Thank you,
-    The Growvia Team
+// Send marketer invitation email
+export async function sendMarketerInvitationEmail(
+  application: any,
+  organization: any,
+  invitationUrl: string
+): Promise<boolean> {
+  const subject = `You've been invited to join ${organization.name} as a marketer on Growvia`;
+  
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #4f46e5; padding: 20px; text-align: center;">
+        <h1 style="color: white; margin: 0;">Growvia</h1>
+        <p style="color: white; margin-top: 5px;">Affiliate Marketing Platform</p>
+      </div>
+      
+      <div style="padding: 20px; background-color: #f9fafb; border-radius: 0 0 5px 5px;">
+        <h2>Hello ${application.name},</h2>
+        <p>You have been invited by ${organization.name} to join their affiliate marketing program on Growvia.</p>
+        <p>As a marketer, you'll have the opportunity to earn commissions by promoting their products/services.</p>
+        
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${invitationUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Accept Invitation & Complete Application</a>
+        </div>
+        
+        <p>This invitation link will expire in 7 days. If you have any questions, please contact ${organization.name} directly.</p>
+        
+        <p>Best regards,<br>The Growvia Team</p>
+      </div>
+      
+      <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px;">
+        <p>© ${new Date().getFullYear()} Growvia. All rights reserved.</p>
+        <p>If you did not expect to receive this invitation, please ignore this email.</p>
+      </div>
+    </div>
   `;
+  
+  return await sendEmail(application.email, subject, html);
+}
 
-  return sendEmail({
-    to: user.email,
-    subject: 'Password Reset Successful',
-    text: textTemplate,
-    html: htmlTemplate,
-  });
+// Send marketer application approval email
+export async function sendMarketerApprovalEmail(
+  application: any,
+  organization: any
+): Promise<boolean> {
+  const subject = `Your application as a marketer for ${organization.name} has been approved`;
+  
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #4f46e5; padding: 20px; text-align: center;">
+        <h1 style="color: white; margin: 0;">Growvia</h1>
+        <p style="color: white; margin-top: 5px;">Affiliate Marketing Platform</p>
+      </div>
+      
+      <div style="padding: 20px; background-color: #f9fafb; border-radius: 0 0 5px 5px;">
+        <h2>Congratulations ${application.name}!</h2>
+        <p>Your application to become a marketer for ${organization.name} has been <strong style="color: #10b981;">approved</strong>.</p>
+        <p>You can now log in to your account and start creating affiliate links for ${organization.name}'s products.</p>
+        
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${process.env.NODE_ENV === 'production' ? 'https://growvia.com/login' : 'http://localhost:5000/login'}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Log In to Your Account</a>
+        </div>
+        
+        <p>If you have any questions about your marketer account, please contact ${organization.name} directly.</p>
+        
+        <p>Best regards,<br>The Growvia Team</p>
+      </div>
+      
+      <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px;">
+        <p>© ${new Date().getFullYear()} Growvia. All rights reserved.</p>
+      </div>
+    </div>
+  `;
+  
+  return await sendEmail(application.email, subject, html);
+}
+
+// Send marketer application rejection email
+export async function sendMarketerRejectionEmail(
+  application: any,
+  organization: any,
+  notes?: string
+): Promise<boolean> {
+  const subject = `Update on your marketer application for ${organization.name}`;
+  
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background-color: #4f46e5; padding: 20px; text-align: center;">
+        <h1 style="color: white; margin: 0;">Growvia</h1>
+        <p style="color: white; margin-top: 5px;">Affiliate Marketing Platform</p>
+      </div>
+      
+      <div style="padding: 20px; background-color: #f9fafb; border-radius: 0 0 5px 5px;">
+        <h2>Hello ${application.name},</h2>
+        <p>Thank you for your interest in becoming a marketer for ${organization.name}.</p>
+        <p>We regret to inform you that your application has not been approved at this time.</p>
+        
+        ${notes ? `
+        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">Feedback from the organization:</h3>
+          <p>${notes}</p>
+        </div>
+        ` : ''}
+        
+        <p>You may contact ${organization.name} directly if you have any questions about this decision.</p>
+        
+        <p>Best regards,<br>The Growvia Team</p>
+      </div>
+      
+      <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px;">
+        <p>© ${new Date().getFullYear()} Growvia. All rights reserved.</p>
+      </div>
+    </div>
+  `;
+  
+  return await sendEmail(application.email, subject, html);
 }

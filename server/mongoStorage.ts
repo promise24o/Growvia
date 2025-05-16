@@ -10,6 +10,7 @@ import {
   IAffiliateLink,
   IApp,
   IConversion,
+  IMarketerApplication,
   INotificationSetting,
   IOrganization,
   IPayout,
@@ -19,6 +20,7 @@ import {
   Payout,
   User
 } from './models';
+import MarketerApplication from './models/MarketerApplication';
 import { IStorage } from './storage';
 
 // Helper function to convert MongoDB document to plain object
@@ -28,6 +30,195 @@ const toPlainObject = <T>(doc: mongoose.Document | null): T | undefined => {
 };
 
 export class MongoStorage implements IStorage {
+  // Constructor to initialize the storage with admin user
+  constructor() {
+    // Seed the admin user when storage is initialized
+    this.seedAdminUser().catch(err => console.error('Error seeding admin user:', err));
+  }
+  
+  // Marketer Applications Methods
+  async createMarketerApplication(applicationData: any): Promise<any> {
+    try {
+      const application = new MarketerApplication(applicationData);
+      await application.save();
+      return toPlainObject<any>(application);
+    } catch (error) {
+      console.error('Error creating marketer application:', error);
+      throw error;
+    }
+  }
+
+  async getMarketerApplication(id: string | number): Promise<any | undefined> {
+    try {
+      const application = await MarketerApplication.findById(id)
+        .populate('organizationId', 'name email')
+        .populate('invitedBy', 'name email')
+        .populate('reviewedBy', 'name email');
+      return toPlainObject<any>(application);
+    } catch (error) {
+      console.error('Error fetching marketer application:', error);
+      return undefined;
+    }
+  }
+
+  async getMarketerApplications(filters?: {
+    organizationId?: string | number;
+    status?: string;
+    email?: string;
+  }): Promise<any[]> {
+    try {
+      const query: any = {};
+      
+      if (filters) {
+        if (filters.organizationId) {
+          query.organizationId = filters.organizationId;
+        }
+        if (filters.status) {
+          query.status = filters.status;
+        }
+        if (filters.email) {
+          query.email = { $regex: filters.email, $options: 'i' };
+        }
+      }
+      
+      const applications = await MarketerApplication.find(query)
+        .populate('organizationId', 'name email')
+        .populate('invitedBy', 'name email')
+        .populate('reviewedBy', 'name email')
+        .sort({ applicationDate: -1 });
+      
+      return applications.map(app => toPlainObject<any>(app));
+    } catch (error) {
+      console.error('Error fetching marketer applications:', error);
+      return [];
+    }
+  }
+
+  async getMarketerApplicationByToken(token: string): Promise<any | undefined> {
+    try {
+      const application = await MarketerApplication.findOne({ applicationToken: token })
+        .populate('organizationId', 'name email');
+      return toPlainObject<any>(application);
+    } catch (error) {
+      console.error('Error fetching marketer application by token:', error);
+      return undefined;
+    }
+  }
+
+  async updateMarketerApplication(id: string | number, data: Partial<any>): Promise<any | undefined> {
+    try {
+      const application = await MarketerApplication.findByIdAndUpdate(
+        id,
+        { ...data, updatedAt: new Date() },
+        { new: true }
+      ).populate('organizationId', 'name email');
+      
+      return toPlainObject<any>(application);
+    } catch (error) {
+      console.error('Error updating marketer application:', error);
+      return undefined;
+    }
+  }
+
+  async reviewMarketerApplication(
+    id: string | number, 
+    approved: boolean, 
+    reviewerId: string | number, 
+    notes?: string
+  ): Promise<any> {
+    try {
+      const status = approved ? 'approved' : 'rejected';
+      
+      const application = await MarketerApplication.findByIdAndUpdate(
+        id,
+        {
+          status,
+          reviewedBy: reviewerId,
+          reviewedAt: new Date(),
+          reviewNotes: notes || null
+        },
+        { new: true }
+      )
+      .populate('organizationId', 'name email')
+      .populate('reviewedBy', 'name email');
+      
+      if (!application) {
+        throw new Error('Application not found');
+      }
+      
+      if (approved) {
+        // If approved, create a marketer account if there isn't one already
+        const existingUser = await User.findOne({ email: application.email });
+        
+        if (!existingUser) {
+          // Generate a random password - user will need to set it when they first login
+          const tempPassword = crypto.randomBytes(10).toString('hex');
+          
+          const user = new User({
+            name: application.name,
+            email: application.email,
+            password: tempPassword, // Will be hashed by the pre-save hook
+            role: 'marketer',
+            organizationId: application.organizationId,
+            status: 'active'
+          });
+          
+          await user.save();
+          
+          // Update the application with the new user ID
+          application.user = user._id;
+          await application.save();
+        } else {
+          // User exists, just update the application with the user ID
+          application.user = existingUser._id;
+          await application.save();
+        }
+      }
+      
+      return toPlainObject<any>(application);
+    } catch (error) {
+      console.error('Error reviewing marketer application:', error);
+      throw error;
+    }
+  }
+
+  // Seed admin user with management role
+  private async seedAdminUser() {
+    try {
+      // Check if admin user already exists
+      const existingAdmin = await User.findOne({ email: 'admin@admin.com' });
+      
+      if (!existingAdmin) {
+        console.log('Creating admin user...');
+        
+        // Create the admin user with management role - let the schema handle password hashing
+        const adminUser = new User({
+          name: 'System Administrator',
+          email: 'admin@admin.com',
+          password: 'password123', // Will be hashed by the pre-save hook
+          role: 'management',
+          status: 'active',
+          avatar: null,
+          organizationId: null, // Not associated with any organization
+        });
+        
+        await adminUser.save();
+        console.log('Admin user created successfully');
+      } else {
+        console.log('Admin user already exists');
+        
+        // If needed, update the admin user to ensure it has the right role
+        if (existingAdmin.role !== 'management') {
+          existingAdmin.role = 'management';
+          await existingAdmin.save();
+          console.log('Updated admin user role to management');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to seed admin user:', error);
+    }
+  }
+
   // Helper to convert MongoDB ObjectId to string or null
   private convertId(id: mongoose.Types.ObjectId | null): string | null {
     if (!id) return null;

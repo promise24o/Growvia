@@ -72,6 +72,18 @@ export interface IStorage {
   getNotificationSettings(userId: string | number): Promise<NotificationSetting | undefined>;
   createOrUpdateNotificationSettings(settings: InsertNotificationSetting): Promise<NotificationSetting>;
   
+  // Marketer Applications
+  createMarketerApplication(applicationData: any): Promise<any>;
+  getMarketerApplication(id: string | number): Promise<any | undefined>;
+  getMarketerApplications(filters?: {
+    organizationId?: string | number;
+    status?: string;
+    email?: string;
+  }): Promise<any[]>;
+  getMarketerApplicationByToken(token: string): Promise<any | undefined>;
+  updateMarketerApplication(id: string | number, data: Partial<any>): Promise<any | undefined>;
+  reviewMarketerApplication(id: string | number, approved: boolean, reviewerId: string | number, notes?: string): Promise<any>;
+  
   // Analytics
   getOrganizationStats(orgId: number): Promise<{
     activeMarketers: number;

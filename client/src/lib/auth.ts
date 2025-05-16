@@ -37,7 +37,7 @@ interface AuthState {
     name: string,
     email: string,
     password: string,
-    organizationName: string
+    organizationName: string,
   ) => Promise<void>;
   logout: () => void;
   fetchUserData: () => Promise<void>;
@@ -88,6 +88,13 @@ const useAuthStore = create<AuthState>()(
           });
 
           await get().fetchUserData();
+
+          // Redirect based on user role
+          if (data.user.role === 'management') {
+            window.location.href = '/management/dashboard';
+          } else {
+            window.location.href = '/dashboard';
+          }
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -98,7 +105,7 @@ const useAuthStore = create<AuthState>()(
         name: string,
         email: string,
         password: string,
-        organizationName: string
+        organizationName: string,
       ) => {
         set({ isLoading: true });
         try {
@@ -214,8 +221,8 @@ const useAuthStore = create<AuthState>()(
         organization: state.organization,
         isAuthenticated: state.isAuthenticated,
       }),
-    }
-  )
+    },
+  ),
 );
 
 // Export a function to get the token directly from the store

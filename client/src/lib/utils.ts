@@ -6,6 +6,19 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Format a date to a readable string
+ * @param date The date to format
+ * @returns Formatted date string (e.g. "Jan 5, 2023")
+ */
+export function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric' 
+  }).format(date);
+}
+
+/**
  * Calculate the days remaining in a trial period
  * @param trialEndDate The date when the trial ends
  * @returns Number of days remaining in the trial, or 0 if the trial has expired

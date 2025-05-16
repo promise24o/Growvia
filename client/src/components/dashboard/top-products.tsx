@@ -1,11 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { LayoutGrid, ChevronDown, ChevronUp, BookOpen, Video, ShoppingBag, Briefcase } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
-import { cn } from "@/lib/utils";
 import { Product } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { BookOpen, Briefcase, ChevronDown, ChevronUp, LayoutGrid, ShoppingBag, Video } from "lucide-react";
 import { Link } from "wouter";
 
 function getProductIcon(iconName: string | null, id: number) {
@@ -29,10 +29,10 @@ interface TopProductsProps {
 
 export function TopProducts({ limit = 4 }: TopProductsProps) {
   const { token } = useAuth();
-  
+
   const { data: products, isLoading } = useQuery<Product[]>({
     queryKey: ['/api/apps/top'],
-    enabled: !!token
+    enabled: !!token, 
   });
 
   const displayProducts = products?.slice(0, limit);

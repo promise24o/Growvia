@@ -1,6 +1,5 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { apiRequest } from './queryClient';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface User {
   id: string | number;
@@ -34,12 +33,17 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, organizationName: string) => Promise<void>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    organizationName: string,
+  ) => Promise<void>;
   logout: () => void;
   fetchUserData: () => Promise<void>;
 }
 
-export const useAuth = create<AuthState>()(
+const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
@@ -47,159 +51,174 @@ export const useAuth = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       isLoading: false,
-      
+
       login: async (email: string, password: string) => {
         set({ isLoading: true });
         try {
-          const response = await fetch('/api/auth/login', {
-            method: 'POST',
+          const response = await fetch("/api/auth/login", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
+              "Content-Type": "application/json",
+              Accept: "application/json",
             },
             body: JSON.stringify({ email, password }),
-            credentials: 'include'
+            credentials: "include",
           });
-          
+
           if (!response.ok) {
             const errorText = await response.text();
-            let errorMessage;
+            let errorMessage: string;
             try {
               const errorData = JSON.parse(errorText);
-              errorMessage = errorData.message || 'Login failed';
-            } catch (e) {
-              errorMessage = errorText || `Error ${response.status}: ${response.statusText}`;
+              errorMessage = errorData.message || "Login failed";
+            } catch {
+              errorMessage =
+                errorText || `Error ${response.status}: ${response.statusText}`;
             }
             throw new Error(errorMessage);
           }
-          
-          const data = await response.json();
-          
+
+          const data: { user: User; token: string } = await response.json();
+
           set({
             user: data.user,
             token: data.token,
             isAuthenticated: true,
-            isLoading: false
+            isLoading: false,
           });
-          
-          // Fetch additional user data including organization
+
           await get().fetchUserData();
         } catch (error) {
           set({ isLoading: false });
           throw error;
         }
       },
-      
-      register: async (name: string, email: string, password: string, organizationName: string) => {
+
+      register: async (
+        name: string,
+        email: string,
+        password: string,
+        organizationName: string,
+      ) => {
         set({ isLoading: true });
         try {
-          const response = await fetch('/api/auth/register', {
-            method: 'POST',
+          const response = await fetch("/api/auth/register", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
+              "Content-Type": "application/json",
+              Accept: "application/json",
             },
             body: JSON.stringify({
               name,
               email,
               password,
-              organizationName
+              organizationName,
             }),
-            credentials: 'include'
+            credentials: "include",
           });
-          
+
           if (!response.ok) {
             const errorText = await response.text();
-            let errorMessage;
+            let errorMessage: string;
             try {
               const errorData = JSON.parse(errorText);
-              errorMessage = errorData.message || 'Registration failed';
-            } catch (e) {
-              errorMessage = errorText || `Error ${response.status}: ${response.statusText}`;
+              errorMessage = errorData.message || "Registration failed";
+            } catch {
+              errorMessage =
+                errorText || `Error ${response.status}: ${response.statusText}`;
             }
             throw new Error(errorMessage);
           }
-          
-          const data = await response.json();
-          
+
+          const data: { user: User; token: string } = await response.json();
+
           set({
             user: data.user,
             token: data.token,
             isAuthenticated: true,
-            isLoading: false
+            isLoading: false,
           });
-          
-          // Fetch additional user data including organization
+
           await get().fetchUserData();
         } catch (error) {
           set({ isLoading: false });
           throw error;
         }
       },
-      
+
       logout: () => {
+        localStorage.removeItem("auth-storage");
+
         set({
           user: null,
           organization: null,
           token: null,
-          isAuthenticated: false
+          isAuthenticated: false,
         });
       },
-      
+
       fetchUserData: async () => {
         if (!get().token) return;
-        
+
         set({ isLoading: true });
         try {
-          const response = await fetch('/api/auth/me', {
+          const response = await fetch(`/api/auth/me?t=${Date.now()}`, {
             headers: {
-              'Authorization': `Bearer ${get().token}`,
-              'Accept': 'application/json'
+              Authorization: `Bearer ${get().token}`,
+              Accept: "application/json",
+              "Cache-Control": "no-cache, no-store, must-revalidate",
             },
-            credentials: 'include'
+            credentials: "include",
           });
-          
+
           if (!response.ok) {
             const errorText = await response.text();
-            let errorMessage;
+            let errorMessage: string;
             try {
               const errorData = JSON.parse(errorText);
-              errorMessage = errorData.message || 'Failed to fetch user data';
-            } catch (e) {
-              errorMessage = errorText || `Error ${response.status}: ${response.statusText}`;
+              errorMessage = errorData.message || "Failed to fetch user data";
+            } catch {
+              errorMessage =
+                errorText || `Error ${response.status}: ${response.statusText}`;
             }
             throw new Error(errorMessage);
           }
-          
-          const data = await response.json();
-          
+
+          const data: { user: User; organization: Organization } =
+            await response.json();
+
           set({
             user: data.user,
             organization: data.organization,
-            isLoading: false
+            isLoading: false,
           });
         } catch (error) {
           set({ isLoading: false });
-          console.error('Error fetching user data:', error);
-          
-          // If unauthorized, logout
-          if (error instanceof Error && (
-            error.message.includes('401') || 
-            error.message.includes('Unauthorized')
-          )) {
+          console.error("Error fetching user data:", error);
+
+          if (
+            error instanceof Error &&
+            (error.message.includes("401") ||
+              error.message.includes("Unauthorized"))
+          ) {
             get().logout();
           }
         }
-      }
+      },
     }),
     {
-      name: 'auth-storage',
-      partialize: (state) => ({ 
+      name: "auth-storage",
+      partialize: (state) => ({
         token: state.token,
         user: state.user,
         organization: state.organization,
-        isAuthenticated: state.isAuthenticated
-      })
-    }
-  )
+        isAuthenticated: state.isAuthenticated,
+      }),
+    },
+  ),
 );
+
+// Export a function to get the token directly from the store
+export const getAuthToken = () => useAuthStore.getState().token;
+
+export const useAuth = useAuthStore;

@@ -1,25 +1,25 @@
-import { IStorage } from './storage';
-import mongoose from 'mongoose';
-import crypto from 'crypto';
 import { SubscriptionPlan } from '@shared/schema';
+import crypto from 'crypto';
+import mongoose from 'mongoose';
 import {
-  Organization,
-  User,
-  App,
-  AffiliateLink,
-  Conversion,
   Activity,
-  Payout,
-  NotificationSetting,
-  IOrganization,
-  IUser,
-  IApp,
-  IAffiliateLink,
-  IConversion,
+  AffiliateLink,
+  App,
+  Conversion,
   IActivity,
+  IAffiliateLink,
+  IApp,
+  IConversion,
+  INotificationSetting,
+  IOrganization,
   IPayout,
-  INotificationSetting
+  IUser,
+  NotificationSetting,
+  Organization,
+  Payout,
+  User
 } from './models';
+import { IStorage } from './storage';
 
 // Helper function to convert MongoDB document to plain object
 const toPlainObject = <T>(doc: mongoose.Document | null): T | undefined => {
@@ -33,14 +33,16 @@ export class MongoStorage implements IStorage {
     if (!id) return null;
     return id.toString();
   }
-  
+
   // Helper to convert string ID to MongoDB ObjectId
-  private toObjectId(id: string | number | null): mongoose.Types.ObjectId | null {
+  private toObjectId(
+    id: string | number | null
+  ): mongoose.Types.ObjectId | null {
     if (!id) return null;
     try {
       return new mongoose.Types.ObjectId(id.toString());
     } catch (error) {
-      console.error('Error converting to ObjectId:', error);
+      console.error("Error converting to ObjectId:", error);
       return null;
     }
   }
@@ -57,12 +59,12 @@ export class MongoStorage implements IStorage {
           if (result) {
             return {
               ...result,
-              id: this.convertId(result._id)
+              id: this.convertId(result._id),
             };
           }
         }
       }
-      
+
       // Fallback to legacy id field
       const org = await Organization.findOne({ id });
       if (org) {
@@ -70,14 +72,14 @@ export class MongoStorage implements IStorage {
         if (result) {
           return {
             ...result,
-            id: this.convertId(result._id)
+            id: this.convertId(result._id),
           };
         }
       }
-      
+
       return undefined;
     } catch (error) {
-      console.error('Error getting organization:', error);
+      console.error("Error getting organization:", error);
       return undefined;
     }
   }
@@ -87,7 +89,7 @@ export class MongoStorage implements IStorage {
       const org = await Organization.findOne({ email });
       return toPlainObject(org);
     } catch (error) {
-      console.error('Error getting organization by email:', error);
+      console.error("Error getting organization by email:", error);
       return undefined;
     }
   }
@@ -100,45 +102,48 @@ export class MongoStorage implements IStorage {
         plan: org.plan || SubscriptionPlan.FREE_TRIAL,
         logo: org.logo || null,
         webhookUrl: org.webhookUrl || null,
-        trialEndsAt: org.trialEndsAt || null
+        trialEndsAt: org.trialEndsAt || null,
       });
-      
+
       const saved = await newOrg.save();
       const result = toPlainObject<IOrganization>(saved);
-      
+
       if (!result) {
-        throw new Error('Failed to create organization');
+        throw new Error("Failed to create organization");
       }
-      
+
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
       };
     } catch (error) {
-      console.error('Error creating organization:', error);
+      console.error("Error creating organization:", error);
       throw error;
     }
   }
 
-  async updateOrganization(id: number, orgData: Partial<any>): Promise<any | undefined> {
+  async updateOrganization(
+    id: number,
+    orgData: Partial<any>
+  ): Promise<any | undefined> {
     try {
       const org = await Organization.findOneAndUpdate(
         { id },
         { $set: orgData },
         { new: true }
       );
-      
+
       if (!org) return undefined;
-      
+
       const result = toPlainObject<IOrganization>(org);
       if (!result) return undefined;
-      
+
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
       };
     } catch (error) {
-      console.error('Error updating organization:', error);
+      console.error("Error updating organization:", error);
       return undefined;
     }
   }
@@ -146,10 +151,11 @@ export class MongoStorage implements IStorage {
   // Users
   async getUser(id: number): Promise<any | undefined> {
     try {
-      const user = await User.findOne({ id });
+      const objectId = this.toObjectId(id);
+      const user = await User.findOne({ _id: objectId });
       return toPlainObject(user);
     } catch (error) {
-      console.error('Error getting user:', error);
+      console.error("Error getting user:", error);
       return undefined;
     }
   }
@@ -159,7 +165,7 @@ export class MongoStorage implements IStorage {
       const user = await User.findOne({ email });
       return toPlainObject(user);
     } catch (error) {
-      console.error('Error getting user by email:', error);
+      console.error("Error getting user by email:", error);
       return undefined;
     }
   }
@@ -167,17 +173,19 @@ export class MongoStorage implements IStorage {
   async getUsersByOrganization(orgId: number): Promise<any[]> {
     try {
       const users = await User.find({ organizationId: orgId });
-      return users.map(user => {
-        const plainUser = toPlainObject<IUser>(user);
-        if (!plainUser) return null;
-        
-        return {
-          ...plainUser,
-          id: this.convertId(plainUser._id)
-        };
-      }).filter(Boolean) as any[];
+      return users
+        .map((user) => {
+          const plainUser = toPlainObject<IUser>(user);
+          if (!plainUser) return null;
+
+          return {
+            ...plainUser,
+            id: this.convertId(plainUser._id),
+          };
+        })
+        .filter(Boolean) as any[];
     } catch (error) {
-      console.error('Error getting users by organization:', error);
+      console.error("Error getting users by organization:", error);
       return [];
     }
   }
@@ -189,7 +197,7 @@ export class MongoStorage implements IStorage {
       if (userData.organizationId) {
         organizationId = this.toObjectId(userData.organizationId);
       }
-      
+
       const newUser = new User({
         name: userData.name,
         email: userData.email,
@@ -197,56 +205,61 @@ export class MongoStorage implements IStorage {
         role: userData.role,
         organizationId: organizationId,
         avatar: userData.avatar || null,
-        status: userData.status || 'active'
+        status: userData.status || "active",
       });
-      
+
       const saved = await newUser.save();
       const result = toPlainObject<IUser>(saved);
-      
+
       if (!result) {
-        throw new Error('Failed to create user');
+        throw new Error("Failed to create user");
       }
-      
+
       return {
         ...result,
         id: this.convertId(result._id),
-        organizationId: result.organizationId ? this.convertId(result.organizationId) : null
+        organizationId: result.organizationId
+          ? this.convertId(result.organizationId)
+          : null,
       };
     } catch (error) {
-      console.error('Error creating user:', error);
+      console.error("Error creating user:", error);
       throw error;
     }
   }
 
-  async updateUser(id: number, userData: Partial<any>): Promise<any | undefined> {
+  async updateUser(
+    id: number,
+    userData: Partial<any>
+  ): Promise<any | undefined> {
     try {
       const user = await User.findOneAndUpdate(
         { id },
         { $set: userData },
         { new: true }
       );
-      
+
       if (!user) return undefined;
-      
+
       const result = toPlainObject<IUser>(user);
       if (!result) return undefined;
-      
+
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
       };
     } catch (error) {
-      console.error('Error updating user:', error);
+      console.error("Error updating user:", error);
       return undefined;
     }
   }
 
   verifyPassword(password: string, hash: string): boolean {
     const calculatedHash = crypto
-      .createHash('sha256')
+      .createHash("sha256")
       .update(password)
-      .digest('hex');
-      
+      .digest("hex");
+
     return calculatedHash === hash;
   }
 
@@ -256,7 +269,7 @@ export class MongoStorage implements IStorage {
       const app = await App.findOne({ id });
       return toPlainObject(app);
     } catch (error) {
-      console.error('Error getting app:', error);
+      console.error("Error getting app:", error);
       return undefined;
     }
   }
@@ -264,17 +277,19 @@ export class MongoStorage implements IStorage {
   async getAppsByOrganization(orgId: number): Promise<any[]> {
     try {
       const apps = await App.find({ organizationId: orgId });
-      return apps.map(app => {
-        const plainApp = toPlainObject<IApp>(app);
-        if (!plainApp) return null;
-        
-        return {
-          ...plainApp,
-          id: this.convertId(plainApp._id)
-        };
-      }).filter(Boolean) as any[];
+      return apps
+        .map((app) => {
+          const plainApp = toPlainObject<IApp>(app);
+          if (!plainApp) return null;
+
+          return {
+            ...plainApp,
+            id: this.convertId(plainApp._id),
+          };
+        })
+        .filter(Boolean) as any[];
     } catch (error) {
-      console.error('Error getting apps by organization:', error);
+      console.error("Error getting apps by organization:", error);
       return [];
     }
   }
@@ -287,23 +302,23 @@ export class MongoStorage implements IStorage {
         description: appData.description || null,
         icon: appData.icon || null,
         baseUrl: appData.baseUrl,
-        commissionType: appData.commissionType || 'percentage',
-        commissionValue: appData.commissionValue || 10
+        commissionType: appData.commissionType || "percentage",
+        commissionValue: appData.commissionValue || 10,
       });
-      
+
       const saved = await newApp.save();
       const result = toPlainObject<IApp>(saved);
-      
+
       if (!result) {
-        throw new Error('Failed to create app');
+        throw new Error("Failed to create app");
       }
-      
+
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
       };
     } catch (error) {
-      console.error('Error creating app:', error);
+      console.error("Error creating app:", error);
       throw error;
     }
   }
@@ -315,18 +330,18 @@ export class MongoStorage implements IStorage {
         { $set: appData },
         { new: true }
       );
-      
+
       if (!app) return undefined;
-      
+
       const result = toPlainObject<IApp>(app);
       if (!result) return undefined;
-      
+
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
       };
     } catch (error) {
-      console.error('Error updating app:', error);
+      console.error("Error updating app:", error);
       return undefined;
     }
   }
@@ -336,7 +351,7 @@ export class MongoStorage implements IStorage {
       const result = await App.deleteOne({ id });
       return result.deletedCount === 1;
     } catch (error) {
-      console.error('Error deleting app:', error);
+      console.error("Error deleting app:", error);
       return false;
     }
   }
@@ -347,7 +362,7 @@ export class MongoStorage implements IStorage {
       const link = await AffiliateLink.findOne({ id });
       return toPlainObject(link);
     } catch (error) {
-      console.error('Error getting affiliate link:', error);
+      console.error("Error getting affiliate link:", error);
       return undefined;
     }
   }
@@ -357,7 +372,7 @@ export class MongoStorage implements IStorage {
       const link = await AffiliateLink.findOne({ code });
       return toPlainObject(link);
     } catch (error) {
-      console.error('Error getting affiliate link by code:', error);
+      console.error("Error getting affiliate link by code:", error);
       return undefined;
     }
   }
@@ -365,17 +380,19 @@ export class MongoStorage implements IStorage {
   async getAffiliateLinksByUser(userId: number): Promise<any[]> {
     try {
       const links = await AffiliateLink.find({ userId });
-      return links.map(link => {
-        const plainLink = toPlainObject<IAffiliateLink>(link);
-        if (!plainLink) return null;
-        
-        return {
-          ...plainLink,
-          id: this.convertId(plainLink._id)
-        };
-      }).filter(Boolean) as any[];
+      return links
+        .map((link) => {
+          const plainLink = toPlainObject<IAffiliateLink>(link);
+          if (!plainLink) return null;
+
+          return {
+            ...plainLink,
+            id: this.convertId(plainLink._id),
+          };
+        })
+        .filter(Boolean) as any[];
     } catch (error) {
-      console.error('Error getting affiliate links by user:', error);
+      console.error("Error getting affiliate links by user:", error);
       return [];
     }
   }
@@ -387,22 +404,22 @@ export class MongoStorage implements IStorage {
         appId: linkData.appId,
         code: linkData.code || undefined, // Will be auto-generated if not provided
         clicks: linkData.clicks || 0,
-        customParameters: linkData.customParameters || {}
+        customParameters: linkData.customParameters || {},
       });
-      
+
       const saved = await newLink.save();
       const result = toPlainObject<IAffiliateLink>(saved);
-      
+
       if (!result) {
-        throw new Error('Failed to create affiliate link');
+        throw new Error("Failed to create affiliate link");
       }
-      
+
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
       };
     } catch (error) {
-      console.error('Error creating affiliate link:', error);
+      console.error("Error creating affiliate link:", error);
       throw error;
     }
   }
@@ -415,7 +432,7 @@ export class MongoStorage implements IStorage {
       );
       return result.modifiedCount === 1;
     } catch (error) {
-      console.error('Error incrementing link clicks:', error);
+      console.error("Error incrementing link clicks:", error);
       return false;
     }
   }
@@ -426,7 +443,7 @@ export class MongoStorage implements IStorage {
       const conversion = await Conversion.findOne({ id });
       return toPlainObject(conversion);
     } catch (error) {
-      console.error('Error getting conversion:', error);
+      console.error("Error getting conversion:", error);
       return undefined;
     }
   }
@@ -434,17 +451,19 @@ export class MongoStorage implements IStorage {
   async getConversionsByLink(linkId: number): Promise<any[]> {
     try {
       const conversions = await Conversion.find({ linkId });
-      return conversions.map(conversion => {
-        const plainConversion = toPlainObject<IConversion>(conversion);
-        if (!plainConversion) return null;
-        
-        return {
-          ...plainConversion,
-          id: this.convertId(plainConversion._id)
-        };
-      }).filter(Boolean) as any[];
+      return conversions
+        .map((conversion) => {
+          const plainConversion = toPlainObject<IConversion>(conversion);
+          if (!plainConversion) return null;
+
+          return {
+            ...plainConversion,
+            id: this.convertId(plainConversion._id),
+          };
+        })
+        .filter(Boolean) as any[];
     } catch (error) {
-      console.error('Error getting conversions by link:', error);
+      console.error("Error getting conversions by link:", error);
       return [];
     }
   }
@@ -452,21 +471,23 @@ export class MongoStorage implements IStorage {
   async getConversionsByUser(userId: number): Promise<any[]> {
     try {
       // We need to join with the AffiliateLink collection
-      const userLinks = await AffiliateLink.find({ userId }).select('_id');
-      const linkIds = userLinks.map(link => link._id);
-      
+      const userLinks = await AffiliateLink.find({ userId }).select("_id");
+      const linkIds = userLinks.map((link) => link._id);
+
       const conversions = await Conversion.find({ linkId: { $in: linkIds } });
-      return conversions.map(conversion => {
-        const plainConversion = toPlainObject<IConversion>(conversion);
-        if (!plainConversion) return null;
-        
-        return {
-          ...plainConversion,
-          id: this.convertId(plainConversion._id)
-        };
-      }).filter(Boolean) as any[];
+      return conversions
+        .map((conversion) => {
+          const plainConversion = toPlainObject<IConversion>(conversion);
+          if (!plainConversion) return null;
+
+          return {
+            ...plainConversion,
+            id: this.convertId(plainConversion._id),
+          };
+        })
+        .filter(Boolean) as any[];
     } catch (error) {
-      console.error('Error getting conversions by user:', error);
+      console.error("Error getting conversions by user:", error);
       return [];
     }
   }
@@ -474,24 +495,28 @@ export class MongoStorage implements IStorage {
   async getConversionsByOrganization(orgId: number): Promise<any[]> {
     try {
       // This requires multiple joins: Organization > Users > AffiliateLinks > Conversions
-      const users = await User.find({ organizationId: orgId }).select('_id');
-      const userIds = users.map(user => user._id);
-      
-      const links = await AffiliateLink.find({ userId: { $in: userIds } }).select('_id');
-      const linkIds = links.map(link => link._id);
-      
+      const users = await User.find({ organizationId: orgId }).select("_id");
+      const userIds = users.map((user) => user._id);
+
+      const links = await AffiliateLink.find({
+        userId: { $in: userIds },
+      }).select("_id");
+      const linkIds = links.map((link) => link._id);
+
       const conversions = await Conversion.find({ linkId: { $in: linkIds } });
-      return conversions.map(conversion => {
-        const plainConversion = toPlainObject<IConversion>(conversion);
-        if (!plainConversion) return null;
-        
-        return {
-          ...plainConversion,
-          id: this.convertId(plainConversion._id)
-        };
-      }).filter(Boolean) as any[];
+      return conversions
+        .map((conversion) => {
+          const plainConversion = toPlainObject<IConversion>(conversion);
+          if (!plainConversion) return null;
+
+          return {
+            ...plainConversion,
+            id: this.convertId(plainConversion._id),
+          };
+        })
+        .filter(Boolean) as any[];
     } catch (error) {
-      console.error('Error getting conversions by organization:', error);
+      console.error("Error getting conversions by organization:", error);
       return [];
     }
   }
@@ -503,46 +528,49 @@ export class MongoStorage implements IStorage {
         transactionId: conversionData.transactionId,
         amount: conversionData.amount,
         commission: conversionData.commission,
-        status: conversionData.status || 'pending',
-        metadata: conversionData.metadata || {}
+        status: conversionData.status || "pending",
+        metadata: conversionData.metadata || {},
       });
-      
+
       const saved = await newConversion.save();
       const result = toPlainObject<IConversion>(saved);
-      
+
       if (!result) {
-        throw new Error('Failed to create conversion');
+        throw new Error("Failed to create conversion");
       }
-      
+
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
       };
     } catch (error) {
-      console.error('Error creating conversion:', error);
+      console.error("Error creating conversion:", error);
       throw error;
     }
   }
 
-  async updateConversionStatus(id: number, status: string): Promise<any | undefined> {
+  async updateConversionStatus(
+    id: number,
+    status: string
+  ): Promise<any | undefined> {
     try {
       const conversion = await Conversion.findOneAndUpdate(
         { id },
         { $set: { status } },
         { new: true }
       );
-      
+
       if (!conversion) return undefined;
-      
+
       const result = toPlainObject<IConversion>(conversion);
       if (!result) return undefined;
-      
+
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
       };
     } catch (error) {
-      console.error('Error updating conversion status:', error);
+      console.error("Error updating conversion status:", error);
       return undefined;
     }
   }
@@ -550,27 +578,33 @@ export class MongoStorage implements IStorage {
   // Activities
   async getActivitiesByOrganization(orgId: number, limit = 10): Promise<any[]> {
     try {
-      const activities = await Activity.find({ 
+      const activities = await Activity.find({
         $or: [
           { organizationId: orgId },
           // Also include activities for users in this organization
-          { userId: { $in: await User.find({ organizationId: orgId }).select('_id') } }
-        ]
+          {
+            userId: {
+              $in: await User.find({ organizationId: orgId }).select("_id"),
+            },
+          },
+        ],
       })
-      .sort({ createdAt: -1 })
-      .limit(limit);
-      
-      return activities.map(activity => {
-        const plainActivity = toPlainObject<IActivity>(activity);
-        if (!plainActivity) return null;
-        
-        return {
-          ...plainActivity,
-          id: this.convertId(plainActivity._id)
-        };
-      }).filter(Boolean) as any[];
+        .sort({ createdAt: -1 })
+        .limit(limit);
+
+      return activities
+        .map((activity) => {
+          const plainActivity = toPlainObject<IActivity>(activity);
+          if (!plainActivity) return null;
+
+          return {
+            ...plainActivity,
+            id: this.convertId(plainActivity._id),
+          };
+        })
+        .filter(Boolean) as any[];
     } catch (error) {
-      console.error('Error getting activities by organization:', error);
+      console.error("Error getting activities by organization:", error);
       return [];
     }
   }
@@ -580,38 +614,40 @@ export class MongoStorage implements IStorage {
       // Convert IDs to ObjectId if they exist
       let organizationId = null;
       let userId = null;
-      
+
       if (activityData.organizationId) {
         organizationId = this.toObjectId(activityData.organizationId);
       }
-      
+
       if (activityData.userId) {
         userId = this.toObjectId(activityData.userId);
       }
-      
+
       const newActivity = new Activity({
         type: activityData.type,
         description: activityData.description,
         organizationId: organizationId,
         userId: userId,
-        metadata: activityData.metadata || {}
+        metadata: activityData.metadata || {},
       });
-      
+
       const saved = await newActivity.save();
       const result = toPlainObject<IActivity>(saved);
-      
+
       if (!result) {
-        throw new Error('Failed to create activity');
+        throw new Error("Failed to create activity");
       }
-      
+
       return {
         ...result,
         id: this.convertId(result._id),
-        organizationId: result.organizationId ? this.convertId(result.organizationId) : null,
-        userId: result.userId ? this.convertId(result.userId) : null
+        organizationId: result.organizationId
+          ? this.convertId(result.organizationId)
+          : null,
+        userId: result.userId ? this.convertId(result.userId) : null,
       };
     } catch (error) {
-      console.error('Error creating activity:', error);
+      console.error("Error creating activity:", error);
       throw error;
     }
   }
@@ -622,7 +658,7 @@ export class MongoStorage implements IStorage {
       const payout = await Payout.findOne({ id });
       return toPlainObject(payout);
     } catch (error) {
-      console.error('Error getting payout:', error);
+      console.error("Error getting payout:", error);
       return undefined;
     }
   }
@@ -630,17 +666,19 @@ export class MongoStorage implements IStorage {
   async getPayoutsByUser(userId: number): Promise<any[]> {
     try {
       const payouts = await Payout.find({ userId });
-      return payouts.map(payout => {
-        const plainPayout = toPlainObject<IPayout>(payout);
-        if (!plainPayout) return null;
-        
-        return {
-          ...plainPayout,
-          id: this.convertId(plainPayout._id)
-        };
-      }).filter(Boolean) as any[];
+      return payouts
+        .map((payout) => {
+          const plainPayout = toPlainObject<IPayout>(payout);
+          if (!plainPayout) return null;
+
+          return {
+            ...plainPayout,
+            id: this.convertId(plainPayout._id),
+          };
+        })
+        .filter(Boolean) as any[];
     } catch (error) {
-      console.error('Error getting payouts by user:', error);
+      console.error("Error getting payouts by user:", error);
       return [];
     }
   }
@@ -650,52 +688,56 @@ export class MongoStorage implements IStorage {
       const newPayout = new Payout({
         userId: payoutData.userId,
         amount: payoutData.amount,
-        status: payoutData.status || 'pending',
+        status: payoutData.status || "pending",
         paymentMethod: payoutData.paymentMethod,
-        paymentReference: payoutData.paymentReference || null
+        paymentReference: payoutData.paymentReference || null,
       });
-      
+
       const saved = await newPayout.save();
       const result = toPlainObject<IPayout>(saved);
-      
+
       if (!result) {
-        throw new Error('Failed to create payout');
+        throw new Error("Failed to create payout");
       }
-      
+
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
       };
     } catch (error) {
-      console.error('Error creating payout:', error);
+      console.error("Error creating payout:", error);
       throw error;
     }
   }
 
-  async updatePayoutStatus(id: number, status: string, reference?: string): Promise<any | undefined> {
+  async updatePayoutStatus(
+    id: number,
+    status: string,
+    reference?: string
+  ): Promise<any | undefined> {
     try {
       const updateData: any = { status };
       if (reference) {
         updateData.paymentReference = reference;
       }
-      
+
       const payout = await Payout.findOneAndUpdate(
         { id },
         { $set: updateData },
         { new: true }
       );
-      
+
       if (!payout) return undefined;
-      
+
       const result = toPlainObject<IPayout>(payout);
       if (!result) return undefined;
-      
+
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
       };
     } catch (error) {
-      console.error('Error updating payout status:', error);
+      console.error("Error updating payout status:", error);
       return undefined;
     }
   }
@@ -706,7 +748,7 @@ export class MongoStorage implements IStorage {
       const settings = await NotificationSetting.findOne({ userId });
       return toPlainObject(settings);
     } catch (error) {
-      console.error('Error getting notification settings:', error);
+      console.error("Error getting notification settings:", error);
       return undefined;
     }
   }
@@ -720,23 +762,23 @@ export class MongoStorage implements IStorage {
             emailNotifications: settingsData.emailNotifications ?? true,
             conversionAlerts: settingsData.conversionAlerts ?? true,
             payoutAlerts: settingsData.payoutAlerts ?? true,
-            marketingTips: settingsData.marketingTips ?? true
-          }
+            marketingTips: settingsData.marketingTips ?? true,
+          },
         },
         { new: true, upsert: true }
       );
-      
+
       const result = toPlainObject<INotificationSetting>(settings);
       if (!result) {
-        throw new Error('Failed to create/update notification settings');
+        throw new Error("Failed to create/update notification settings");
       }
-      
+
       return {
         ...result,
-        id: this.convertId(result._id)
+        id: this.convertId(result._id),
       };
     } catch (error) {
-      console.error('Error creating/updating notification settings:', error);
+      console.error("Error creating/updating notification settings:", error);
       throw error;
     }
   }
@@ -750,42 +792,45 @@ export class MongoStorage implements IStorage {
   }> {
     try {
       // Get all users in the organization
-      const users = await User.find({ 
+      const users = await User.find({
         organizationId: orgId,
-        role: 'marketer',
-        status: 'active'
+        role: "marketer",
+        status: "active",
       });
-      const userIds = users.map(user => user._id);
-      
+      const userIds = users.map((user) => user._id);
+
       // Get all affiliate links for these users
       const links = await AffiliateLink.find({ userId: { $in: userIds } });
-      const linkIds = links.map(link => link._id);
-      
+      const linkIds = links.map((link) => link._id);
+
       // Calculate total clicks
       const totalClicks = links.reduce((sum, link) => sum + link.clicks, 0);
-      
+
       // Get all conversions for these links
-      const conversions = await Conversion.find({ 
+      const conversions = await Conversion.find({
         linkId: { $in: linkIds },
-        status: { $in: ['pending', 'approved'] }
+        status: { $in: ["pending", "approved"] },
       });
-      
+
       // Calculate total commission earned
-      const commissionEarned = conversions.reduce((sum, conv) => sum + conv.commission, 0);
-      
+      const commissionEarned = conversions.reduce(
+        (sum, conv) => sum + conv.commission,
+        0
+      );
+
       return {
         activeMarketers: users.length,
         totalClicks,
         conversions: conversions.length,
-        commissionEarned
+        commissionEarned,
       };
     } catch (error) {
-      console.error('Error getting organization stats:', error);
+      console.error("Error getting organization stats:", error);
       return {
         activeMarketers: 0,
         totalClicks: 0,
         conversions: 0,
-        commissionEarned: 0
+        commissionEarned: 0,
       };
     }
   }
@@ -799,34 +844,41 @@ export class MongoStorage implements IStorage {
     try {
       // Get all affiliate links for this user
       const links = await AffiliateLink.find({ userId });
-      const linkIds = links.map(link => link._id);
-      
+      const linkIds = links.map((link) => link._id);
+
       // Calculate total clicks
       const totalClicks = links.reduce((sum, link) => sum + link.clicks, 0);
-      
+
       // Get all conversions for these links
-      const allConversions = await Conversion.find({ linkId: { $in: linkIds } });
-      const pendingConversions = allConversions.filter(conv => conv.status === 'pending');
-      
+      const allConversions = await Conversion.find({
+        linkId: { $in: linkIds },
+      });
+      const pendingConversions = allConversions.filter(
+        (conv) => conv.status === "pending"
+      );
+
       // Calculate commission values
-      const pendingCommission = pendingConversions.reduce((sum, conv) => sum + conv.commission, 0);
+      const pendingCommission = pendingConversions.reduce(
+        (sum, conv) => sum + conv.commission,
+        0
+      );
       const totalCommission = allConversions
-        .filter(conv => conv.status === 'approved')
+        .filter((conv) => conv.status === "approved")
         .reduce((sum, conv) => sum + conv.commission, 0);
-      
+
       return {
         totalClicks,
         conversions: allConversions.length,
         pendingCommission,
-        totalCommission
+        totalCommission,
       };
     } catch (error) {
-      console.error('Error getting user stats:', error);
+      console.error("Error getting user stats:", error);
       return {
         totalClicks: 0,
         conversions: 0,
         pendingCommission: 0,
-        totalCommission: 0
+        totalCommission: 0,
       };
     }
   }
@@ -834,42 +886,43 @@ export class MongoStorage implements IStorage {
   async getTopMarketers(orgId: number, limit = 5): Promise<any[]> {
     try {
       // Get all marketers in the organization
-      const marketers = await User.find({ 
+      const marketers = await User.find({
         organizationId: orgId,
-        role: 'marketer'
+        role: "marketer",
       });
-      
+
       const result = [];
-      
+
       for (const marketer of marketers) {
         // Get all affiliate links for this marketer
         const links = await AffiliateLink.find({ userId: marketer._id });
-        const linkIds = links.map(link => link._id);
-        
+        const linkIds = links.map((link) => link._id);
+
         // Get all conversions for these links
-        const conversions = await Conversion.find({ 
+        const conversions = await Conversion.find({
           linkId: { $in: linkIds },
-          status: 'approved'
+          status: "approved",
         });
-        
+
         // Calculate total commission earned
-        const commission = conversions.reduce((sum, conv) => sum + conv.commission, 0);
-        
+        const commission = conversions.reduce(
+          (sum, conv) => sum + conv.commission,
+          0
+        );
+
         result.push({
           id: this.convertId(marketer._id),
           name: marketer.name,
           avatar: marketer.avatar,
           conversions: conversions.length,
-          commission
+          commission,
         });
       }
-      
+
       // Sort by commission earned (descending) and limit
-      return result
-        .sort((a, b) => b.commission - a.commission)
-        .slice(0, limit);
+      return result.sort((a, b) => b.commission - a.commission).slice(0, limit);
     } catch (error) {
-      console.error('Error getting top marketers:', error);
+      console.error("Error getting top marketers:", error);
       return [];
     }
   }
@@ -878,40 +931,41 @@ export class MongoStorage implements IStorage {
     try {
       // Get all apps for this organization
       const apps = await App.find({ organizationId: orgId });
-      
+
       const result = [];
-      
+
       for (const app of apps) {
         // Get all affiliate links for this app
         const links = await AffiliateLink.find({ appId: app._id });
-        const linkIds = links.map(link => link._id);
-        
+        const linkIds = links.map((link) => link._id);
+
         // Get all conversions for these links
-        const conversions = await Conversion.find({ 
+        const conversions = await Conversion.find({
           linkId: { $in: linkIds },
-          status: 'approved'
+          status: "approved",
         });
-        
+
         // Calculate metrics
         const revenue = conversions.reduce((sum, conv) => sum + conv.amount, 0);
-        const commission = conversions.reduce((sum, conv) => sum + conv.commission, 0);
-        
+        const commission = conversions.reduce(
+          (sum, conv) => sum + conv.commission,
+          0
+        );
+
         result.push({
           id: this.convertId(app._id),
           name: app.name,
           icon: app.icon,
           conversions: conversions.length,
           revenue,
-          commission
+          commission,
         });
       }
-      
+
       // Sort by revenue (descending) and limit
-      return result
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, limit);
+      return result.sort((a, b) => b.revenue - a.revenue).slice(0, limit);
     } catch (error) {
-      console.error('Error getting top products:', error);
+      console.error("Error getting top products:", error);
       return [];
     }
   }

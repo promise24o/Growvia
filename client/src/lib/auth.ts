@@ -88,6 +88,13 @@ const useAuthStore = create<AuthState>()(
           });
 
           await get().fetchUserData();
+
+          // Redirect based on user role
+          if (data.user.role === 'management') {
+            window.location.href = '/management/dashboard';
+          } else {
+            window.location.href = '/dashboard';
+          }
         } catch (error) {
           set({ isLoading: false });
           throw error;

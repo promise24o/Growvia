@@ -1,9 +1,10 @@
-import { pgTable, text, serial, integer, boolean, timestamp, real, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgTable, real, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // User roles
 export enum UserRole {
+  MANAGEMENT = "manegement",
   ADMIN = "admin",
   MARKETER = "marketer",
 }

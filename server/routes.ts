@@ -1,20 +1,31 @@
-import type { Express, Request, Response, NextFunction } from "express";
-import { createServer, type Server } from "http";
-import { MongoStorage } from "./mongoStorage";
-import { IStorage } from "./storage";
-import { 
-  loginSchema, 
-  registerSchema, 
-  insertAppSchema, 
+import {
   insertAffiliateLinkSchema,
+  insertAppSchema,
   insertConversionSchema,
-  UserRole,
+  loginSchema,
   PLAN_LIMITS,
+  registerSchema,
   SubscriptionPlan,
-  PaymentGateway
+  UserRole
 } from "@shared/schema";
+import { randomBytes } from "crypto";
+import type { Express, NextFunction, Request, Response } from "express";
+import { createServer, type Server } from "http";
+import jwt from "jsonwebtoken";
 import { z } from "zod";
+import { MongoStorage } from "./mongoStorage";
 import { setupPaymentRoutes } from "./services/payment";
+import { handleTrialExpiry, setTrialEndDate } from "./services/subscription";
+import { IStorage } from "./storage";
+import {
+  sendPasswordResetEmail,
+  sendPasswordResetSuccessEmail
+} from "./utils/email";
+import {
+  generatePasswordResetToken,
+  removePasswordResetToken,
+  verifyPasswordResetToken
+} from "./utils/token";
 
 // Onboarding schema
 const onboardingSchema = z.object({
@@ -24,18 +35,6 @@ const onboardingSchema = z.object({
   signingFrequency: z.string().min(1, { message: "Signing frequency is required" }),
   creationFrequency: z.string().min(1, { message: "Creation frequency is required" }),
 });
-import { handleTrialExpiry, setTrialEndDate } from "./services/subscription";
-import { randomBytes } from "crypto";
-import jwt from "jsonwebtoken";
-import { 
-  generatePasswordResetToken, 
-  verifyPasswordResetToken, 
-  removePasswordResetToken 
-} from "./utils/token";
-import { 
-  sendPasswordResetEmail, 
-  sendPasswordResetSuccessEmail 
-} from "./utils/email";
 
 const JWT_SECRET = process.env.JWT_SECRET || "affiliate-hub-secret-key-change-in-production";
 const TOKEN_EXPIRY = "7d";
@@ -99,15 +98,12 @@ const authorize = (roles: string[]) => {
 
 // Generate a JWT token
 const generateToken = (user: { id: number, organizationId: number | null, role: string }): string => {
-  return jwt.sign(
-    { 
-      userId: user.id, 
-      organizationId: user.organizationId,
-      role: user.role
-    },
-    JWT_SECRET,
-    { expiresIn: TOKEN_EXPIRY }
-  );
+  const payload = { 
+    userId: user.id, 
+    organizationId: user.organizationId,
+    role: user.role
+  };
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 };
 
 export async function registerRoutes(app: Express, apiRouter?: any): Promise<Server> {
@@ -247,7 +243,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
       
       // Generate JWT token
       const token = generateToken({
-        id: user.id,
+        id: user._id,
         organizationId: user.organizationId,
         role: user.role
       });
@@ -366,7 +362,7 @@ export async function registerRoutes(app: Express, apiRouter?: any): Promise<Ser
 
   router.get("/auth/me", authenticate, async (req, res) => {
     try {
-      const userId = (req as any).user.userId;
+      const userId = (req as any).user.id;
       
       // Log user identification for debugging
       console.log('Auth/me request - User ID from token:', userId);

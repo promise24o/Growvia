@@ -18,6 +18,11 @@ import Analytics from "@/pages/analytics";
 import Commissions from "@/pages/commissions";
 import Settings from "@/pages/settings";
 
+// Management Dashboard (for admin user)
+import ManagementDashboard from "@/pages/management/dashboard";
+import ManagementUsers from "@/pages/management/users";
+import ManagementOrganizations from "@/pages/management/organizations";
+
 // Settings pages
 import Billing from "@/pages/settings/billing";
 import PaymentSuccess from "@/pages/settings/billing/success";
@@ -47,6 +52,29 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   return isAuthenticated ? <>{children}</> : null;
+}
+
+// Special route that only allows access to management (admin) users
+function ManagementRoute({ children }: { children: React.ReactNode }) {
+  const [location, setLocation] = useLocation();
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        setLocation("/login");
+      } else if (user && user.role !== 'management') {
+        // Redirect to dashboard if user isn't a management user
+        setLocation("/dashboard");
+      }
+    }
+  }, [isAuthenticated, isLoading, user, setLocation]);
+
+  if (isLoading) {
+    return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
+  }
+
+  return isAuthenticated && user?.role === 'management' ? <>{children}</> : null;
 }
 
 function App() {
@@ -85,6 +113,23 @@ function App() {
           <ProtectedRoute>
             <Onboarding />
           </ProtectedRoute>
+        </Route>
+
+        {/* Management routes - only for system admins */}
+        <Route path="/management/dashboard">
+          <ManagementRoute>
+            <ManagementDashboard />
+          </ManagementRoute>
+        </Route>
+        <Route path="/management/users">
+          <ManagementRoute>
+            <ManagementUsers />
+          </ManagementRoute>
+        </Route>
+        <Route path="/management/organizations">
+          <ManagementRoute>
+            <ManagementOrganizations />
+          </ManagementRoute>
         </Route>
 
         {/* Protected routes */}

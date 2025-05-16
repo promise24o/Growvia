@@ -26,6 +26,13 @@ import {
   removePasswordResetToken,
   verifyPasswordResetToken,
 } from "./utils/token";
+import {
+  User,
+  Organization,
+  App,
+  AffiliateLink,
+  Conversion
+} from './models';
 
 // Onboarding schema
 const onboardingSchema = z.object({
@@ -105,6 +112,21 @@ const authorize = (roles: string[]) => {
   };
 };
 
+// Middleware specifically for management role (system administrators)
+const requireManagement = (req: Request, res: Response, next: NextFunction) => {
+  const user = (req as any).user;
+  
+  if (!user) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  
+  if (user.role !== UserRole.MANAGEMENT) {
+    return res.status(403).json({ message: "Management access required" });
+  }
+  
+  next();
+};
+
 // Generate a JWT token
 const generateToken = (user: {
   id: number;
@@ -128,6 +150,118 @@ export async function registerRoutes(
 
   // Set up payment routes on main app
   setupPaymentRoutes(app);
+  
+  // Management dashboard routes (system admin only)
+  router.get("/management/users", authenticate, requireManagement, async (req, res) => {
+    try {
+      // Get all users in the system
+      const users = await User.find().sort({ createdAt: -1 });
+      return res.json(users.map(user => ({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        organizationId: user.organizationId,
+        createdAt: user.createdAt
+      })));
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  router.get("/management/organizations", authenticate, requireManagement, async (req, res) => {
+    try {
+      // Get all organizations in the system
+      const organizations = await Organization.find().sort({ createdAt: -1 });
+      return res.json(organizations.map(org => ({
+        id: org._id,
+        name: org.name,
+        email: org.email,
+        plan: org.plan,
+        createdAt: org.createdAt,
+        trialEndsAt: org.trialEndsAt,
+        onboardingCompleted: org.onboardingCompleted
+      })));
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+  
+  router.get("/management/analytics", authenticate, requireManagement, async (req, res) => {
+    try {
+      // Get platform-wide analytics
+      const userCount = await User.countDocuments();
+      const organizationCount = await Organization.countDocuments();
+      const appCount = await App.countDocuments();
+      const linkCount = await AffiliateLink.countDocuments();
+      const conversionCount = await Conversion.countDocuments();
+      
+      // Active users by role
+      const adminCount = await User.countDocuments({ role: UserRole.ADMIN });
+      const marketerCount = await User.countDocuments({ role: UserRole.MARKETER });
+      
+      // Plan distribution
+      const freeTrial = await Organization.countDocuments({ plan: SubscriptionPlan.FREE_TRIAL });
+      const starter = await Organization.countDocuments({ plan: SubscriptionPlan.STARTER });
+      const growth = await Organization.countDocuments({ plan: SubscriptionPlan.GROWTH });
+      const pro = await Organization.countDocuments({ plan: SubscriptionPlan.PRO });
+      const enterprise = await Organization.countDocuments({ plan: SubscriptionPlan.ENTERPRISE });
+      
+      return res.json({
+        userCount,
+        organizationCount,
+        appCount,
+        linkCount,
+        conversionCount,
+        usersByRole: {
+          admin: adminCount,
+          marketer: marketerCount
+        },
+        organizationsByPlan: {
+          freeTrial,
+          starter,
+          growth,
+          pro,
+          enterprise
+        }
+      });
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // User actions (suspend, activate, change role)
+  router.patch("/management/users/:userId", authenticate, requireManagement, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { status, role } = req.body;
+      
+      const updates: any = {};
+      if (status) updates.status = status;
+      if (role) updates.role = role;
+      
+      const user = await User.findByIdAndUpdate(
+        userId,
+        { $set: updates },
+        { new: true }
+      );
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      return res.json({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status
+      });
+    } catch (error: any) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
 
   // Authentication routes
 

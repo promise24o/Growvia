@@ -156,6 +156,12 @@ export async function registerRoutes(
 ): Promise<Server> {
   // Determine which router to use for API routes
   const router = apiRouter || app;
+  
+  // Ensure all API responses are JSON
+  router.use((req, res, next) => {
+    res.setHeader('Content-Type', 'application/json');
+    next();
+  });
 
   // Set up payment routes on main app
   setupPaymentRoutes(app);

@@ -426,8 +426,9 @@ export async function registerRoutes(
       }
 
       // Generate JWT token - use toString() for MongoDB ObjectIDs
+      // Handle different types of user objects (from MongoDB or from MemStorage)
       const tokenPayload = {
-        id: user._id ? user._id.toString() : user.id.toString(),
+        id: user._id ? user._id.toString() : (user.id ? user.id.toString() : null),
         organizationId: user.organizationId ? user.organizationId.toString() : null,
         role: user.role
       };
@@ -527,10 +528,18 @@ export async function registerRoutes(
 
   router.get("/auth/me", authenticate, async (req, res) => {
     try {
-      const userId = (req as any).user.id;
+      // Log the entire decoded token for debugging
+      console.log("Auth/me request - Full token data:", (req as any).user);
+      
+      // Try to get user ID from various possible properties in the token
+      const userId = (req as any).user.id || (req as any).user.sub;
 
       // Log user identification for debugging
       console.log("Auth/me request - User ID from token:", userId);
+
+      if (!userId) {
+        return res.status(401).json({ message: "Invalid token - no user identifier found" });
+      }
 
       // Get user details - try both storage and direct MongoDB query
       let user = null;

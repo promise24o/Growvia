@@ -1,10 +1,20 @@
-import { boolean, integer, jsonb, pgTable, real, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  integer,
+  jsonb,
+  pgTable,
+  real,
+  serial,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // User roles
 export enum UserRole {
-  MANAGEMENT = "manegement",
+  MANAGEMENT = "management",
   ADMIN = "admin",
   MARKETER = "marketer",
 }
@@ -30,7 +40,11 @@ export const PLAN_LIMITS = {
   [SubscriptionPlan.STARTER]: { apps: 1, marketers: 50, price: 29 },
   [SubscriptionPlan.GROWTH]: { apps: 5, marketers: 300, price: 79 },
   [SubscriptionPlan.PRO]: { apps: 999999, marketers: 1000, price: 199 },
-  [SubscriptionPlan.ENTERPRISE]: { apps: 999999, marketers: 999999, price: null },
+  [SubscriptionPlan.ENTERPRISE]: {
+    apps: 999999,
+    marketers: 999999,
+    price: null,
+  },
 };
 
 // Organizations
@@ -69,7 +83,9 @@ export const users = pgTable("users", {
 // Apps (products that can be promoted)
 export const apps = pgTable("apps", {
   id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").notNull().references(() => organizations.id),
+  organizationId: integer("organization_id")
+    .notNull()
+    .references(() => organizations.id),
   name: text("name").notNull(),
   description: text("description"),
   baseUrl: text("base_url").notNull(),
@@ -81,23 +97,33 @@ export const apps = pgTable("apps", {
 });
 
 // Affiliate links
-export const affiliateLinks = pgTable("affiliate_links", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  appId: integer("app_id").notNull().references(() => apps.id),
-  code: text("code").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  clicks: integer("clicks").notNull().default(0),
-}, (table) => {
-  return {
-    codeIdx: uniqueIndex("affiliate_link_code_idx").on(table.code),
-  };
-});
+export const affiliateLinks = pgTable(
+  "affiliate_links",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    appId: integer("app_id")
+      .notNull()
+      .references(() => apps.id),
+    code: text("code").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    clicks: integer("clicks").notNull().default(0),
+  },
+  (table) => {
+    return {
+      codeIdx: uniqueIndex("affiliate_link_code_idx").on(table.code),
+    };
+  },
+);
 
 // Conversions
 export const conversions = pgTable("conversions", {
   id: serial("id").primaryKey(),
-  linkId: integer("link_id").notNull().references(() => affiliateLinks.id),
+  linkId: integer("link_id")
+    .notNull()
+    .references(() => affiliateLinks.id),
   transactionId: text("transaction_id").notNull().unique(),
   amount: real("amount").notNull(),
   commission: real("commission").notNull(),
@@ -121,7 +147,9 @@ export const activities = pgTable("activities", {
 // Commissions payouts
 export const payouts = pgTable("payouts", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
   amount: real("amount").notNull(),
   status: text("status").notNull().default("pending"), // pending, processing, completed, failed
   paymentMethod: text("payment_method").notNull(), // flutterwave, paystack
@@ -133,7 +161,10 @@ export const payouts = pgTable("payouts", {
 // Notification settings
 export const notificationSettings = pgTable("notification_settings", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id)
+    .unique(),
   emailNotifications: boolean("email_notifications").notNull().default(true),
   conversionAlerts: boolean("conversion_alerts").notNull().default(true),
   payoutAlerts: boolean("payout_alerts").notNull().default(true),
@@ -160,7 +191,9 @@ export const insertAppSchema = createInsertSchema(apps).omit({
   updatedAt: true,
 });
 
-export const insertAffiliateLinkSchema = createInsertSchema(affiliateLinks).omit({
+export const insertAffiliateLinkSchema = createInsertSchema(
+  affiliateLinks,
+).omit({
   id: true,
   createdAt: true,
   clicks: true,
@@ -183,7 +216,9 @@ export const insertPayoutSchema = createInsertSchema(payouts).omit({
   updatedAt: true,
 });
 
-export const insertNotificationSettingsSchema = createInsertSchema(notificationSettings).omit({
+export const insertNotificationSettingsSchema = createInsertSchema(
+  notificationSettings,
+).omit({
   id: true,
   updatedAt: true,
 });
@@ -224,7 +259,9 @@ export type Payout = typeof payouts.$inferSelect;
 export type InsertPayout = z.infer<typeof insertPayoutSchema>;
 
 export type NotificationSetting = typeof notificationSettings.$inferSelect;
-export type InsertNotificationSetting = z.infer<typeof insertNotificationSettingsSchema>;
+export type InsertNotificationSetting = z.infer<
+  typeof insertNotificationSettingsSchema
+>;
 
 export type Login = z.infer<typeof loginSchema>;
 export type Register = z.infer<typeof registerSchema>;

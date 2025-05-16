@@ -28,6 +28,46 @@ const toPlainObject = <T>(doc: mongoose.Document | null): T | undefined => {
 };
 
 export class MongoStorage implements IStorage {
+  // Constructor to initialize the storage with admin user
+  constructor() {
+    // Seed the admin user when storage is initialized
+    this.seedAdminUser().catch(err => console.error('Error seeding admin user:', err));
+  }
+
+  // Seed admin user with management role
+  private async seedAdminUser() {
+    try {
+      // Check if admin user already exists
+      const existingAdmin = await User.findOne({ email: 'admin@admin.com' });
+      
+      if (!existingAdmin) {
+        console.log('Creating admin user...');
+        // Create a hashed password for 'admin'
+        const hashedPassword = crypto.createHash('sha256').update('admin').digest('hex');
+        
+        // Create the admin user with management role
+        const adminUser = new User({
+          name: 'System Administrator',
+          email: 'admin@admin.com',
+          password: hashedPassword,
+          role: 'management',
+          status: 'active',
+          avatar: null,
+          organizationId: null, // Not associated with any organization
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        
+        await adminUser.save();
+        console.log('Admin user created successfully');
+      } else {
+        console.log('Admin user already exists');
+      }
+    } catch (error) {
+      console.error('Failed to seed admin user:', error);
+    }
+  }
+
   // Helper to convert MongoDB ObjectId to string or null
   private convertId(id: mongoose.Types.ObjectId | null): string | null {
     if (!id) return null;

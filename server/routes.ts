@@ -55,10 +55,11 @@ const TOKEN_EXPIRY = "7d";
 const storage: IStorage = new MongoStorage();
 
 interface JwtPayload {
-  userId: string;
+  userId?: string;
   id?: string;
-  organizationId: string | null;
-  role: string;
+  sub?: string;
+  organizationId?: string | null;
+  role?: string;
 }
 
 // Middleware to authenticate requests
@@ -76,12 +77,11 @@ const authenticate = async (
 
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
-    // Make sure we have userId available 
-    const userId = decoded.userId || decoded.id;
+    // For debugging token contents
+    console.log("Token decoded:", decoded);
     
-    if (!userId) {
-      return res.status(401).json({ message: "Invalid token structure" });
-    }
+    // Accept any identifier from the token
+    const userId = decoded.userId || decoded.id || decoded.sub;
 
     // Add user info to request object
     (req as any).user = {
@@ -426,11 +426,14 @@ export async function registerRoutes(
       }
 
       // Generate JWT token - use toString() for MongoDB ObjectIDs
-      const token = generateToken({
-        userId: user._id ? user._id.toString() : user.id,
-        organizationId: user.organizationId,
-        role: user.role,
-      });
+      const tokenPayload = {
+        id: user._id ? user._id.toString() : user.id.toString(),
+        organizationId: user.organizationId ? user.organizationId.toString() : null,
+        role: user.role
+      };
+      
+      console.log("Generating token with payload:", tokenPayload);
+      const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 
       // Return user info and token
       return res.json({
@@ -529,8 +532,36 @@ export async function registerRoutes(
       // Log user identification for debugging
       console.log("Auth/me request - User ID from token:", userId);
 
-      // Get user details
-      const user = await storage.getUser(userId);
+      // Get user details - try both storage and direct MongoDB query
+      let user = null;
+      
+      try {
+        // First try the storage service
+        user = await storage.getUser(userId);
+      } catch (err) {
+        console.log("Error getting user from storage:", err);
+      }
+      
+      // If not found in storage, try direct MongoDB query
+      if (!user) {
+        try {
+          user = await User.findById(userId);
+          
+          if (user) {
+            user = {
+              id: user._id.toString(),
+              name: user.name,
+              email: user.email, 
+              role: user.role,
+              status: user.status || 'active',
+              organizationId: user.organizationId,
+              avatar: user.avatar
+            };
+          }
+        } catch (err) {
+          console.log("Error getting user from MongoDB:", err);
+        }
+      }
 
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -539,7 +570,26 @@ export async function registerRoutes(
       // Get organization details if applicable
       let organization = null;
       if (user.organizationId) {
-        organization = await storage.getOrganization(user.organizationId);
+        try {
+          organization = await storage.getOrganization(user.organizationId);
+        } catch (err) {
+          console.log("Error getting organization from storage:", err);
+          
+          // Try direct MongoDB query if storage fails
+          try {
+            const orgDoc = await Organization.findById(user.organizationId);
+            if (orgDoc) {
+              organization = {
+                id: orgDoc._id.toString(),
+                name: orgDoc.name,
+                plan: orgDoc.plan,
+                logo: orgDoc.logo
+              };
+            }
+          } catch (orgErr) {
+            console.log("Error getting organization from MongoDB:", orgErr);
+          }
+        }
       }
 
       return res.json({
@@ -548,7 +598,7 @@ export async function registerRoutes(
           name: user.name,
           email: user.email,
           role: user.role,
-          status: user.status,
+          status: user.status || 'active',
           avatar: user.avatar,
         },
         organization: organization

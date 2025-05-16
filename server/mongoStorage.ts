@@ -42,8 +42,8 @@ export class MongoStorage implements IStorage {
       
       if (!existingAdmin) {
         console.log('Creating admin user...');
-        // Create a hashed password for 'admin'
-        const hashedPassword = crypto.createHash('sha256').update('admin').digest('hex');
+        // Create a hashed password for the admin user
+        const hashedPassword = crypto.createHash('sha256').update('password123').digest('hex');
         
         // Create the admin user with management role
         const adminUser = new User({

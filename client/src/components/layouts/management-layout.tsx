@@ -1,219 +1,151 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth } from "@/lib/auth";
 import {
-  LayoutDashboard,
   Users,
+  BarChart3,
   Building2,
+  CreditCard,
+  Bell,
+  Settings,
+  ListTodo,
   LogOut,
   Menu,
   X,
-  Settings,
-  BarChart3
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
-const sidebarItems = [
-  {
-    title: "Dashboard",
-    href: "/management/dashboard",
-    icon: <LayoutDashboard className="h-5 w-5" />,
-  },
-  {
-    title: "Users",
-    href: "/management/users",
-    icon: <Users className="h-5 w-5" />,
-  },
-  {
-    title: "Organizations",
-    href: "/management/organizations",
-    icon: <Building2 className="h-5 w-5" />,
-  },
-  {
-    title: "Analytics",
-    href: "/analytics",
-    icon: <BarChart3 className="h-5 w-5" />,
-  },
-  {
-    title: "Settings",
-    href: "/settings",
-    icon: <Settings className="h-5 w-5" />,
-  },
-];
-
-export default function ManagementLayout({
-  children,
-}: {
+interface ManagementLayoutProps {
   children: React.ReactNode;
-}) {
-  const { user, logout } = useAuth();
-  const [location] = useLocation();
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+}
 
-  // Get initials for avatar
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
-  };
+export default function ManagementLayout({ children }: ManagementLayoutProps) {
+  const [location] = useLocation();
+  const { logout } = useAuth();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+
+  const sidebarItems = [
+    {
+      title: "Dashboard",
+      icon: <BarChart3 className="mr-2 h-5 w-5" />,
+      href: "/management",
+      active: location === "/management",
+    },
+    {
+      title: "Organizations",
+      icon: <Building2 className="mr-2 h-5 w-5" />,
+      href: "/management/organizations",
+      active: location === "/management/organizations",
+    },
+    {
+      title: "Users",
+      icon: <Users className="mr-2 h-5 w-5" />,
+      href: "/management/users",
+      active: location === "/management/users",
+    },
+    {
+      title: "Subscriptions",
+      icon: <CreditCard className="mr-2 h-5 w-5" />,
+      href: "/management/subscriptions",
+      active: location === "/management/subscriptions",
+    },
+    {
+      title: "Notifications",
+      icon: <Bell className="mr-2 h-5 w-5" />,
+      href: "/management/notifications",
+      active: location === "/management/notifications",
+    },
+    {
+      title: "Audit Logs",
+      icon: <ListTodo className="mr-2 h-5 w-5" />,
+      href: "/management/audit-logs",
+      active: location === "/management/audit-logs",
+    },
+    {
+      title: "Settings",
+      icon: <Settings className="mr-2 h-5 w-5" />,
+      href: "/management/settings",
+      active: location === "/management/settings",
+    },
+  ];
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Sidebar for desktop */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r bg-muted/10 lg:block">
-        <div className="flex h-full flex-col justify-between">
-          <div className="flex flex-col">
-            <div className="flex h-14 items-center border-b px-4">
-              <Link href="/" className="flex items-center gap-2">
-                <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
-                  Growvia
-                </span>
-                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md">Admin</span>
-              </Link>
-            </div>
-            <nav className="flex-1 overflow-y-auto p-2">
-              <ul className="space-y-1">
-                {sidebarItems.map((item) => (
-                  <li key={item.href}>
-                    <Link href={item.href}>
-                      <a
-                        className={`flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-accent hover:text-accent-foreground ${
-                          location === item.href
-                            ? "bg-secondary/50 text-secondary-foreground"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        {item.icon}
-                        <span>{item.title}</span>
-                      </a>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+    <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
+      {/* Mobile sidebar toggle */}
+      <div className="fixed top-4 left-4 z-50 md:hidden">
+        <button
+          onClick={toggleSidebar}
+          className="p-2 rounded-md bg-primary text-white"
+        >
+          {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
+
+      {/* Sidebar */}
+      <aside
+        className={`${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } fixed top-0 left-0 z-40 w-64 h-full transition-transform duration-300 ease-in-out md:translate-x-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700`}
+      >
+        <div className="h-full px-3 py-4 overflow-y-auto">
+          <div className="flex items-center mb-5 p-2">
+            <h2 className="text-xl font-semibold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
+              Growvia Admin
+            </h2>
           </div>
-          <div className="border-t p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Avatar>
-                  <AvatarImage src={user?.avatar || undefined} />
-                  <AvatarFallback>
-                    {user?.name ? getInitials(user.name) : "AD"}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-medium">{user?.name || "Admin"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {user?.email || "admin@admin.com"}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="icon"
+          <ul className="space-y-2 font-medium">
+            {sidebarItems.map((item, index) => (
+              <li key={index}>
+                <Link href={item.href}>
+                  <a
+                    className={`flex items-center p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 ${
+                      item.active
+                        ? "bg-gray-100 dark:bg-gray-700 text-primary"
+                        : "text-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {item.icon}
+                    <span>{item.title}</span>
+                  </a>
+                </Link>
+              </li>
+            ))}
+            <li>
+              <button
                 onClick={() => logout()}
-                title="Logout"
+                className="flex w-full items-center p-2 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
               >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+                <LogOut className="mr-2 h-5 w-5" />
+                <span>Logout</span>
+              </button>
+            </li>
+          </ul>
         </div>
       </aside>
 
-      {/* Mobile sidebar */}
-      <div className="lg:hidden">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="fixed left-4 top-4 z-50"
-          onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-        >
-          {mobileSidebarOpen ? (
-            <X className="h-6 w-6" />
-          ) : (
-            <Menu className="h-6 w-6" />
-          )}
-        </Button>
-
-        {mobileSidebarOpen && (
-          <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden" />
-        )}
-
-        <aside
-          className={`fixed inset-y-0 left-0 z-40 w-64 transform border-r bg-background transition-transform duration-300 ease-in-out ${
-            mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div className="flex h-full flex-col justify-between">
-            <div className="flex flex-col">
-              <div className="flex h-14 items-center border-b px-4">
-                <Link href="/" className="flex items-center gap-2">
-                  <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
-                    Growvia
-                  </span>
-                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md">Admin</span>
-                </Link>
-              </div>
-              <nav className="flex-1 overflow-y-auto p-2">
-                <ul className="space-y-1">
-                  {sidebarItems.map((item) => (
-                    <li key={item.href}>
-                      <Link href={item.href}>
-                        <a
-                          className={`flex items-center gap-3 rounded-md px-3 py-2 transition-colors hover:bg-accent hover:text-accent-foreground ${
-                            location === item.href
-                              ? "bg-secondary/50 text-secondary-foreground"
-                              : "text-muted-foreground"
-                          }`}
-                          onClick={() => setMobileSidebarOpen(false)}
-                        >
-                          {item.icon}
-                          <span>{item.title}</span>
-                        </a>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </nav>
-            </div>
-            <div className="border-t p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarImage src={user?.avatar || undefined} />
-                    <AvatarFallback>
-                      {user?.name ? getInitials(user.name) : "AD"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium">{user?.name || "Admin"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {user?.email || "admin@admin.com"}
-                    </p>
+      {/* Main Content */}
+      <div className={`flex-1 ${isSidebarOpen ? "md:ml-64" : ""} transition-all duration-300 ease-in-out`}>
+        <header className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+          <div className="flex justify-between items-center">
+            <h1 className="text-xl font-semibold">Platform Management</h1>
+            <div className="flex items-center space-x-4">
+              <div className="hidden md:flex items-center gap-2">
+                <div className="text-sm text-right">
+                  <div className="font-medium">System Administrator</div>
+                  <div className="text-gray-500 dark:text-gray-400 text-xs">
+                    admin@admin.com
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => logout()}
-                  title="Logout"
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
+                <div className="h-10 w-10 rounded-full bg-primary text-white grid place-items-center">
+                  <span className="text-sm font-medium">SA</span>
+                </div>
               </div>
             </div>
           </div>
-        </aside>
+        </header>
+        <main className="p-4 md:p-6">{children}</main>
       </div>
-
-      {/* Main content */}
-      <main className="flex-1 lg:ml-64">
-        <div className="container py-6 lg:py-10">{children}</div>
-      </main>
     </div>
   );
 }

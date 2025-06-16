@@ -1,7 +1,7 @@
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PlanModal } from "@/components/subscription/plan-modal";
 import { AvatarWithStatus } from "@/components/ui/avatar-with-status";
-import { Badge } from "@/components/ui/badge";
+import { Badge, BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Form,
   FormControl,
@@ -31,10 +32,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { PLAN_LIMITS, SubscriptionPlan, User } from "@/lib/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Mail, PlusCircle, Search, Send, Users } from "lucide-react";
+import { ChevronDown, Copy, FileText, Lock, Mail, PlusCircle, Search, Send, UserCircleIcon, Users } from "lucide-react";
+import moment from "moment";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { Link } from "wouter";
 import { z } from "zod";
+
 
 // Schema for marketer invite form
 const inviteSchema = z.object({
@@ -55,6 +59,12 @@ export default function Marketers() {
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Organization invite link
+const orgInviteLink =
+  organization && organization.length > 0
+    ? `${window.location.origin}/marketer-invitation/${organization[0].id}`
+    : "";
 
   // Get marketers
   const { data: marketers, isLoading } = useQuery<
@@ -111,6 +121,7 @@ export default function Marketers() {
 
   // Resend invite mutation
   const resendInviteMutation = useMutation({
+   
     mutationFn: async ({ email }: { email: string }) => {
       const response = await apiRequest<{ inviteLink: string }>(
         "/api/marketers/resend-invite",
@@ -132,6 +143,7 @@ export default function Marketers() {
       toast({
         title: "Success",
         description: "Invitation resent successfully",
+        variant: "success",
       });
     },
     onError: (error) => {
@@ -146,6 +158,7 @@ export default function Marketers() {
       });
     },
   });
+  
 
   // Form setup
   const form = useForm<InviteFormValues>({
@@ -211,56 +224,92 @@ export default function Marketers() {
     {
       header: "Status",
       accessorKey: "status",
-      cell: (data: User & { source: string }) => (
-        <Badge
-          variant="outline"
-          className={`px-2 py-1 text-xs font-medium rounded-full ${
-            data.status === "active"
-              ? "bg-success-50 text-success-600 border-success-200"
-              : "bg-warning-50 text-warning-600 border-warning-200"
-          }`}
-        >
-          {data.status === "active"
-            ? "Active"
-            : data.status === "invited"
-            ? "Invited"
-            : "Pending"}
-        </Badge>
-      ),
-    },
+      cell: (data: User & { source: string }) => {
+        const status = data.status;
+    
+        const statusVariantMap: Record<string, BadgeProps["variant"]> = {
+          active: "success",
+          approved: "success",
+          pending: "warning",
+          rejected: "danger",
+          invited: "info",
+        };
+    
+        const labelMap: Record<string, string> = {
+          active: "Active",
+          approved: "Approved",
+          pending: "Pending",
+          rejected: "Rejected",
+          invited: "Invited",
+        };
+    
+        return (
+          <Badge variant={statusVariantMap[status] || "default"}>
+            {labelMap[status] || "Unknown"}
+          </Badge>
+        );
+      },
+    },    
     {
       header: "Registration Date",
       accessorKey: "createdAt",
       cell: (data: User & { source: string }) => (
         <span className="text-slate-600">
-          {new Date(data.createdAt).toLocaleDateString()}
+          {moment(data.createdAt).format("Do MMM, YYYY h:mmA")}
         </span>
       ),
     },
     {
       header: "Actions",
       accessorKey: "id",
-      cell: (data: User & { source: string }) => (
-        <div className="flex space-x-2">
-          <Button size="sm" variant="outline">
-            View Profile
-          </Button>
-          {data.source === "user" ? (
+      cell: (data: User & { source: string; status: string }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button size="sm" variant="outline">
-              Reset Password
+              Actions
+              <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => resendInviteMutation.mutate({ email: data.email })}
-              disabled={resendInviteMutation.isPending}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Resend Invite
-            </Button>
-          )}
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem>
+              <Link
+                href={`/profile/${data.id}`}
+                className="flex items-center w-full"
+              >
+                <UserCircleIcon className="h-4 w-4 mr-2" />
+                View Profile
+              </Link>
+            </DropdownMenuItem>
+            {data.source === "user" && data.status !== "pending" && (
+              <DropdownMenuItem>
+                <Lock className="h-4 w-4 mr-2" />
+                Reset Password
+              </DropdownMenuItem>
+            )}
+            {data.source === "application" && data.status === "pending" && (
+              <DropdownMenuItem>
+                <Link
+                  href={`/marketers/${data.id}/application`}
+                  className="flex items-center w-full"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View Application
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {data.source === "application" && data.status === "invited" && (
+              <DropdownMenuItem
+                onClick={() =>
+                  resendInviteMutation.mutate({ email: data.email })
+                }
+                disabled={resendInviteMutation.isPending}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Resend Invite
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     },
   ];
@@ -280,118 +329,153 @@ export default function Marketers() {
           <PlusCircle className="h-4 w-4 mr-2" /> Invite Marketer
         </Button>
       </div>
-
-      <div className="mb-4 flex items-center justify-between">
-        <Tabs defaultValue="all" className="w-full">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-4 sm:space-y-0">
-            <TabsList>
-              <TabsTrigger value="all">All Marketers</TabsTrigger>
-              <TabsTrigger value="active">Active</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-            </TabsList>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-64"
-              />
+      <div className="mb-6">
+        <Card>
+          <CardContent className="pt-6 bg-primary text-white rounded-lg">
+            <Label htmlFor="org-invite-link">Organization Invite Link</Label>
+            <p className="text-sm mb-4">
+              Share this link with marketers to invite them to register for your
+              affiliate program.
+            </p>
+            <div className="flex items-center">
+              <div
+                id="org-invite-link"
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-l-md px-3 py-2 text-md text-slate-600 truncate"
+              >
+                {orgInviteLink}
+              </div>
+              <Button
+                type="button"
+                variant="default"
+                className="rounded-l-none shadow-lg"
+                onClick={() => copyToClipboard(orgInviteLink)}
+                disabled={!orgInviteLink}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
             </div>
-          </div>
-
-          <TabsContent value="all" className="w-full mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Marketers</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DataTable
-                  columns={columns}
-                  data={filteredMarketers}
-                  isLoading={isLoading}
-                  emptyState={
-                    <div className="py-8 text-center">
-                      <Users className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-                      <h3 className="text-lg font-medium text-slate-800 mb-2">
-                        No marketers found
-                      </h3>
-                      <p className="text-slate-500 mb-4">
-                        Invite your first marketer to start growing your
-                        affiliate network.
-                      </p>
-                      <Button onClick={openInviteModal}>
-                        <PlusCircle className="h-4 w-4 mr-2" /> Invite Marketer
-                      </Button>
-                    </div>
-                  }
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="active">
-            <Card>
-              <CardHeader>
-                <CardTitle>Active Marketers</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DataTable
-                  columns={columns}
-                  data={filteredMarketers?.filter((m) => m.status === "active")}
-                  isLoading={isLoading}
-                  emptyState={
-                    <div className="py-8 text-center">
-                      <Users className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-                      <h3 className="text-lg font-medium text-slate-800 mb-2">
-                        No active marketers found
-                      </h3>
-                      <p className="text-slate-500 mb-4">
-                        Invite marketers to grow your affiliate network.
-                      </p>
-                      <Button onClick={openInviteModal}>
-                        <PlusCircle className="h-4 w-4 mr-2" /> Invite Marketer
-                      </Button>
-                    </div>
-                  }
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="pending">
-            <Card>
-              <CardHeader>
-                <CardTitle>Pending Marketers</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DataTable
-                  columns={columns}
-                  data={filteredMarketers?.filter(
-                    (m) => m.status === "pending" || m.status === "invited"
-                  )}
-                  isLoading={isLoading}
-                  emptyState={
-                    <div className="py-8 text-center">
-                      <Users className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-                      <h3 className="text-lg font-medium text-slate-800 mb-2">
-                        No pending marketers found
-                      </h3>
-                      <p className="text-slate-500 mb-4">
-                        Invite marketers to grow your affiliate network.
-                      </p>
-                      <Button onClick={openInviteModal}>
-                        <PlusCircle className="h-4 w-4 mr-2" /> Invite Marketer
-                      </Button>
-                    </div>
-                  }
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          </CardContent>
+        </Card>
       </div>
+      <Card>
+        <CardContent className="pt-6 text-white rounded-lg">
+          <div className="mb-4 flex items-center justify-between">
+            <Tabs defaultValue="all" className="w-full">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-4 sm:space-y-0">
+                <TabsList>
+                  <TabsTrigger value="all">All Marketers</TabsTrigger>
+                  <TabsTrigger value="active">Active</TabsTrigger>
+                  <TabsTrigger value="pending">Pending</TabsTrigger>
+                </TabsList>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Search by name or email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 w-64"
+                  />
+                </div>
+              </div>
 
+              <TabsContent value="all" className="w-full mt-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Your Marketers</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <DataTable
+                      columns={columns}
+                      data={filteredMarketers}
+                      isLoading={isLoading}
+                      emptyState={
+                        <div className="py-8 text-center">
+                          <Users className="h-12 w-12 mx-auto text-slate-300 mb-4" />
+                          <h3 className="text-lg font-medium text-slate-800 mb-2">
+                            No marketers found
+                          </h3>
+                          <p className="text-slate-500 mb-4">
+                            Invite your first marketer to start growing your
+                            affiliate network.
+                          </p>
+                          <Button onClick={openInviteModal}>
+                            <PlusCircle className="h-4 w-4 mr-2" /> Invite
+                            Marketer
+                          </Button>
+                        </div>
+                      }
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="active">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Active Marketers</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <DataTable
+                      columns={columns}
+                      data={filteredMarketers?.filter(
+                        (m) => m.status === "active"
+                      )}
+                      isLoading={isLoading}
+                      emptyState={
+                        <div className="py-8 text-center">
+                          <Users className="h-12 w-12 mx-auto text-slate-300 mb-4" />
+                          <h3 className="text-lg font-medium text-slate-800 mb-2">
+                            No active marketers found
+                          </h3>
+                          <p className="text-slate-500 mb-4">
+                            Invite marketers to grow your affiliate network.
+                          </p>
+                          <Button onClick={openInviteModal}>
+                            <PlusCircle className="h-4 w-4 mr-2" /> Invite
+                            Marketer
+                          </Button>
+                        </div>
+                      }
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="pending">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Pending Marketers</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <DataTable
+                      columns={columns}
+                      data={filteredMarketers?.filter(
+                        (m) => m.status === "pending" || m.status === "invited"
+                      )}
+                      isLoading={isLoading}
+                      emptyState={
+                        <div className="py-8 text-center">
+                          <Users className="h-12 w-12 mx-auto text-slate-300 mb-4" />
+                          <h3 className="text-lg font-medium text-slate-800 mb-2">
+                            No pending marketers found
+                          </h3>
+                          <p className="text-slate-500 mb-4">
+                            Invite marketers to grow your affiliate network.
+                          </p>
+                          <Button onClick={openInviteModal}>
+                            <PlusCircle className="h-4 w-4 mr-2" /> Invite
+                            Marketer
+                          </Button>
+                        </div>
+                      }
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </CardContent>
+      </Card>
       {/* Invite Modal */}
       <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
         <DialogContent>

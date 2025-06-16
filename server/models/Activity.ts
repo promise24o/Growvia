@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface IActivity extends Document {
   type: string;
@@ -9,23 +9,31 @@ export interface IActivity extends Document {
   createdAt: Date;
 }
 
+const allowedTypes = [
+  "conversion",
+  "payout",
+  "marketer_join",
+  "app_created",
+  "plan_changed",
+  "marketer_rejected",
+  "affiliate_link_created",
+  "settings_updated",
+  "organization_created",
+  "user_created",
+  "marketer_invited",
+  "verification_email_resent",
+  "email_verified",
+];
+
 const ActivitySchema = new Schema<IActivity>(
   {
     type: {
       type: String,
       required: true,
-      enum: [
-        "conversion",
-        "payout",
-        "marketer_join",
-        "app_created",
-        "plan_changed",
-        "affiliate_link_created",
-        "settings_updated",
-        "organization_created",
-        "user_created",
-        "marketer_invited",
-      ],
+      validate: {
+        validator: (value: string) => typeof value === "string",
+        message: "Type must be a string",
+      },
     },
     description: {
       type: String,
@@ -48,13 +56,13 @@ const ActivitySchema = new Schema<IActivity>(
     },
   },
   {
-    timestamps: { createdAt: true, updatedAt: false }, // Only track createdAt
+    timestamps: { createdAt: true, updatedAt: false },
   }
 );
 
-// Add indexes
 ActivitySchema.index({ organizationId: 1, createdAt: -1 });
 ActivitySchema.index({ userId: 1, createdAt: -1 });
 ActivitySchema.index({ type: 1, createdAt: -1 });
 
-export const Activity = mongoose.model<IActivity>('Activity', ActivitySchema);
+export const Activity = mongoose.model<IActivity>("Activity", ActivitySchema);
+export const ActivityTypes = allowedTypes;

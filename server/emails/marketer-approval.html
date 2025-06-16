@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketer Application Approved - Growvia</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            margin: 20px;
+        }
+
+        .header {
+            background-color: #6366F1;
+            color: #fff;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+            font-weight: 600;
+        }
+
+        .header p {
+            margin-top: 8px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .content {
+            padding: 30px;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .content h2 {
+            margin-top: 0;
+            font-weight: 600;
+            font-size: 1.5em;
+            color: #22c55e;
+            /* Make the heading green to reinforce the approval */
+        }
+
+        .content p strong {
+            color: #22c55e;
+            /* Green color for "approved" status */
+        }
+
+        .button-container {
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .login-button {
+            background-color: #6366F1;
+            color: #fff;
+            padding: 14px 28px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 1.1em;
+            display: inline-block;
+            transition: background-color 0.2s ease;
+        }
+
+        .login-button:hover {
+            background-color: #4F46E5;
+        }
+
+        .footer {
+            background-color: #f8f9fa;
+            color: #777;
+            padding: 20px;
+            text-align: center;
+            font-size: 0.85em;
+            border-top: 1px solid #eee;
+        }
+
+        .footer p {
+            margin: 5px 0;
+        }
+
+        @media (max-width: 576px) {
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.7em;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .button-container {
+                margin: 20px 0;
+            }
+
+            .login-button {
+                padding: 12px 24px;
+                font-size: 1em;
+            }
+
+            .footer {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Growvia</h1>
+            <p>Affiliate Marketing Platform</p>
+        </div>
+
+        <div class="content">
+            <h2>Congratulations {{name}}!</h2>
+            <p>Your application to become a marketer for {{organizationName}} has been <strong>approved</strong>.</p>
+            <p>Your temporary password is: <strong>{{tempPassword}}</strong>. Please log in and change it immediately
+                for security purposes.</p>
+            <p>You can now log in to your account and start creating affiliate links for
+                {{organizationName}}'s products.</p>
+
+            <div class="button-container">
+                <a href="{{loginUrl}}" class="login-button">Log In to Your Account</a>
+            </div>
+
+            <p>If you have any questions about your marketer account, please contact
+                {{organizationName}} directly.</p>
+
+            <p>Best regards,<br>The Growvia Team</p>
+        </div>
+
+        <div class="footer">
+            <p>© {{year}} Growvia. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,11 +1,6 @@
-import { useState } from "react";
-import { Link, useLocation } from "wouter";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useAuth } from "@/lib/auth";
-import { useToast } from "@/hooks/use-toast";
+import loginCharacter from "@/assets/illustrations/login-character.png";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -15,17 +10,22 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   BarChart3,
   Eye,
   EyeOff,
   Facebook,
-  Twitter,
   Github,
   Mail,
+  Twitter,
 } from "lucide-react";
-import loginCharacter from "@/assets/illustrations/login-character.png";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { Link, useLocation } from "wouter";
+import { z } from "zod";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -35,7 +35,12 @@ const loginSchema = z.object({
   rememberMe: z.boolean().optional(),
 });
 
+const resendSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address" }),
+});
+
 type LoginFormValues = z.infer<typeof loginSchema>;
+type ResendFormValues = z.infer<typeof resendSchema>;
 
 export default function Login() {
   const [, navigate] = useLocation();
@@ -43,8 +48,12 @@ export default function Login() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showVerificationPrompt, setShowVerificationPrompt] = useState(false);
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
-  const form = useForm<LoginFormValues>({
+  const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
@@ -53,37 +62,95 @@ export default function Login() {
     },
   });
 
-  async function onSubmit(data: LoginFormValues) {
+  const resendForm = useForm<ResendFormValues>({
+    resolver: zodResolver(resendSchema),
+    defaultValues: {
+      email: "",
+    },
+  });
+
+  useEffect(() => {
+    if (showVerificationPrompt) {
+      resendForm.setValue("email", resendEmail);
+    }
+  }, [showVerificationPrompt, resendEmail, resendForm]);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (resendCooldown > 0) {
+      timer = setInterval(() => {
+        setResendCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  async function onLoginSubmit(data: LoginFormValues) {
     setIsLoading(true);
 
     try {
       await login(data.email, data.password);
       navigate("/dashboard");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
-      toast({
-        title: "Login failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Please check your credentials and try again",
-        variant: "destructive",
-      });
+      if (error.message === "User is not verified") {
+        setResendEmail(data.email);
+        setShowVerificationPrompt(true);
+        toast({
+          title: "Account not verified",
+          description: "Please verify your email to continue",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Login failed",
+          description:
+            error.message || "Please check your credentials and try again",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
   }
 
+  async function onResendSubmit(data: ResendFormValues) {
+    setResendLoading(true);
+
+    try {
+      await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email }),
+      }).then((res) => {
+        if (!res.ok) throw new Error("Failed to resend verification email");
+        return res.json();
+      });
+
+      setResendCooldown(60);
+      toast({
+        title: "Verification email sent",
+        description: "Please check your inbox",
+      });
+    } catch (error: any) {
+      console.error("Resend error:", error);
+      toast({
+        title: "Resend failed",
+        description: error.message || "Failed to resend verification email",
+        variant: "destructive",
+      });
+    } finally {
+      setResendLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row authentication-wrapper">
-      {/* Left Panel with Illustration - hidden on mobile */}
       <div
         className="hidden lg:block lg:w-[60%] h-screen overflow-y-auto fixed top-0 left-0"
         style={{ backgroundColor: "#161D31" }}
       >
-        {/* Left side content wrapper */}
         <div className="w-full h-full flex flex-col">
-          {/* Logo for large screens - always at top */}
           <div className="p-6">
             <Link href="/" className="flex items-center">
               <div className="bg-primary text-white p-2 rounded">
@@ -92,10 +159,7 @@ export default function Login() {
               <span className="ml-2 text-xl font-bold text-white">Growvia</span>
             </Link>
           </div>
-
-          {/* Main content section - centered vertically */}
           <div className="flex-grow flex flex-col justify-center items-center px-8">
-            {/* Text above the illustration */}
             <div className="text-center mb-8 text-white w-full max-w-lg">
               <h2 className="text-3xl font-bold mb-4">
                 Welcome to <span className="text-primary">Growvia</span>
@@ -108,24 +172,18 @@ export default function Login() {
                 with our powerful SaaS solution.
               </p>
             </div>
-
-            {/* Character image */}
             <div className="w-[280px] mx-auto">
               <img src={loginCharacter} alt="Login" className="max-w-full" />
             </div>
           </div>
-
-          {/* Copyright text at the bottom - always at bottom */}
           <div className="p-6 text-center text-white opacity-70 text-sm">
             © {new Date().getFullYear()} Growvia. All rights reserved.
           </div>
         </div>
       </div>
 
-      {/* Right Panel - Login Form */}
       <div className="w-full lg:w-[40%] lg:ml-[60%] min-h-screen overflow-y-auto p-5 md:p-8 bg-white dark:bg-[#283046] flex flex-col">
         <div className="w-full max-w-[400px] mx-auto py-6 flex-1">
-          {/* Mobile logo */}
           <div className="flex justify-center md:hidden mb-8">
             <Link href="/" className="flex items-center">
               <div className="bg-primary text-white p-2 rounded">
@@ -137,164 +195,237 @@ export default function Login() {
             </Link>
           </div>
 
-          <div className="mb-8">
-            <h3 className="text-[1.625rem] font-semibold mb-1 text-slate-900 dark:text-white">
-              Welcome to Growvia! 👋
-            </h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Please sign in to your account and start the adventure
-            </p>
-          </div>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-slate-700 dark:text-slate-300">
-                      Email
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="john@example.com"
-                        className="h-11 border-slate-300 dark:border-slate-700 dark:bg-slate-800/40 dark:text-white"
-                        {...field}
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-center justify-between">
-                      <FormLabel className="text-slate-700 dark:text-slate-300">
-                        Password
-                      </FormLabel>
-                      <Link
-                        href="/forgot-password"
-                        className="text-xs text-primary hover:text-primary-600 font-medium dark:text-primary-400 dark:hover:text-primary-300"
-                      >
-                        Forgot Password?
-                      </Link>
-                    </div>
-                    <div className="relative">
-                      <FormControl>
-                        <Input
-                          type={showPassword ? "text" : "password"}
-                          placeholder="············"
-                          className="h-11 border-slate-300 dark:border-slate-700 dark:bg-slate-800/40 dark:text-white pr-10"
-                          {...field}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-500 dark:text-slate-500 dark:hover:text-slate-400"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-5 w-5" />
-                        ) : (
-                          <Eye className="h-5 w-5" />
-                        )}
-                      </button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="rememberMe"
-                render={({ field }) => (
-                  <div className="flex items-center">
-                    <Checkbox
-                      id="remember-me"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                    />
-                    <label
-                      htmlFor="remember-me"
-                      className="ml-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer"
-                      onClick={() =>
-                        form.setValue(
-                          "rememberMe",
-                          !form.getValues("rememberMe"),
-                        )
-                      }
-                    >
-                      Remember Me
-                    </label>
-                  </div>
-                )}
-              />
-
-              <Button
-                type="submit"
-                className="w-full h-11 font-medium bg-primary hover:bg-primary-600 text-white"
-                disabled={isLoading}
-              >
-                {isLoading ? "Signing in..." : "Sign In"}
-              </Button>
-
-              <div className="w-full text-center">
+          {!showVerificationPrompt ? (
+            <>
+              <div className="mb-8">
+                <h3 className="text-[1.625rem] font-semibold mb-1 text-slate-900 dark:text-white">
+                  Welcome to Growvia! 👋
+                </h3>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  New on our platform?{" "}
-                  <Link
-                    href="/register"
-                    className="text-primary hover:text-primary-600 font-medium dark:text-primary-400 dark:hover:text-primary-300"
-                  >
-                    Create an account
-                  </Link>
+                  Please sign in to your account and start the adventure
                 </p>
               </div>
 
-              <div className="relative flex items-center justify-center my-4">
-                <div className="absolute w-full border-t border-slate-200 dark:border-slate-700"></div>
-                <div className="relative bg-white dark:bg-[#283046] px-4 text-sm text-slate-500 dark:text-slate-400">
-                  or
-                </div>
+              <Form {...loginForm}>
+                <form
+                  onSubmit={loginForm.handleSubmit(onLoginSubmit)}
+                  className="space-y-6"
+                >
+                  <FormField
+                    control={loginForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Email
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="john@example.com"
+                            className="h-11 border-slate-300 dark:border-slate-700 dark:bg-slate-800/40 dark:text-white"
+                            {...field}
+                            disabled={isLoading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={loginForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between">
+                          <FormLabel className="text-slate-700 dark:text-slate-300">
+                            Password
+                          </FormLabel>
+                          <Link
+                            href="/forgot-password"
+                            className="text-xs text-primary hover:text-primary-600 font-medium dark:text-primary-400 dark:hover:text-primary-300"
+                          >
+                            Forgot Password?
+                          </Link>
+                        </div>
+                        <div className="relative">
+                          <FormControl>
+                            <Input
+                              type={showPassword ? "text" : "password"}
+                              placeholder="············"
+                              className="h-11 border-slate-300 dark:border-slate-700 dark:bg-slate-800/40 dark:text-white pr-10"
+                              {...field}
+                              disabled={isLoading}
+                            />
+                          </FormControl>
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-500 dark:text-slate-500 dark:hover:text-slate-400"
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-5 w-5" />
+                            ) : (
+                              <Eye className="h-5 w-5" />
+                            )}
+                          </button>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={loginForm.control}
+                    name="rememberMe"
+                    render={({ field }) => (
+                      <div className="flex items-center">
+                        <Checkbox
+                          id="remember-me"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                        />
+                        <label
+                          htmlFor="remember-me"
+                          className="ml-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer"
+                          onClick={() =>
+                            loginForm.setValue(
+                              "rememberMe",
+                              !loginForm.getValues("rememberMe")
+                            )
+                          }
+                        >
+                          Remember Me
+                        </label>
+                      </div>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    className="w-full h-11 font-medium bg-primary hover:bg-primary-600 text-white"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Signing in..." : "Sign In"}
+                  </Button>
+
+                  <div className="w-full text-center">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      New on our platform?{" "}
+                      <Link
+                        href="/register"
+                        className="text-primary hover:text-primary-600 font-medium dark:text-primary-400 dark:hover:text-primary-300"
+                      >
+                        Create an account
+                      </Link>
+                    </p>
+                  </div>
+
+                  <div className="relative flex items-center justify-center my-4">
+                    <div className="absolute w-full border-t border-slate-200 dark:border-slate-700"></div>
+                    <div className="relative bg-white dark:bg-[#283046] px-4 text-sm text-slate-500 dark:text-slate-400">
+                      or
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center gap-2">
+                    <button
+                      type="button"
+                      className="flex justify-center items-center h-10 w-10 rounded-full border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-[#3B5998]"
+                    >
+                      <Facebook size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="flex justify-center items-center h-10 w-10 rounded-full border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-[#1DA1F2]"
+                    >
+                      <Twitter size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="flex justify-center items-center h-10 w-10 rounded-full border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-[#24292F]"
+                    >
+                      <Github size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="flex justify-center items-center h-10 w-10 rounded-full border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-[#DD4B39]"
+                    >
+                      <Mail size={18} />
+                    </button>
+                  </div>
+                </form>
+              </Form>
+            </>
+          ) : (
+            <>
+              <div className="mb-8">
+                <h3 className="text-[1.625rem] font-semibold mb-1 text-slate-900 dark:text-white">
+                  Verify Your Email
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  We sent a verification link to {resendEmail}. Please check
+                  your inbox.
+                </p>
               </div>
 
-              <div className="flex justify-center gap-2">
-                <button
-                  type="button"
-                  className="flex justify-center items-center h-10 w-10 rounded-full border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-[#3B5998]"
+              <Form {...resendForm}>
+                <form
+                  onSubmit={resendForm.handleSubmit(onResendSubmit)}
+                  className="space-y-6"
                 >
-                  <Facebook size={18} />
-                </button>
-                <button
-                  type="button"
-                  className="flex justify-center items-center h-10 w-10 rounded-full border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-[#1DA1F2]"
-                >
-                  <Twitter size={18} />
-                </button>
-                <button
-                  type="button"
-                  className="flex justify-center items-center h-10 w-10 rounded-full border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-[#24292F]"
-                >
-                  <Github size={18} />
-                </button>
-                <button
-                  type="button"
-                  className="flex justify-center items-center h-10 w-10 rounded-full border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-[#DD4B39]"
-                >
-                  <Mail size={18} />
-                </button>
-              </div>
-            </form>
-          </Form>
+                  <FormField
+                    control={resendForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Email
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="john@example.com"
+                            className="h-11 border-slate-300 dark:border-slate-700 dark:bg-slate-800/40 dark:text-white"
+                            {...field}
+                            disabled={true}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    className="w-full h-11 font-medium bg-primary hover:bg-primary-600 text-white"
+                    disabled={resendLoading || resendCooldown > 0}
+                  >
+                    {resendLoading
+                      ? "Sending..."
+                      : resendCooldown > 0
+                      ? `Resend in ${resendCooldown}s`
+                      : "Resend Verification Email"}
+                  </Button>
+
+                  <div className="w-full text-center">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      Already verified?{" "}
+                      <Link
+                        href="/login"
+                        className="text-primary hover:text-primary-600 font-medium dark:text-primary-400 dark:hover:text-primary-300"
+                        onClick={() => setShowVerificationPrompt(false)}
+                      >
+                        Sign in
+                      </Link>
+                    </p>
+                  </div>
+                </form>
+              </Form>
+            </>
+          )}
         </div>
       </div>
     </div>

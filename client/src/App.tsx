@@ -1,41 +1,44 @@
-import { Switch, Route, useLocation } from "wouter";
-import { useEffect } from "react";
-import { useAuth } from "@/lib/auth";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/lib/auth";
+import { useEffect } from "react";
+import { Route, Switch, useLocation } from "wouter";
 
 // Auth pages
+import ForgotPassword from "@/pages/auth/forgot-password";
 import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
-import ForgotPassword from "@/pages/auth/forgot-password";
 import ResetPassword from "@/pages/auth/reset-password";
+import VerifyEmail from "@/pages/auth/verify-email";
 import Onboarding from "@/pages/onboarding";
 
 // Dashboard pages
-import Dashboard from "@/pages/dashboard";
-import Apps from "@/pages/apps";
-import Marketers from "@/pages/marketers";
 import Analytics from "@/pages/analytics";
+import Apps from "@/pages/apps";
 import Commissions from "@/pages/commissions";
+import Dashboard from "@/pages/dashboard";
+import Marketers from "@/pages/marketers";
+import ViewMarketerApplication from "@/pages/marketers/view-marketer-application";
 import Settings from "@/pages/settings";
 
 // Management Dashboard (for admin user)
 import ManagementDashboard from "@/pages/management/dashboard";
-import ManagementUsers from "@/pages/management/users";
 import ManagementOrganizations from "@/pages/management/organizations";
+import ManagementUsers from "@/pages/management/users";
 
 // Settings pages
 import Billing from "@/pages/settings/billing";
 import PaymentSuccess from "@/pages/settings/billing/success";
 
 // Legal pages
-import TermsOfService from "@/pages/legal/terms";
 import PrivacyPolicy from "@/pages/legal/privacy-policy";
+import TermsOfService from "@/pages/legal/terms";
 
 // Landing page
 import LandingPage from "@/pages/landing";
 
 // Other pages
 import NotFound from "@/pages/not-found";
+import MarketerApplication from "./pages/auth/marketer-application";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -48,9 +51,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, isLoading, setLocation]);
 
   if (isLoading) {
-    return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
-
+ 
   return isAuthenticated ? <>{children}</> : null;
 }
 
@@ -90,13 +97,13 @@ function App() {
   
   // Check if user needs to complete onboarding
   useEffect(() => {
-    if (isAuthenticated && user && organization) {
-      // If user is admin and onboarding is not completed, redirect to onboarding
+    if (isAuthenticated && user && organization && organization.length > 0) {
+      // If user is admin and onboarding is not completed for the first organization, redirect to onboarding
       if (
-        user.role === 'admin' && 
-        organization.onboardingCompleted === false
+        user.role === "admin" &&
+        organization[0].onboardingCompleted === false
       ) {
-        navigate('/onboarding');
+        navigate("/onboarding");
       }
     }
   }, [isAuthenticated, user, organization, navigate]);
@@ -108,7 +115,9 @@ function App() {
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
         <Route path="/forgot-password" component={ForgotPassword} />
+        <Route path="/verify-email" component={VerifyEmail} />
         <Route path="/reset-password" component={ResetPassword} />
+        <Route path="/apply/marketer/:token" component={MarketerApplication} />
         <Route path="/onboarding">
           <ProtectedRoute>
             <Onboarding />
@@ -148,6 +157,11 @@ function App() {
             <Marketers />
           </ProtectedRoute>
         </Route>
+        <Route path="/marketers/:id/application">
+          <ProtectedRoute>
+            <ViewMarketerApplication />
+          </ProtectedRoute>
+        </Route>
         <Route path="/analytics">
           <ProtectedRoute>
             <Analytics />
@@ -163,20 +177,20 @@ function App() {
             <Settings />
           </ProtectedRoute>
         </Route>
-        
+
         {/* Settings routes */}
         <Route path="/settings/billing">
           <ProtectedRoute>
             <Billing />
           </ProtectedRoute>
         </Route>
-        
+
         <Route path="/settings/billing/success">
           <ProtectedRoute>
             <PaymentSuccess />
           </ProtectedRoute>
         </Route>
-        
+
         {/* Legal routes - publicly accessible */}
         <Route path="/legal/terms" component={TermsOfService} />
         <Route path="/legal/privacy-policy" component={PrivacyPolicy} />

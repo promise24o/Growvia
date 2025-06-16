@@ -1,13 +1,11 @@
+import { insertOrganizationSchema, SubscriptionPlan } from '@shared/schema';
 import mongoose, { Document, Schema } from 'mongoose';
-import { SubscriptionPlan } from '@shared/schema';
+import { z } from 'zod';
 
-export interface IOrganization extends Document {
-  name: string;
-  email: string;
-  logo: string | null;
-  plan: string;
-  trialEndsAt: Date | null;
-  webhookUrl: string | null;
+// Infer the TypeScript type from the Zod schema
+type InsertOrganizationType = z.infer<typeof insertOrganizationSchema>;
+
+export interface IOrganization extends Document, InsertOrganizationType { 
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,7 +37,7 @@ const OrganizationSchema = new Schema<IOrganization>(
       type: Date,
       default: () => {
         const date = new Date();
-        date.setDate(date.getDate() + 7); // 7-day trial period
+        date.setDate(date.getDate() + 7); 
         return date;
       },
     },
@@ -47,6 +45,39 @@ const OrganizationSchema = new Schema<IOrganization>(
       type: String,
       default: null,
     },
+     onboardingCompleted: {  
+      type: Boolean,
+      default: false,
+    },
+    position: {
+      type: String,
+      default: null,
+    },
+    industry: {
+      type: String,
+      default: null,
+    },
+    companySize: {
+      type: String,
+      default: null,
+    },
+        primaryGoal: {
+      type: String,
+      default: null,
+    },
+    targetAudience: {
+      type: String,
+      default: null,
+    },
+    existingAffiliates: {
+      type: String,
+      default: null,
+    },
+    productsToPromote: {
+      type: String,
+      default: null,
+    },
+
   },
   {
     timestamps: true,

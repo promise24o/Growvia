@@ -6,6 +6,8 @@ export interface User {
   organizationId: number | null;
   status?: string;
   avatar?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Organization {
@@ -27,7 +29,7 @@ export interface App {
   description?: string | null;
   baseUrl: string;
   icon?: string | null;
-  commissionType: 'percentage' | 'fixed';
+  commissionType: "percentage" | "fixed";
   commissionValue: number;
   createdAt: string;
   updatedAt: string;
@@ -48,7 +50,7 @@ export interface Conversion {
   transactionId: string;
   amount: number;
   commission: number;
-  status: 'pending' | 'approved' | 'rejected' | 'paid';
+  status: "pending" | "approved" | "rejected" | "paid";
   metadata?: any;
   createdAt: string;
   updatedAt: string;
@@ -68,7 +70,7 @@ export interface Payout {
   id: number;
   userId: number;
   amount: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: "pending" | "processing" | "completed" | "failed";
   paymentMethod: string;
   paymentReference?: string | null;
   createdAt: string;
@@ -104,32 +106,41 @@ export interface Product {
 }
 
 export enum PaymentGateway {
-  FLUTTERWAVE = 'flutterwave',
-  PAYSTACK = 'paystack',
+  FLUTTERWAVE = "flutterwave",
+  PAYSTACK = "paystack",
 }
 
 export enum SubscriptionPlan {
-  FREE_TRIAL = 'free_trial',
-  STARTER = 'starter',
-  GROWTH = 'growth',
-  PRO = 'pro',
-  ENTERPRISE = 'enterprise'
+  FREE_TRIAL = "free_trial",
+  STARTER = "starter",
+  GROWTH = "growth",
+  PRO = "pro",
+  ENTERPRISE = "enterprise",
 }
 
 export const PLAN_NAMES = {
-  [SubscriptionPlan.FREE_TRIAL]: 'Free Trial',
-  [SubscriptionPlan.STARTER]: 'Starter',
-  [SubscriptionPlan.GROWTH]: 'Growth',
-  [SubscriptionPlan.PRO]: 'Pro',
-  [SubscriptionPlan.ENTERPRISE]: 'Enterprise'
+  [SubscriptionPlan.FREE_TRIAL]: "Free Trial",
+  [SubscriptionPlan.STARTER]: "Starter",
+  [SubscriptionPlan.GROWTH]: "Growth",
+  [SubscriptionPlan.PRO]: "Pro",
+  [SubscriptionPlan.ENTERPRISE]: "Enterprise",
 };
 
 export const PLAN_LIMITS = {
-  [SubscriptionPlan.FREE_TRIAL]: { apps: 1, marketers: 10, durationDays: 7, price: 0 },
+  [SubscriptionPlan.FREE_TRIAL]: {
+    apps: 1,
+    marketers: 10,
+    durationDays: 7,
+    price: 0,
+  },
   [SubscriptionPlan.STARTER]: { apps: 1, marketers: 50, price: 29 },
   [SubscriptionPlan.GROWTH]: { apps: 5, marketers: 300, price: 79 },
   [SubscriptionPlan.PRO]: { apps: 999999, marketers: 1000, price: 199 },
-  [SubscriptionPlan.ENTERPRISE]: { apps: 999999, marketers: 999999, price: null }
+  [SubscriptionPlan.ENTERPRISE]: {
+    apps: 999999,
+    marketers: 999999,
+    price: null,
+  },
 };
 
 export interface StatsResponse {

@@ -377,6 +377,16 @@ export class MongoStorage implements IStorage {
     }
   }
 
+  async getUserByVerificationToken(token: string): Promise<any | undefined> {
+    try {
+      const user = await User.findOne({ verificationToken: token });
+      return toPlainObject(user);
+    } catch (error) {
+      console.error("Error getting user by verification token:", error);
+      return undefined;
+    }
+  }
+
   async getUsersByOrganization(orgId: number): Promise<any[]> {
     try {
       const users = await User.find({ organizationId: orgId });
@@ -440,11 +450,12 @@ export class MongoStorage implements IStorage {
     userData: Partial<any>
   ): Promise<any | undefined> {
     try {
+
       const user = await User.findOneAndUpdate(
-        { id },
+        { _id: id.toString() },
         { $set: userData },
         { new: true }
-      );
+      );  
 
       if (!user) return undefined;
 

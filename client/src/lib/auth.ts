@@ -2,11 +2,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface User {
-  id: string | number;
+  id: string;
   name: string;
   email: string;
   role: string;
-  organizationId: string | number | null;
+  organizationId: string[] | null;
   avatar?: string | null;
   status?: string;
 }
@@ -26,9 +26,17 @@ interface Organization {
   creationFrequency?: string | null;
 }
 
+interface MarketerApplication {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  organization: { name: string; id: string };
+}
+
 interface AuthState {
   user: User | null;
-  organization: Organization | null;
+  organization: Organization[] | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -37,10 +45,25 @@ interface AuthState {
     name: string,
     email: string,
     password: string,
-    organizationName: string,
+    organizationName: string
   ) => Promise<void>;
   logout: () => void;
+  loginWithToken: (token: string, user: User) => Promise<void>;
   fetchUserData: () => Promise<void>;
+  verifyMarketerApplication: (token: string) => Promise<MarketerApplication>;
+  submitMarketerApplication: (
+    token: string,
+    data: {
+      experience: string;
+      skills: string[];
+      twitter?: string;
+      instagram?: string;
+      linkedin?: string;
+      facebook?: string;
+      resume: File;
+      kycDocument: File;
+    }
+  ) => Promise<void>;
 }
 
 const useAuthStore = create<AuthState>()(
@@ -89,11 +112,10 @@ const useAuthStore = create<AuthState>()(
 
           await get().fetchUserData();
 
-          // Redirect based on user role
-          if (data.user.role === 'management') {
-            window.location.href = '/management/dashboard';
+          if (data.user.role === "management") {
+            window.location.href = "/management/dashboard";
           } else {
-            window.location.href = '/dashboard';
+            window.location.href = "/dashboard";
           }
         } catch (error) {
           set({ isLoading: false });
@@ -105,7 +127,7 @@ const useAuthStore = create<AuthState>()(
         name: string,
         email: string,
         password: string,
-        organizationName: string,
+        organizationName: string
       ) => {
         set({ isLoading: true });
         try {
@@ -154,14 +176,25 @@ const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        localStorage.removeItem("auth-storage");
-
         set({
           user: null,
           organization: null,
           token: null,
           isAuthenticated: false,
         });
+        localStorage.removeItem("auth-storage");
+      },
+
+      loginWithToken: async (token: string, user: User) => {
+        set({
+          user,
+          token,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+        await get().fetchUserData();
+        window.location.href =
+          user.role === "management" ? "/management/dashboard" : "/dashboard";
       },
 
       fetchUserData: async () => {
@@ -178,6 +211,18 @@ const useAuthStore = create<AuthState>()(
             credentials: "include",
           });
 
+          if (response.status === 404) {
+            set({
+              user: null,
+              organization: null,
+              token: null,
+              isAuthenticated: false,
+              isLoading: false,
+            });
+            localStorage.removeItem("auth-storage");
+            return;
+          }
+
           if (!response.ok) {
             const errorText = await response.text();
             let errorMessage: string;
@@ -191,12 +236,12 @@ const useAuthStore = create<AuthState>()(
             throw new Error(errorMessage);
           }
 
-          const data: { user: User; organization: Organization } =
+          const data: { user: User; organizations: Organization[] } =
             await response.json();
 
           set({
             user: data.user,
-            organization: data.organization,
+            organization: data.organizations,
             isLoading: false,
           });
         } catch (error) {
@@ -212,6 +257,102 @@ const useAuthStore = create<AuthState>()(
           }
         }
       },
+      
+      verifyMarketerApplication: async (token: string) => {
+        set({ isLoading: true });
+        try {
+          const response = await fetch(`/api/marketers/verify/${token}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            credentials: "include",
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage: string;
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.message || "Verification failed";
+            } catch {
+              errorMessage =
+                errorText || `Error ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+          }
+
+          const data: { valid: boolean; application: MarketerApplication } =
+            await response.json();
+
+          if (!data.valid) {
+            throw new Error("Invalid or expired invitation");
+          }
+
+          set({ isLoading: false });
+          return data.application;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      submitMarketerApplication: async (
+        token: string,
+        data: {
+          experience: string;
+          skills: string[];
+          twitter?: string;
+          instagram?: string;
+          linkedin?: string;
+          facebook?: string;
+          resume: File;
+          kycDocument: File;
+        }
+      ) => {
+        set({ isLoading: true });
+        try {
+          const formData = new FormData();
+          formData.append("experience", data.experience);
+          formData.append("skills", data.skills.join(","));
+          if (data.twitter) formData.append("twitter", data.twitter);
+          if (data.instagram) formData.append("instagram", data.instagram);
+          if (data.linkedin) formData.append("linkedin", data.linkedin);
+          if (data.facebook) formData.append("facebook", data.facebook);
+          formData.append("resume", data.resume);
+          formData.append("kycDocument", data.kycDocument);
+
+          const response = await fetch(
+            `/api/marketers/application/${token}/submit`,
+            {
+              method: "POST",
+              body: formData,
+              credentials: "include",
+            }
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage: string;
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.message || "Submission failed";
+            } catch {
+              errorMessage =
+                errorText || `Error ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+          }
+
+          const responseData = await response.json();
+
+          set({ isLoading: false });
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
     }),
     {
       name: "auth-storage",
@@ -221,11 +362,10 @@ const useAuthStore = create<AuthState>()(
         organization: state.organization,
         isAuthenticated: state.isAuthenticated,
       }),
-    },
-  ),
+    }
+  )
 );
 
-// Export a function to get the token directly from the store
 export const getAuthToken = () => useAuthStore.getState().token;
 
 export const useAuth = useAuthStore;

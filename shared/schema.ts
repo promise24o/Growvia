@@ -1,15 +1,3 @@
-import {
-  boolean,
-  integer,
-  jsonb,
-  pgTable,
-  real,
-  serial,
-  text,
-  timestamp,
-  uniqueIndex,
-} from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // User roles
@@ -47,180 +35,233 @@ export const PLAN_LIMITS = {
   },
 };
 
-// Organizations
-export const organizations = pgTable("organizations", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  logo: text("logo"),
-  plan: text("plan").notNull().default(SubscriptionPlan.FREE_TRIAL),
-  trialEndsAt: timestamp("trial_ends_at"),
-  webhookUrl: text("webhook_url"),
-  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
-  position: text("position"),
-  industry: text("industry"),
-  companySize: text("company_size"),
-  signingFrequency: text("signing_frequency"),
-  creationFrequency: text("creation_frequency"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+// Interfaces for MongoDB documents
+export interface IOrganization {
+  _id?: string; // MongoDB ObjectId as string
+  id?: string; // Optional legacy ID field (string in MongoStorage)
+  name: string;
+  email: string;
+  logo?: string | null;
+  plan: SubscriptionPlan;
+  trialEndsAt?: Date | null;
+  webhookUrl?: string | null;
+  onboardingCompleted?: boolean;
+  position?: string | null;
+  industry?: string | null;
+  companySize?: string | null;
+  signingFrequency?: string | null;
+  creationFrequency?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-// Users table
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").references(() => organizations.id),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(),
-  role: text("role").notNull().default(UserRole.MARKETER),
-  avatar: text("avatar"),
-  status: text("status").notNull().default("active"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export interface IUser {
+  _id?: string;
+  id?: string;
+  organizationId?: string[] | null;
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  avatar?: string | null;
+  status: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-// Apps (products that can be promoted)
-export const apps = pgTable("apps", {
-  id: serial("id").primaryKey(),
-  organizationId: integer("organization_id")
-    .notNull()
-    .references(() => organizations.id),
-  name: text("name").notNull(),
-  description: text("description"),
-  baseUrl: text("base_url").notNull(),
-  icon: text("icon"),
-  commissionType: text("commission_type").notNull().default("percentage"), // percentage or fixed
-  commissionValue: real("commission_value").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export interface IApp {
+  _id?: string;
+  id?: string;
+  organizationId: string;
+  name: string;
+  description?: string | null;
+  baseUrl: string;
+  icon?: string | null;
+  commissionType: string;
+  commissionValue: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-// Affiliate links
-export const affiliateLinks = pgTable(
-  "affiliate_links",
-  {
-    id: serial("id").primaryKey(),
-    userId: integer("user_id")
-      .notNull()
-      .references(() => users.id),
-    appId: integer("app_id")
-      .notNull()
-      .references(() => apps.id),
-    code: text("code").notNull(),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    clicks: integer("clicks").notNull().default(0),
-  },
-  (table) => {
-    return {
-      codeIdx: uniqueIndex("affiliate_link_code_idx").on(table.code),
-    };
-  },
-);
+export interface IAffiliateLink {
+  _id?: string;
+  id?: string;
+  userId: string;
+  appId: string;
+  code: string;
+  clicks: number;
+  createdAt?: Date;
+}
 
-// Conversions
-export const conversions = pgTable("conversions", {
-  id: serial("id").primaryKey(),
-  linkId: integer("link_id")
-    .notNull()
-    .references(() => affiliateLinks.id),
-  transactionId: text("transaction_id").notNull().unique(),
-  amount: real("amount").notNull(),
-  commission: real("commission").notNull(),
-  status: text("status").notNull().default("pending"), // pending, approved, rejected, paid
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export interface IConversion {
+  _id?: string;
+  id?: string;
+  linkId: string;
+  transactionId: string;
+  amount: number;
+  commission: number;
+  status: string;
+  metadata?: Record<string, any> | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-// Activities (for logging important events)
-export const activities = pgTable("activities", {
-  id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").references(() => organizations.id),
-  userId: integer("user_id").references(() => users.id),
-  type: text("type").notNull(), // user_joined, conversion, commission_paid, etc.
-  description: text("description").notNull(),
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export interface IActivity {
+  _id?: string;
+  id?: string;
+  organizationId?: string | null;
+  userId?: string | null;
+  type: string;
+  description: string;
+  metadata?: Record<string, any> | null;
+  createdAt?: Date;
+}
 
-// Commissions payouts
-export const payouts = pgTable("payouts", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => users.id),
-  amount: real("amount").notNull(),
-  status: text("status").notNull().default("pending"), // pending, processing, completed, failed
-  paymentMethod: text("payment_method").notNull(), // flutterwave, paystack
-  paymentReference: text("payment_reference"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export interface IPayout {
+  _id?: string;
+  id?: string;
+  userId: string;
+  amount: number;
+  status: string;
+  paymentMethod: PaymentGateway;
+  paymentReference?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-// Notification settings
-export const notificationSettings = pgTable("notification_settings", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => users.id)
-    .unique(),
-  emailNotifications: boolean("email_notifications").notNull().default(true),
-  conversionAlerts: boolean("conversion_alerts").notNull().default(true),
-  payoutAlerts: boolean("payout_alerts").notNull().default(true),
-  marketingTips: boolean("marketing_tips").notNull().default(true),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
+export interface INotificationSetting {
+  _id?: string;
+  id?: string;
+  userId: string;
+  emailNotifications: boolean;
+  conversionAlerts: boolean;
+  payoutAlerts: boolean;
+  marketingTips: boolean;
+  updatedAt?: Date;
+}
 // Insert schemas
-export const insertOrganizationSchema = createInsertSchema(organizations).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+export const insertOrganizationSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  email: z.string().email({ message: "Invalid email address." }),
+  logo: z.string().optional(),
+  plan: z.string(),
+  trialEndsAt: z.date().optional(),
+  webhookUrl: z.string().optional(),
+  onboardingCompleted: z.boolean().optional(),
+  position: z.string().optional(),
+  industry: z.string().optional(),
+  companySize: z.string().optional(),
+
+  // New onboarding questions relevant to Growvia
+  primaryGoal: z
+    .string()
+    .optional()
+    .describe(
+      "What is your primary goal with affiliate marketing (e.g., increase brand awareness, drive sales, generate leads)?"
+    ),
+  targetAudience: z
+    .string()
+    .optional()
+    .describe(
+      "Describe your target audience for affiliate marketing (e.g., demographics, interests)."
+    ),
+  existingAffiliates: z
+    .string()
+    .optional()
+    .describe(
+      "Do you have an existing affiliate program? If so, how many affiliates do you currently have?"
+    ),
+  productsToPromote: z
+    .string()
+    .optional()
+    .describe(
+      "Which products or services do you plan to promote via affiliates?"
+    ),
 });
 
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+export const insertUserSchema = z.object({
+  name: z.string(),
+  email: z.string().email(),
+  password: z.string(),
+  role: z.string(),
+  avatar: z.string().optional(),
+  status: z.string(),
 });
 
-export const insertAppSchema = createInsertSchema(apps).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+
+export const onboardingSchema = z.object({
+  primaryGoal: z
+    .string()
+    .min(1, { message: "Please specify your primary goal." })
+    .describe(
+      "What is your primary goal with affiliate marketing (e.g., increase brand awareness, drive sales, generate leads)?"
+    ),
+  targetAudience: z
+    .string()
+    .min(1, { message: "Please describe your target audience." })
+    .describe(
+      "Describe your target audience for affiliate marketing (e.g., demographics, interests)."
+    ),
+  existingAffiliates: z
+    .string()
+    .optional() // Optional if they don't have an existing program
+    .describe(
+      "Do you have an existing affiliate program? If so, how many affiliates do you currently have?"
+    ),
+  productsToPromote: z
+    .string()
+    .min(1, { message: "Please list the products you want to promote." })
+    .describe(
+      "Which products or services do you plan to promote via affiliates?"
+    ),
 });
 
-export const insertAffiliateLinkSchema = createInsertSchema(
-  affiliateLinks,
-).omit({
-  id: true,
-  createdAt: true,
-  clicks: true,
+export const insertAppSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  baseUrl: z.string(),
+  icon: z.string().optional(),
+  commissionType: z.string(),
+  commissionValue: z.number(),
 });
 
-export const insertConversionSchema = createInsertSchema(conversions).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+export const insertAffiliateLinkSchema = z.object({
+  userId: z.string(),
+  appId: z.string(),
+  code: z.string(),
 });
 
-export const insertActivitySchema = createInsertSchema(activities).omit({
-  id: true,
-  createdAt: true,
+export const insertConversionSchema = z.object({
+  linkId: z.string(),
+  transactionId: z.string(),
+  amount: z.number(),
+  commission: z.number(),
+  status: z.string(),
+  metadata: z.record(z.any()).optional(),
 });
 
-export const insertPayoutSchema = createInsertSchema(payouts).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+export const insertActivitySchema = z.object({
+  organizationId: z.string().optional(),
+  userId: z.string().optional(),
+  type: z.string(),
+  description: z.string(),
+  metadata: z.record(z.any()).optional(),
 });
 
-export const insertNotificationSettingsSchema = createInsertSchema(
-  notificationSettings,
-).omit({
-  id: true,
-  updatedAt: true,
+export const insertPayoutSchema = z.object({
+  userId: z.string(),
+  amount: z.number(),
+  status: z.string(),
+  paymentMethod: z.string(),
+  paymentReference: z.string().optional(),
+});
+
+export const insertNotificationSettingsSchema = z.object({
+  userId: z.string(),
+  emailNotifications: z.boolean(),
+  conversionAlerts: z.boolean(),
+  payoutAlerts: z.boolean(),
+  marketingTips: z.boolean(),
 });
 
 // Auth schemas
@@ -236,32 +277,12 @@ export const registerSchema = z.object({
   organizationName: z.string().min(2),
 });
 
-// Types
-export type Organization = typeof organizations.$inferSelect;
-export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
-
-export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
-
-export type App = typeof apps.$inferSelect;
-export type InsertApp = z.infer<typeof insertAppSchema>;
-
-export type AffiliateLink = typeof affiliateLinks.$inferSelect;
-export type InsertAffiliateLink = z.infer<typeof insertAffiliateLinkSchema>;
-
-export type Conversion = typeof conversions.$inferSelect;
-export type InsertConversion = z.infer<typeof insertConversionSchema>;
-
-export type Activity = typeof activities.$inferSelect;
-export type InsertActivity = z.infer<typeof insertActivitySchema>;
-
-export type Payout = typeof payouts.$inferSelect;
-export type InsertPayout = z.infer<typeof insertPayoutSchema>;
-
-export type NotificationSetting = typeof notificationSettings.$inferSelect;
-export type InsertNotificationSetting = z.infer<
-  typeof insertNotificationSettingsSchema
->;
-
-export type Login = z.infer<typeof loginSchema>;
-export type Register = z.infer<typeof registerSchema>;
+// Type aliases for consistency with MongoStorage
+export type Organization = IOrganization;
+export type User = IUser;
+export type App = IApp;
+export type AffiliateLink = IAffiliateLink;
+export type Conversion = IConversion;
+export type Activity = IActivity;
+export type Payout = IPayout;
+export type NotificationSetting = INotificationSetting;

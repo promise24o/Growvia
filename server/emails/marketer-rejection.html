@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketer Application Update - Growvia</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            margin: 20px;
+        }
+
+        .header {
+            background-color: #6366F1;
+            color: #fff;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+            font-weight: 600;
+        }
+
+        .header p {
+            margin-top: 8px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .content {
+            padding: 30px;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .content h2 {
+            margin-top: 0;
+            font-weight: 600;
+            font-size: 1.5em;
+        }
+
+        .feedback-box {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 25px 0;
+            border: 1px solid #eee;
+        }
+
+        .feedback-box h3 {
+            margin-top: 0;
+            font-size: 1.1em;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+
+        .footer {
+            background-color: #f8f9fa;
+            color: #777;
+            padding: 20px;
+            text-align: center;
+            font-size: 0.85em;
+            border-top: 1px solid #eee;
+        }
+
+        .footer p {
+            margin: 5px 0;
+        }
+
+        @media (max-width: 576px) {
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.7em;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .feedback-box {
+                padding: 15px;
+                margin: 20px 0;
+            }
+
+            .footer {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Growvia</h1>
+            <p>Affiliate Marketing Platform</p>
+        </div>
+
+        <div class="content">
+            <h2>Hello {{name}},</h2>
+            <p>Thank you for your interest in becoming a marketer for {{organizationName}}.</p>
+            <p>We regret to inform you that your application has not been approved at this time.</p>
+
+            {{#if notes}}
+            <div class="feedback-box">
+                <h3>Feedback from the organization:</h3>
+                <p>{{notes}}</p>`
+            </div>
+            {{/if}}
+
+            {{#if coolOffDays}}
+            <p>You will be able to reapply after a cool-off period of {{coolOffDays}} days.</p>
+            {{/if}}
+
+            <p>You may contact {{organizationName}} directly if you have any questions about this decision.</p>
+
+            <p>Best regards,<br>The Growvia Team</p>
+        </div>
+
+        <div class="footer">
+            <p>© {{year}} Growvia. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+
+</html>

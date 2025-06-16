@@ -1,5 +1,5 @@
-import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 
 // Secret key for JWT token generation
 const JWT_SECRET = process.env.JWT_SECRET || 'growvia-super-secret-key-change-in-production';
@@ -94,4 +94,8 @@ export function removePasswordResetToken(userId: string | number): void {
   if (userTokenIndex !== -1) {
     resetTokens.splice(userTokenIndex, 1);
   }
+}
+
+export function verifyEmailToken(token: string, storedToken: string): boolean {
+  return token === storedToken;
 }

@@ -1,6 +1,6 @@
-import { insertAffiliateLinkSchema } from "@shared/schema";
 import { randomBytes } from "crypto";
 import { Router } from "express";
+import { insertAffiliateLinkSchema } from "../../shared/schema";
 import { authenticate } from "../middleware/auth";
 import { MongoStorage } from "../mongoStorage";
 import { IStorage } from "../storage";

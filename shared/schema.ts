@@ -51,6 +51,10 @@ export interface IOrganization {
   companySize?: string | null;
   signingFrequency?: string | null;
   creationFrequency?: string | null;
+  primaryGoal?: string | null;
+  targetAudience?: string | null;
+  existingAffiliates?: string | null;
+  productsToPromote?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -270,11 +274,45 @@ export const loginSchema = z.object({
   password: z.string().min(6),
 });
 
+
 export const registerSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(6),
-  organizationName: z.string().min(2),
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  organizationName: z.string().min(2, 'Organization name must be at least 2 characters').optional().or(z.literal('')),
+  role: z.enum(['admin', 'marketer'], { message: 'Role must be either "admin" or "marketer"' }),
+  referrer: z.string().optional(),
+}).refine((data) => data.role === 'admin' ? !!data.organizationName && data.organizationName !== '' : true, {
+  message: 'Organization name is required for admin role',
+  path: ['organizationName'],
+});
+
+
+// Validation schema for profile photo upload
+export const profilePhotoSchema = z.object({
+  avatar: z.any().refine((file) => file !== undefined, {
+    message: "Avatar file is required",
+  }),
+});
+
+// Validation schema for profile update
+export const updateProfileSchema = z.object({
+  username: z.string().min(3, { message: "Username must be at least 3 characters" }).optional(),
+  about: z.string().max(500, { message: "About section cannot exceed 500 characters" }).optional(),
+  phone: z.string().regex(/^\+?[\d\s-]{7,}$/, { message: "Invalid phone number format" }).optional(),
+  country: z.string().min(2, { message: "Country must be at least 2 characters" }).optional(),
+  state: z.string().min(2, { message: "State must be at least 2 characters" }).optional(),
+  languages: z.array(z.string()).optional(),
+  industryFocus: z.string().optional(),
+  socialMedia: z
+    .object({
+      twitter: z.string().url({ message: "Invalid Twitter URL format" }).optional().or(z.literal('')),
+      linkedin: z.string().url({ message: "Invalid LinkedIn URL format" }).optional().or(z.literal('')),
+      instagram: z.string().url({ message: "Invalid Instagram URL format" }).optional().or(z.literal('')),
+      facebook: z.string().url({ message: "Invalid Facebook URL format" }).optional().or(z.literal('')),
+    })
+    .optional(),
+  skills: z.array(z.string()).optional(),
 });
 
 // Type aliases for consistency with MongoStorage

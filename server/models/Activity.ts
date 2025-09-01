@@ -23,6 +23,10 @@ const allowedTypes = [
   "marketer_invited",
   "verification_email_resent",
   "email_verified",
+  "fraud_review_requested",
+  "marketer_revoked",
+  "application_removed",
+  "marketer_registered",
 ];
 
 const ActivitySchema = new Schema<IActivity>(

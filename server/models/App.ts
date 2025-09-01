@@ -44,7 +44,7 @@ const AppSchema = new Schema<IApp>(
     },
     commissionValue: {
       type: Number,
-      default: 10, // Default 10% or $10 depending on commissionType
+      default: 10,
       min: 0,
     },
   },

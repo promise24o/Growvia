@@ -1,25 +1,29 @@
-import { SubscriptionPlan } from "@shared/schema";
+import bcrypt from "bcrypt";
 import crypto from "crypto";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
+import { SubscriptionPlan } from "../shared/schema";
 import {
-  Activity,
-  AffiliateLink,
-  App,
-  Conversion,
-  IActivity,
-  IAffiliateLink,
-  IApp,
-  IConversion,
-  INotificationSetting,
-  IOrganization,
-  IPayout,
-  IUser,
-  NotificationSetting,
-  Organization,
-  Payout,
-  User
+    Activity,
+    AffiliateLink,
+    App,
+    Conversion,
+    IActivity,
+    IAffiliateLink,
+    IApp,
+    IConversion,
+    INotificationSetting,
+    IOrganization,
+    IPayout,
+    IUser,
+    NotificationSetting,
+    Organization,
+    Payout,
+    User
 } from "./models";
+import { GrowCoinTransaction } from "./models/GrowCoinTransaction";
+import { GrowCoinWallet } from "./models/GrowCoinWallet";
 import MarketerApplication from "./models/MarketerApplication";
+import { UserSession } from "./models/UserSession";
 import { IStorage } from "./storage";
 
 // Helper function to convert MongoDB document to plain object
@@ -27,6 +31,25 @@ const toPlainObject = <T>(doc: mongoose.Document | null): T | undefined => {
   if (!doc) return undefined;
   return doc.toObject() as T;
 };
+
+interface WalletData {
+  userId: string | Types.ObjectId;
+  balance: number;
+  pendingBalance?: number;
+}
+
+interface TransactionData {
+  userId: string | Types.ObjectId;
+  description: string;
+  type: 'Earned' | 'Spent' | 'Transfer In' | 'Transfer Out';
+  amount: number;
+  status?: 'Pending' | 'Completed' | 'Failed';
+  transactionId: string;
+  receiverId?: string | Types.ObjectId;
+  ipAddress?: string;
+  deviceFingerprint?: string;
+  createdAt?: Date;
+}
 
 export class MongoStorage implements IStorage {
   // Constructor to initialize the storage with admin user
@@ -407,6 +430,16 @@ export class MongoStorage implements IStorage {
     }
   }
 
+  async invalidateUserSessions(userId: string): Promise<void> {
+    try {
+      const objectId = this.toObjectId(userId);
+      await UserSession.updateMany({ userId: objectId, revoked: false }, { revoked: true });
+    } catch (error) {
+      console.error('Error invalidating user sessions:', error);
+      throw error;
+    }
+  }
+
   async createUser(userData: any): Promise<any> {
     try {
       // If organizationId is provided, convert it to ObjectId
@@ -422,6 +455,7 @@ export class MongoStorage implements IStorage {
         role: userData.role,
         organizationId: organizationId,
         avatar: userData.avatar || null,
+        verificationToken: userData.verificationToken || null,
         status: userData.status || "active",
       });
 
@@ -455,7 +489,7 @@ export class MongoStorage implements IStorage {
         { _id: id.toString() },
         { $set: userData },
         { new: true }
-      );  
+      );
 
       if (!user) return undefined;
 
@@ -473,12 +507,8 @@ export class MongoStorage implements IStorage {
   }
 
   verifyPassword(password: string, hash: string): boolean {
-    const calculatedHash = crypto
-      .createHash("sha256")
-      .update(password)
-      .digest("hex");
-
-    return calculatedHash === hash;
+    const match = bcrypt.compareSync(password, hash);
+    return match;
   }
 
   // Apps
@@ -1185,6 +1215,115 @@ export class MongoStorage implements IStorage {
     } catch (error) {
       console.error("Error getting top products:", error);
       return [];
+    }
+  }
+
+
+  async getWallet(userId: string): Promise<WalletData | null> {
+    try {
+      const wallet = await GrowCoinWallet.findOne({ userId: this.toObjectId(userId) });
+      return wallet ? { userId: wallet.userId, balance: wallet.balance, pendingBalance: wallet.pendingBalance } : null;
+    } catch (error) {
+      console.error('Error getting wallet:', error);
+      return null;
+    }
+  }
+
+  async updateWallet(userId: string, data: Partial<WalletData>): Promise<void> {
+    try {
+      await GrowCoinWallet.updateOne({ userId: this.toObjectId(userId) }, { $set: data });
+    } catch (error) {
+      console.error('Error updating wallet:', error);
+      throw error;
+    }
+  }
+
+  async getWalletTransactions(userId: string): Promise<TransactionData[]> {
+    try {
+      const transactions = await GrowCoinTransaction.find({ userId: this.toObjectId(userId) }).sort({ createdAt: -1 });
+      return transactions.map((tx) => ({
+        userId: tx.userId,
+        description: tx.description,
+        type: tx.type,
+        amount: tx.amount,
+        status: tx.status,
+        transactionId: tx.transactionId,
+        receiverId: tx.receiverId,
+        ipAddress: tx.ipAddress,
+        deviceFingerprint: tx.deviceFingerprint,
+        createdAt: tx.createdAt,
+      }));
+    } catch (error) {
+      console.error('Error getting wallet transactions:', error);
+      return [];
+    }
+  }
+
+  async createWalletTransaction(data: TransactionData): Promise<void> {
+    try {
+      await GrowCoinTransaction.create({
+        ...data,
+        userId: this.toObjectId(data.userId),
+        receiverId: data.receiverId ? this.toObjectId(data.receiverId) : undefined,
+      });
+    } catch (error) {
+      console.error('Error creating wallet transaction:', error);
+      throw error;
+    }
+  }
+
+  async updateWalletTransaction(transactionId: string, data: Partial<TransactionData>): Promise<void> {
+    try {
+      await GrowCoinTransaction.updateOne({ transactionId }, { $set: data });
+    } catch (error) {
+      console.error('Error updating wallet transaction:', error);
+      throw error;
+    }
+  }
+
+  async getWalletTransactionById(transactionId: string): Promise<TransactionData | null> {
+    try {
+      const transaction = await GrowCoinTransaction.findOne({ transactionId });
+      return transaction
+        ? {
+          userId: transaction.userId,
+          description: transaction.description,
+          type: transaction.type,
+          amount: transaction.amount,
+          status: transaction.status,
+          transactionId: transaction.transactionId,
+          receiverId: transaction.receiverId,
+          ipAddress: transaction.ipAddress,
+          deviceFingerprint: transaction.deviceFingerprint,
+          createdAt: transaction.createdAt,
+        }
+        : null;
+    } catch (error) {
+      console.error('Error getting wallet transaction:', error);
+      return null;
+    }
+  }
+
+  async countWalletTransactions(userId: string, type: string, since: number): Promise<number> {
+    try {
+      return await GrowCoinTransaction.countDocuments({
+        userId: this.toObjectId(userId),
+        type,
+        createdAt: { $gte: new Date(since) },
+      });
+    } catch (error) {
+      console.error('Error counting wallet transactions:', error);
+      return 0;
+    }
+  }
+
+  async getUserByEmailOrUsername(identifier: string): Promise<{ id: string; email: string; username: string; name: string } | null> {
+    try {
+      const user = await User.findOne({ $or: [{ email: identifier }, { username: identifier }] });
+      return user ? { id: user._id.toString(), email: user.email, username: user.username, name: user.name } : null;
+    } catch (error) {
+      console.error('Error getting user by email or username:', error);
+      return null;
     }
   }
 }

@@ -1,6 +1,6 @@
-import { insertOrganizationSchema, SubscriptionPlan } from '@shared/schema';
 import mongoose, { Document, Schema } from 'mongoose';
 import { z } from 'zod';
+import { insertOrganizationSchema, SubscriptionPlan } from '../../shared/schema';
 
 // Infer the TypeScript type from the Zod schema
 type InsertOrganizationType = z.infer<typeof insertOrganizationSchema>;

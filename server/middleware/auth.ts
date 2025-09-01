@@ -1,7 +1,9 @@
-import { UserRole } from "@shared/schema";
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { handleTrialExpiry } from "../services/subscription";
+import { User } from "../models/User";
+import { UserSession } from "../models/UserSession";
+import { handleTrialExpiry } from "../services/subscription.service";
+import { UserRole } from "../../shared/schema";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "growvia-super-secret-key-change-in-production";
@@ -12,6 +14,7 @@ interface JwtPayload {
   sub?: string;
   organizationId?: string | null;
   role?: string;
+  sessionId?: string;
 }
 
 export const authenticate = async (
@@ -19,7 +22,6 @@ export const authenticate = async (
   res: Response,
   next: NextFunction
 ) => {
- 
   try {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
@@ -29,11 +31,27 @@ export const authenticate = async (
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
     const userId = decoded.userId || decoded.id || decoded.sub;
+    const sessionId = decoded.sessionId;
+
+    const session = await UserSession.findOne({ token });
+    if (!session) {
+      return res.status(401).json({ message: "Session not found" });
+    }
+
+    const user = await User.findById(userId).select('name username email');
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     (req as any).user = {
       id: userId,
       userId: userId,
       organizationId: decoded.organizationId,
       role: decoded.role,
+      sessionId: sessionId,
+      name: user.name,
+      email: user.email,
+      username: user.username,
     };
 
     if (decoded.organizationId && decoded.role === UserRole.ADMIN) {
@@ -73,16 +91,3 @@ export const requireManagement = (
   }
   next();
 };
-
-// export const generateToken = (user: {
-//   id: number;
-//   organizationId: number | null;
-//   role: string;
-// }): string => {
-//   const payload = {
-//     userId: user.id,
-//     organizationId: user.organizationId,
-//     role: user.role,
-//   };
-//   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
-// };

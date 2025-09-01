@@ -1,5 +1,5 @@
-import { SubscriptionPlan, UserRole } from "@shared/schema";
 import { Router } from "express";
+import { SubscriptionPlan, UserRole } from "../../shared/schema";
 import { authenticate, requireManagement } from "../middleware/auth";
 import { AffiliateLink, App, Conversion, Organization, User } from "../models";
 

@@ -1,8 +1,10 @@
-import { PLAN_LIMITS, SubscriptionPlan, UserRole } from "@shared/schema";
 import B2 from "backblaze-b2";
 import { randomBytes } from "crypto";
 import { Request, Response, Router } from "express";
-import { ObjectId } from "mongoose";
+import mongoose, { ObjectId } from "mongoose";
+import { FraudReviewRequest } from "server/models/FraudReviewRequest";
+import { MarketerOrganization } from "server/models/MarketerOrganization";
+import { PLAN_LIMITS, SubscriptionPlan, UserRole } from "../../shared/schema";
 import { authenticate, authorize } from "../middleware/auth";
 import { upload } from "../middleware/multerConfig";
 import { Organization, User } from "../models";
@@ -19,7 +21,6 @@ const b2 = new B2({
   applicationKey: process.env.BACKBLAZE_APP_KEY,
 });
 
-// Invite marketer
 router.post(
   "/invite",
   authenticate,
@@ -58,20 +59,17 @@ router.post(
         return res.status(404).json({ message: "Organization not found" });
       }
 
-      if (organization.plan === SubscriptionPlan.FREE_TRIAL) {
-        const currentMarketers = await User.countDocuments({
-          organizationId,
-          role: UserRole.MARKETER,
-        });
+      const plan = organization.plan;
+      const currentMarketers = await User.countDocuments({
+        organizationId,
+        role: UserRole.MARKETER,
+      });
 
-        if (
-          currentMarketers >= PLAN_LIMITS[SubscriptionPlan.FREE_TRIAL].marketers
-        ) {
-          return res.status(403).json({
-            message:
-              "You've reached the maximum number of marketers for your trial plan. Please upgrade your subscription.",
-          });
-        }
+      if (currentMarketers >= PLAN_LIMITS[plan].marketers) {
+        return res.status(403).json({
+          message:
+            `You've reached the maximum number of marketers (${PLAN_LIMITS[plan].marketers}) for your ${plan} plan. Please upgrade your subscription.`,
+        });
       }
 
       const applicationToken = randomBytes(32).toString("hex");
@@ -90,11 +88,8 @@ router.post(
         tokenExpiry,
       });
 
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? `https://${req.get("host")}`
-          : `http://localhost:5000`;
-      const invitationUrl = `${baseUrl}/apply/marketer/${applicationToken}`;
+      const origin = req.get("origin") || "https://www.growviapro.com";
+      const invitationUrl = `${origin}/apply/marketer/${applicationToken}`;
 
       await emailQueue.add({
         type: "invitation",
@@ -107,9 +102,8 @@ router.post(
         organizationId,
         userId,
         type: "marketer_invited",
-        description: `${
-          (req as any).user.name || "Admin"
-        } invited ${name} as a marketer`,
+        description: `${(req as any).user.name || "Admin"
+          } invited ${name} as a marketer`,
       });
 
       return res.status(201).json({
@@ -121,6 +115,7 @@ router.post(
           email: application.email,
           status: application.status,
           applicationDate: application.applicationDate,
+          invitationUrl,
         },
       });
     } catch (error: any) {
@@ -130,7 +125,143 @@ router.post(
   }
 );
 
-// Get all applications
+
+router.delete(
+  "/:id",
+  authenticate,
+  authorize([UserRole.ADMIN]),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { reason = "No reason provided", fraud = false } = req.body;
+
+      const organizationId = (req as any).user.organizationId;
+      const submittedBy = (req as any).user.id;
+      const actorName = (req as any).user.name || "Admin";
+
+      if (!organizationId) {
+        return res.status(400).json({ message: "User not linked to an organization" });
+      }
+
+      const marketerOrg = await MarketerOrganization.findOne({
+        userId: id,
+        organizationId,
+      });
+
+      const application = await MarketerApplication.findOne({
+        _id: id,
+        organizationId,
+      });
+
+      if (!marketerOrg && !application) {
+        return res.status(404).json({ message: "Marketer or application not found" });
+      }
+
+      if (marketerOrg) {
+        const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+        const approvedAt = marketerOrg.approvedAt;
+        const activeDuration = approvedAt ? Date.now() - new Date(approvedAt).getTime() : 0;
+
+        if (fraud) {
+          const review = await FraudReviewRequest.create({
+            marketerId: marketerOrg.userId,
+            organizationId,
+            submittedBy,
+            reason,
+          });
+
+          marketerOrg.status = "under_review";
+          marketerOrg.reviewRequestId = review._id;
+          await marketerOrg.save();
+
+          await storage.createActivity({
+            organizationId,
+            userId: submittedBy,
+            type: "fraud_review_requested",
+            description: `${actorName} reported affiliate for fraud. Pending admin review.`,
+            metadata: {
+              marketerId: marketerOrg.userId,
+              reason,
+            },
+          });
+
+          return res.status(202).json({
+            message: "Fraud case submitted for review. Action will be taken after admin review.",
+          });
+        }
+
+        if (activeDuration < THIRTY_DAYS) {
+          return res.status(403).json({
+            message: "Marketer must be active for at least 30 days before removal unless for fraud.",
+          });
+        }
+
+        marketerOrg.status = "revoked";
+        marketerOrg.revokedAt = new Date();
+        marketerOrg.revokedBy = submittedBy;
+        marketerOrg.revocationReason = reason;
+        await marketerOrg.save();
+
+        const marketerUser = await User.findById(marketerOrg.userId);
+        if (marketerUser?.email) {
+          await emailQueue.add({
+            type: "marketer_revoked",
+            email: marketerUser.email,
+            user: marketerUser,
+            organizationName: actorName,
+            reason,
+          });
+        }
+
+        await storage.createActivity({
+          organizationId,
+          userId: submittedBy,
+          type: "marketer_revoked",
+          description: `${actorName} revoked marketer from this organization`,
+          metadata: {
+            marketerId: marketerOrg.userId,
+            reason,
+          },
+        });
+
+        return res.status(200).json({ message: "Marketer revoked successfully." });
+      }
+
+      if (application) {
+        await MarketerApplication.deleteOne({ _id: id });
+
+        if (application.email) {
+          await emailQueue.add({
+            type: "application_removed",
+            email: application.email,
+            name: application.name,
+            organizationName: actorName,
+            reason,
+          });
+        }
+
+        await storage.createActivity({
+          organizationId,
+          userId: submittedBy,
+          type: "application_removed",
+          description: `${actorName} removed application for ${application.name}`,
+          metadata: {
+            applicationId: application._id,
+            reason,
+          },
+        });
+
+        return res.status(200).json({ message: "Application removed successfully." });
+      }
+    } catch (error: any) {
+      console.error("Error removing marketer or application:", error);
+      return res.status(500).json({ message: error.message });
+    }
+  }
+);
+
+
+
 router.get(
   "/",
   authenticate,
@@ -138,65 +269,183 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const organizationId = (req as any).user.organizationId;
-      const { status } = req.query;
 
-      let query: any = { organizationId };
+      const { status, search, socialMedia, skills, page = 1, limit = 20 } = req.query;
+
+      const pageNum = parseInt(page as string, 10);
+      const limitNum = parseInt(limit as string, 10);
+      const skip = (pageNum - 1) * limitNum;
+
+      let userQuery: any = { organizationId, role: UserRole.MARKETER };
+      let applicationQuery: any = { organizationId };
+      let marketerOrgQuery: any = { organizationId, status: { $ne: 'revoked' } };
+
+      // Filter by status
       if (
         status &&
-        ["invited", "pending", "approved", "rejected"].includes(
+        ["invited", "pending", "approved", "rejected", "active"].includes(
           status as string
         )
       ) {
-        query.status = status;
+        if (status === "active") {
+          userQuery.status = "active";
+          marketerOrgQuery.status = "approved";
+        } else {
+          applicationQuery.status = status;
+        }
       }
 
-      const users = await storage.getUsersByOrganization(organizationId);
-      const approvedMarketers = users
+      // Filter by search (name/email)
+      if (search) {
+        const searchRegex = new RegExp(search as string, "i");
+        userQuery.$or = [
+          { name: searchRegex },
+          { email: searchRegex },
+        ];
+        applicationQuery.$or = [
+          { name: searchRegex },
+          { email: searchRegex },
+        ];
+      }
+
+      // Filter by socialMedia
+      if (socialMedia) {
+        userQuery['socialMedia.platform'] = socialMedia;
+        applicationQuery['socialMedia.platform'] = socialMedia;
+      }
+
+      // Filter by skills
+      if (skills) {
+        userQuery.skills = { $in: [skills] };
+        applicationQuery.skills = { $in: [skills] };
+      }
+
+      // Step 1: Fetch all users first
+      const users = await User.find(userQuery);
+      // Step 2: Fetch all applications and marketer organizations
+      const allApplications = await MarketerApplication.find(applicationQuery);
+      const marketerOrgs = await MarketerOrganization.find(marketerOrgQuery);
+
+      // Create maps for efficient lookup
+      const applicationMap = new Map(
+        allApplications.map((app) => [app.email, {
+          id: app._id,
+          resumeUrl: app.resumeUrl || "",
+          kycDocUrl: app.kycDocUrl || "",
+          socialMedia: app.socialMedia || {},
+          skills: app.skills || [],
+          reviewedAt: app.reviewedAt || null,
+          reviewNotes: app.reviewNotes || "",
+          experience: app.experience || "",
+          applicationDate: app.applicationDate,
+          status: app.status,
+          reviewedBy: app.reviewedBy || null,
+          applicationToken: app.applicationToken || null,
+          tokenExpiry: app.tokenExpiry || null,
+          invitedBy: app.invitedBy || null,
+          user: app.user || null,
+        }])
+      );
+
+      const marketerOrgMap = new Map(
+        marketerOrgs.map((mo) => [mo.userId.toString(), {
+          status: mo.status,
+          appliedAt: mo.appliedAt,
+          approvedAt: mo.approvedAt,
+          revokedAt: mo.revokedAt,
+          revokedBy: mo.revokedBy,
+          revocationReason: mo.revocationReason,
+          reviewRequestId: mo.reviewRequestId,
+        }])
+      );
+
+      // Step 3: Process users with their applications and marketer organization data
+      const userMarketers = users
         .filter((user) => user.role === UserRole.MARKETER)
-        .map((user) => ({
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          status: user.status,
-          createdAt: user.createdAt,
-          role: user.role,
-          source: "user",
+        .map((user) => {
+          const application = applicationMap.get(user.email);
+          const marketerOrg = marketerOrgMap.get(user.id);
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone || "",
+            status: user.status || "active",
+            createdAt: user.createdAt,
+            role: user.role,
+            source: "user",
+            clicks: user.clicks || 0,
+            conversions: user.conversions || 0,
+            commission: user.commission || 0,
+            payoutStatus: user.payoutStatus || "pending",
+            assignedApps: user.assignedApps || [],
+            socialMedia: user.socialMedia || {},
+            skills: user.skills || [],
+            application: application || null,
+            marketerOrganization: marketerOrg || null,
+          };
+        });
+
+      // Step 4: Fetch applications only for emails not in the users table
+      const userEmails = new Set(users.map((u) => u.email));
+      const applicationMarketers = allApplications
+        .filter((app) => !userEmails.has(app.email))
+        .map((app) => ({
+          id: app._id,
+          name: app.name,
+          email: app.email,
+          phone: app.phone || "",
+          status: app.status,
+          createdAt: app.applicationDate,
+          role: UserRole.MARKETER,
+          source: "application",
+          clicks: app.clicks || 0,
+          conversions: app.conversions || 0,
+          commission: app.commission || 0,
+          payoutStatus: app.payoutStatus || "pending",
+          assignedApps: app.assignedApps || [],
+          socialMedia: app.socialMedia || {},
+          skills: app.skills || [],
+          application: {
+            id: app._id,
+            resumeUrl: app.resumeUrl || "",
+            kycDocUrl: app.kycDocUrl || "",
+            socialMedia: app.socialMedia || {},
+            skills: app.skills || [],
+            reviewedAt: app.reviewedAt || null,
+            reviewNotes: app.reviewNotes || "",
+            experience: app.experience || "",
+            applicationDate: app.applicationDate,
+            status: app.status,
+            reviewedBy: app.reviewedBy || null,
+            applicationToken: app.applicationToken || null,
+            tokenExpiry: app.tokenExpiry || null,
+            invitedBy: app.invitedBy || null,
+            user: app.user || null,
+          },
+          marketerOrganization: null,
         }));
 
-      const approvedMarketerEmails = approvedMarketers.map((m) => m.email);
-
-      const applications = await MarketerApplication.find({
-        ...query,
-        email: { $nin: approvedMarketerEmails },
-      }).sort({
-        applicationDate: -1,
-      });
-
-      const invitedMarketers = applications.map((app) => ({
-        id: app._id,
-        name: app.name,
-        email: app.email,
-        phone: app.phone,
-        status: app.status,
-        createdAt: app.applicationDate,
-        role: UserRole.MARKETER,
-        resumeUrl: app.resumeUrl,
-        kycDocUrl: app.kycDocUrl,
-        socialMedia: app.socialMedia,
-        experience: app.experience,
-        skills: app.skills,
-        reviewedAt: app.reviewedAt,
-        reviewNotes: app.reviewNotes,
-        source: "application",
-      }));
-
-      const allMarketers = [...approvedMarketers, ...invitedMarketers].sort(
+      // Step 5: Combine and sort all marketers
+      let allMarketers = [...userMarketers, ...applicationMarketers].sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
-      return res.json(allMarketers);
+      // Step 6: Apply pagination
+      const totalItems = allMarketers.length;
+      const paginatedMarketers = allMarketers.slice(skip, skip + limitNum);
+      const totalPages = Math.ceil(totalItems / limitNum);
+
+      return res.json({
+        data: paginatedMarketers,
+        pagination: {
+          totalItems,
+          totalPages,
+          currentPage: pageNum,
+          itemsPerPage: limitNum,
+        },
+      });
     } catch (error: any) {
       console.error("Error fetching marketer applications:", error);
       return res.status(500).json({ message: error.message });
@@ -285,7 +534,7 @@ router.get("/verify/:token", async (req: Request, res: Response) => {
 
 // Submit application
 router.post(
-  "/application/:token/submit",
+  "/application/submit/:token",
   upload.fields([
     { name: "resume", maxCount: 1 },
     { name: "kycDocument", maxCount: 1 },
@@ -332,11 +581,9 @@ router.post(
 
       if (files.resume && files.resume[0]) {
         const resumeFile = files.resume[0];
-        const resumeFileName = `organizations/${
-          application.organizationId
-        }/marketers/${
-          application._id
-        }/resume-${Date.now()}-${resumeFile.originalname.replace(/\s+/g, "_")}`;
+        const resumeFileName = `organizations/${application.organizationId
+          }/marketers/${application._id
+          }/resume-${Date.now()}-${resumeFile.originalname.replace(/\s+/g, "_")}`;
         const response = await b2.getUploadUrl({ bucketId });
         const uploadResponse = await b2.uploadFile({
           uploadUrl: response.data.uploadUrl,
@@ -351,11 +598,9 @@ router.post(
 
       if (files.kycDocument && files.kycDocument[0]) {
         const kycFile = files.kycDocument[0];
-        const kycFileName = `organizations/${
-          application.organizationId
-        }/marketers/${
-          application._id
-        }/kyc-${Date.now()}-${kycFile.originalname.replace(/\s+/g, "_")}`;
+        const kycFileName = `organizations/${application.organizationId
+          }/marketers/${application._id
+          }/kyc-${Date.now()}-${kycFile.originalname.replace(/\s+/g, "_")}`;
         const response = await b2.getUploadUrl({ bucketId });
         const uploadResponse = await b2.uploadFile({
           uploadUrl: response.data.uploadUrl,
@@ -469,9 +714,8 @@ router.post(
           organizationId,
           userId: reviewerId,
           type: "marketer_approved",
-          description: `${(req as any).user.name || "Admin"} approved ${
-            application.name
-          } as a marketer`,
+          description: `${(req as any).user.name || "Admin"} approved ${application.name
+            } as a marketer`,
         });
       } else {
         await emailQueue.add({
@@ -484,9 +728,8 @@ router.post(
           organizationId,
           userId: reviewerId,
           type: "marketer_rejected",
-          description: `${(req as any).user.name || "Admin"} rejected ${
-            application.name
-          }'s application`,
+          description: `${(req as any).user.name || "Admin"} rejected ${application.name
+            }'s application`,
         });
       }
 
@@ -512,7 +755,7 @@ router.post(
 );
 
 router.post(
-  "/:id/approve",
+  "/approve/:id",
   authenticate,
   authorize([UserRole.ADMIN]),
   async (req: Request, res: Response) => {
@@ -539,18 +782,14 @@ router.post(
         return res.status(404).json({ message: "Organization not found" });
       }
 
-      application.status = "approved";
-      application.reviewedBy = reviewerId;
-      application.reviewedAt = new Date();
-      application.reviewNotes = reviewNotes || "";
-
       const existingUser = await User.findOne({
         email: application.email,
         role: UserRole.MARKETER,
       });
 
+      let userId: ObjectId;
+
       if (existingUser) {
-        // Add the new organizationId to the existing user's organizationId array
         if (!existingUser.organizationId.includes(organizationId)) {
           existingUser.organizationId = [
             ...existingUser.organizationId,
@@ -558,7 +797,7 @@ router.post(
           ] as mongoose.Types.ObjectId[];
           await existingUser.save();
         }
-        application.user = existingUser._id as ObjectId;
+        userId = existingUser._id as ObjectId;
         await emailQueue.add({
           type: "approval",
           application,
@@ -588,7 +827,7 @@ router.post(
           status: "active",
         });
 
-        application.user = user._id as ObjectId;
+        userId = user._id as ObjectId;
         await emailQueue.add({
           type: "approval",
           application,
@@ -597,16 +836,28 @@ router.post(
         });
       }
 
+      application.status = "approved";
+      application.reviewedBy = reviewerId;
+      application.reviewedAt = new Date();
+      application.reviewNotes = reviewNotes || "";
+      await application.save();
+
+      // Create MarketerOrganization record
+      await MarketerOrganization.create({
+        userId,
+        organizationId,
+        status: "approved",
+        appliedAt: application.applicationDate,
+        approvedAt: new Date(),
+      });
+
+
       await storage.createActivity({
         organizationId,
         userId: reviewerId,
         type: "marketer_approved",
-        description: `${(req as any).user.name || "Admin"} approved ${
-          application.name
-        } as a marketer`,
+        description: `${(req as any).user.name || "Admin"} approved ${application.name} as a marketer`,
       });
-
-      await application.save();
 
       return res.json({
         message: "Application approved successfully",
@@ -614,8 +865,8 @@ router.post(
           id: application._id,
           name: application.name,
           email: application.email,
-          status: application.status,
-          reviewedAt: application.reviewedAt,
+          status: "approved",
+          reviewedAt: new Date(),
         },
       });
     } catch (error: any) {
@@ -627,7 +878,7 @@ router.post(
 
 
 router.post(
-  "/:id/reject",
+  "/reject/:id",
   authenticate,
   authorize([UserRole.ADMIN]),
   async (req: Request, res: Response) => {
@@ -674,9 +925,8 @@ router.post(
         organizationId,
         userId: reviewerId,
         type: "marketer_rejected",
-        description: `${(req as any).user.name || "Admin"} rejected ${
-          application.name
-        }'s marketer application`,
+        description: `${(req as any).user.name || "Admin"} rejected ${application.name
+          }'s marketer application`,
       });
 
       await application.save();
@@ -805,7 +1055,6 @@ router.post(
   async (req, res) => {
     res.setHeader("Content-Type", "application/json");
     try {
-      console.log("I made it here");
       const { email } = req.body;
       if (!email) {
         return res.status(400).json({ message: "Email is required" });
@@ -835,12 +1084,8 @@ router.post(
       if (!organization) {
         return res.status(404).json({ message: "Organization not found" });
       }
-
-      const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? `https://${req.get("host")}`
-          : `http://localhost:5000`;
-      const invitationUrl = `${baseUrl}/apply/marketer/${application.applicationToken}`;
+      const origin = req.get("origin") || "https://www.growviapro.com";
+      const invitationUrl = `${origin}/auth/apply/marketer/${application.applicationToken}`;
 
       await emailQueue.add({
         type: "resend_invitation",

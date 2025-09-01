@@ -1,16 +1,20 @@
 import { Express, NextFunction, Request, Response } from "express";
 import { createServer, Server } from "http";
-import activityRoutes from "./routes/activityRoutes";
+import activityRoutes from "./routes/activity.routes";
 import affiliateLinkRoutes from "./routes/affiliateLinkRoutes";
-import analyticsRoutes from "./routes/analyticsRoutes";
+import affiliateRoutes from "./routes/affiliateRoutes";
+import analyticsRoutes from "./routes/analytics.routes";
 import appRoutes from "./routes/appRoutes";
-import authRoutes from "./routes/authRoutes";
+import authRoutes from "./routes/auth.routes";
 import conversionRoutes from "./routes/conversionRoutes";
 import managementRoutes from "./routes/managementRoutes";
-import marketerApplicationRoutes from "./routes/marketerApplicationRoutes";
+import marketerApplicationRoutes from "./routes/marketerApplication.routes";
 import organizationRoutes from "./routes/organizationRoutes";
 import payoutRoutes from "./routes/payoutRoutes";
-import { setupPaymentRoutes } from "./services/payment";
+import referralRoutes from "./routes/referral.routes";
+import userRoutes from "./routes/user.routes";
+import walletRoutes from "./routes/wallet.routes";
+import { setupPaymentRoutes } from "./services/payment.service";
 
 export async function registerRoutes(
   app: Express,
@@ -35,6 +39,10 @@ export async function registerRoutes(
   router.use("/analytics", analyticsRoutes);
   router.use("/activities", activityRoutes);
   router.use("/payouts", payoutRoutes);
+  router.use("/affiliates", affiliateRoutes);
+  router.use("/users", userRoutes);
+  router.use("/wallet", walletRoutes);
+  router.use("/referrals", referralRoutes);
 
   const httpServer = createServer(app);
   return httpServer;

@@ -1,5 +1,5 @@
-import { UserRole, insertConversionSchema } from "@shared/schema";
 import { Router } from "express";
+import { UserRole, insertConversionSchema } from "../../shared/schema";
 import { authenticate } from "../middleware/auth";
 import { MongoStorage } from "../mongoStorage";
 import { IStorage } from "../storage";

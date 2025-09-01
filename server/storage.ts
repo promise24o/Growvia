@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import {
   IActivity,
   IAffiliateLink,
@@ -87,6 +87,40 @@ export interface InsertNotificationSetting {
   payoutAlerts?: boolean;
   marketingTips?: boolean;
 }
+
+interface WalletData {
+  userId: string | Types.ObjectId;
+  balance: number;
+  pendingBalance?: number;
+}
+
+interface TransactionData {
+  userId: string | Types.ObjectId;
+  description: string;
+  type: 'Earned' | 'Spent' | 'Transfer In' | 'Transfer Out';
+  amount: number;
+  status?: 'Pending' | 'Completed' | 'Failed';
+  transactionId: string;
+  receiverId?: string | Types.ObjectId;
+  ipAddress?: string;
+  deviceFingerprint?: string;
+  createdAt?: Date;
+}
+
+interface UserData {
+  id: string;
+  email: string;
+  username: string;
+  name: string;
+}
+
+interface ActivityData {
+  type: string;
+  description: string;
+  userId: string;
+  metadata?: Record<string, any>;
+}
+
 
 export interface IStorage {
   // Organizations
@@ -201,4 +235,15 @@ export interface IStorage {
   }>;
   getTopMarketers(orgId: string | number, limit?: number): Promise<any[]>;
   getTopProducts(orgId: string | number, limit?: number): Promise<any[]>;
+  invalidateUserSessions(userId: string): Promise<void>;
+  getWallet(userId: string | number): Promise<WalletData | null>;
+  updateWallet(userId: string | number, data: Partial<WalletData>): Promise<void>;
+  getWalletTransactions(userId: string | number): Promise<TransactionData[]>;
+  createWalletTransaction(data: TransactionData): Promise<void>;
+  updateWalletTransaction(transactionId: string, data: Partial<TransactionData>): Promise<void>;
+  getWalletTransactionById(transactionId: string): Promise<TransactionData | null>;
+  countWalletTransactions(userId: string | number, type: string, since: number): Promise<number>;
+  getUserByEmailOrUsername(identifier: string): Promise<UserData | null>;
+  createActivity(data: ActivityData): Promise<void>;
+  countWalletTransactions(userId: string, type: string, since: number): Promise<number>;
 }

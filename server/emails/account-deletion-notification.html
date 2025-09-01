@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Deletion Request - Growvia</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            margin: 20px;
+        }
+
+        .header {
+            background-color: #6366F1;
+            color: #fff;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+            font-weight: 600;
+        }
+
+        .header p {
+            margin-top: 8px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .content {
+            padding: 30px;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .content h2 {
+            margin-top: 0;
+            font-weight: 600;
+            font-size: 1.5em;
+        }
+
+        .button-container {
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .action-button {
+            background-color: #6366F1;
+            color: #fff;
+            padding: 14px 28px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 1.1em;
+            display: inline-block;
+            transition: background-color 0.2s ease;
+        }
+
+        .action-button:hover {
+            background-color: #4F46E5;
+        }
+
+        .details-container {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
+        .details-container p {
+            margin: 10px 0;
+            font-size: 0.95em;
+        }
+
+        .footer {
+            background-color: #f8f9fa;
+            color: #777;
+            padding: 20px;
+            text-align: center;
+            font-size: 0.85em;
+            border-top: 1px solid #eee;
+        }
+
+        .footer p {
+            margin: 5px 0;
+        }
+
+        @media (max-width: 576px) {
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.7em;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .button-container {
+                margin: 20px 0;
+            }
+
+            .action-button {
+                padding: 12px 24px;
+                font-size: 1em;
+            }
+
+            .details-container {
+                padding: 15px;
+            }
+
+            .footer {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://i.ibb.co/1tsQ0dqs/icon-light.png" alt="Growvia Logo" style="width: 30px;">
+            <h1>Growvia</h1>
+            <p>Affiliate Marketing Platform</p>
+        </div>
+
+        <div class="content">
+            <h2>Hello {{name}},</h2>
+            <p>We have received your request to permanently delete your Growvia account. Below are the details of your
+                deletion request:</p>
+
+            <div class="details-container">
+                <p><strong>Request Time:</strong> {{timestamp}}</p>
+                <p><strong>Scheduled Deletion Date:</strong> {{deletionDate}}</p>
+            </div>
+
+            <p>Your account is now locked and cannot be used. You have a 14-day grace period to cancel this request. If
+                you do not cancel, your account and all associated data (including apps, campaign data, commission
+                history, token wallet, session logs, and backup codes) will be permanently deleted on the scheduled
+                date.</p>
+
+            <div class="button-container">
+                <a href="{{cancelUrl}}" class="action-button">Cancel Deletion Request</a>
+            </div>
+
+            <p>If you did not initiate this request, please contact our support team immediately to secure your account.
+            </p>
+
+            <div class="button-container">
+                <a href="{{supportUrl}}" class="action-button">Contact Support</a>
+            </div>
+
+            <p>Best regards,<br>The Growvia Team</p>
+        </div>
+
+        <div class="footer">
+            <p>© {{year}} Growvia. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+
+</html>

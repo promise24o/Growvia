@@ -1,5 +1,5 @@
-import { UserRole, onboardingSchema } from "@shared/schema";
 import { Router } from "express";
+import { UserRole, onboardingSchema } from "../../shared/schema";
 import { authenticate, authorize } from "../middleware/auth";
 import { MongoStorage } from "../mongoStorage";
 import { IStorage } from "../storage";
@@ -103,3 +103,5 @@ router.post(
 );
 
 export default router;
+
+

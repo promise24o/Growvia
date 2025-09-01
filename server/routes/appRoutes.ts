@@ -1,10 +1,10 @@
+import { Router } from "express";
 import {
     PLAN_LIMITS,
     SubscriptionPlan,
     UserRole,
     insertAppSchema,
-} from "@shared/schema";
-import { Router } from "express";
+} from "../../shared/schema";
 import { authenticate, authorize } from "../middleware/auth";
 import { MongoStorage } from "../mongoStorage";
 import { IStorage } from "../storage";

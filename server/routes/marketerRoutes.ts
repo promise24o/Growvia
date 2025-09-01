@@ -1,6 +1,6 @@
-import { PLAN_LIMITS, SubscriptionPlan, UserRole } from "@shared/schema";
 import { randomBytes } from "crypto";
 import { Router } from "express";
+import { PLAN_LIMITS, SubscriptionPlan, UserRole } from "../../shared/schema";
 import { authenticate, authorize } from "../middleware/auth";
 import { MongoStorage } from "../mongoStorage";
 import { IStorage } from "../storage";
@@ -242,7 +242,7 @@ router.post(
         const existingApp = existingApplications[0];
         const baseUrl =
           process.env.NODE_ENV === "production"
-            ? "https://growvia.com"
+            ? "https://growviapro.com"
             : `http://${req.hostname}:5000`;
         const invitationUrl = `${baseUrl}/marketer/onboarding/${existingApp.applicationToken}`;
 
@@ -265,7 +265,7 @@ router.post(
 
       const baseUrl =
         process.env.NODE_ENV === "production"
-          ? "https://growvia.com"
+          ? "https://growviapro.com"
           : `http://${req.hostname}:5000`;
       const invitationUrl = `${baseUrl}/marketer/onboarding/${application.applicationToken}`;
 

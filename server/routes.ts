@@ -15,6 +15,7 @@ import referralRoutes from "./routes/referral.routes";
 import userRoutes from "./routes/user.routes";
 import walletRoutes from "./routes/wallet.routes";
 import { setupPaymentRoutes } from "./services/payment.service";
+import commissionRoutes from "./routes/commission.routes";
 
 export async function registerRoutes(
   app: Express,
@@ -43,6 +44,8 @@ export async function registerRoutes(
   router.use("/users", userRoutes);
   router.use("/wallet", walletRoutes);
   router.use("/referrals", referralRoutes);
+  router.use('/commissions', commissionRoutes);
+
 
   const httpServer = createServer(app);
   return httpServer;

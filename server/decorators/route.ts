@@ -1,3 +1,4 @@
+// server/decorators/route.ts
 import "reflect-metadata";
 import { RequestHandler } from "express";
 
@@ -16,5 +17,11 @@ export function Post(path: string, middleware: RequestHandler[] = []) {
 export function Put(path: string, middleware: RequestHandler[] = []) {
   return function (target: any, key: string, descriptor: PropertyDescriptor) {
     Reflect.defineMetadata("route", { method: "PUT", path, middleware }, descriptor.value);
+  };
+}
+
+export function Delete(path: string, middleware: RequestHandler[] = []) {
+  return function (target: any, key: string, descriptor: PropertyDescriptor) {
+    Reflect.defineMetadata("route", { method: "DELETE", path, middleware }, descriptor.value);
   };
 }

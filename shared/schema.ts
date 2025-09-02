@@ -1,3 +1,4 @@
+// shared/schema.ts
 import { z } from "zod";
 
 // User roles
@@ -37,8 +38,8 @@ export const PLAN_LIMITS = {
 
 // Interfaces for MongoDB documents
 export interface IOrganization {
-  _id?: string; // MongoDB ObjectId as string
-  id?: string; // Optional legacy ID field (string in MongoStorage)
+  _id?: string;
+  id?: string;
   name: string;
   email: string;
   logo?: string | null;
@@ -143,6 +144,45 @@ export interface INotificationSetting {
   marketingTips: boolean;
   updatedAt?: Date;
 }
+
+export interface ICommission {
+  _id?: string;
+  id?: string;
+  name: string;
+  description?: string;
+  type: string;
+  conversionEvent?: string;
+  payout: {
+    amount: number;
+    isPercentage: boolean;
+    currency?: string;
+    baseField?: string;
+  };
+  maxPerMarketer?: number | null;
+  maxTotalPayout?: number | null;
+  validationMethod: string;
+  webhookUrl?: string;
+  secretToken?: string;
+  payoutDelay: number;
+  oneConversionPerUser: boolean;
+  minSessionDuration?: number | null;
+  organizationId?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+  fraudDetection: {
+    conversionDelay?: number | null;
+    ipRestriction?: string | null;
+    deviceFingerprintChecks?: boolean;
+    duplicateEmailPhoneBlock?: boolean;
+    geoTargeting?: string[] | null;
+    minimumOrderValue?: number | null;
+    conversionSpikeAlert?: boolean;
+    cookieTamperDetection?: boolean;
+    affiliateBlacklist?: boolean;
+    kycVerifiedOnly?: boolean;
+  };
+}
+
 // Insert schemas
 export const insertOrganizationSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -155,8 +195,6 @@ export const insertOrganizationSchema = z.object({
   position: z.string().optional(),
   industry: z.string().optional(),
   companySize: z.string().optional(),
-
-  // New onboarding questions relevant to Growvia
   primaryGoal: z
     .string()
     .optional()
@@ -192,7 +230,6 @@ export const insertUserSchema = z.object({
   status: z.string(),
 });
 
-
 export const onboardingSchema = z.object({
   primaryGoal: z
     .string()
@@ -208,7 +245,7 @@ export const onboardingSchema = z.object({
     ),
   existingAffiliates: z
     .string()
-    .optional() // Optional if they don't have an existing program
+    .optional()
     .describe(
       "Do you have an existing affiliate program? If so, how many affiliates do you currently have?"
     ),
@@ -268,12 +305,103 @@ export const insertNotificationSettingsSchema = z.object({
   marketingTips: z.boolean(),
 });
 
+export const commissionSchemaBase = z.object({
+  name: z.string().min(1, 'Model name is required'),
+  description: z.string().optional(),
+  type: z.enum(['click', 'visit', 'signup', 'purchase', 'custom'], {
+    errorMap: () => ({ message: 'Invalid commission type' }),
+  }),
+  conversionEvent: z.string().optional(),
+  payout: z.object({
+    amount: z.number().min(0, 'Amount must be positive'),
+    isPercentage: z.boolean(),
+    currency: z.string().optional(),
+    baseField: z.string().optional(),
+  }),
+  maxPerMarketer: z.number().min(0, 'Must be positive').nullable().optional(),
+  maxTotalPayout: z.number().min(0, 'Must be positive').nullable().optional(),
+  validationMethod: z.enum(['auto', 'manual', 'webhook'], {
+    errorMap: () => ({ message: 'Invalid validation method' }),
+  }),
+  webhookUrl: z.string().optional(),
+  secretToken: z.string().optional(),
+  payoutDelay: z.number().min(0, 'Must be positive'),
+  oneConversionPerUser: z.boolean(),
+  minSessionDuration: z.number().min(0, 'Must be positive').nullable().optional(),
+  organizationId: z.string().optional(),
+  fraudDetection: z.object({
+    conversionDelay: z.number().min(1).max(30).nullable().optional(),
+    ipRestriction: z.enum(['one_per_12h']).nullable().optional(),
+    deviceFingerprintChecks: z.boolean().optional(),
+    duplicateEmailPhoneBlock: z.boolean().optional(),
+    geoTargeting: z.array(z.string()).nullable().optional(),
+    minimumOrderValue: z.number().min(10000).nullable().optional(),
+    conversionSpikeAlert: z.boolean().optional(),
+    cookieTamperDetection: z.boolean().optional(),
+    affiliateBlacklist: z.boolean().optional(),
+    kycVerifiedOnly: z.boolean().optional(),
+  }),
+  saveAndCreate: z.boolean().optional(),
+  duplicate: z.boolean().optional(),
+});
+
+export const commissionSchema = z.object({
+  name: z.string().min(1, 'Model name is required'),
+  description: z.string().optional(),
+  type: z.enum(['click', 'visit', 'signup', 'purchase', 'custom'], {
+    errorMap: () => ({ message: 'Invalid commission type' }),
+  }),
+  conversionEvent: z.string().optional(),
+  payout: z.object({
+    amount: z.number().min(0, 'Amount must be positive'),
+    isPercentage: z.boolean(),
+    currency: z.string().optional(),
+    baseField: z.string().optional(),
+  }).refine(
+    (data) => !data.isPercentage ? !!data.currency : true,
+    { message: 'Currency is required for fixed amount payouts', path: ['payout.currency'] }
+  ).refine(
+    (data) => data.isPercentage ? !!data.baseField : true,
+    { message: 'Base field is required for percentage payouts', path: ['payout.baseField'] }
+  ),
+  maxPerMarketer: z.number().min(0, 'Must be positive').nullable().optional(),
+  maxTotalPayout: z.number().min(0, 'Must be positive').nullable().optional(),
+  validationMethod: z.enum(['auto', 'manual', 'webhook'], {
+    errorMap: () => ({ message: 'Invalid validation method' }),
+  }),
+  webhookUrl: z.string().optional(),
+  secretToken: z.string().optional(),
+  payoutDelay: z.number().min(0, 'Must be positive'),
+  oneConversionPerUser: z.boolean(),
+  minSessionDuration: z.number().min(0, 'Must be positive').nullable().optional(),
+  organizationId: z.string().optional(),
+  fraudDetection: z.object({
+    conversionDelay: z.number().min(1).max(30).nullable().optional(),
+    ipRestriction: z.enum(['one_per_12h']).nullable().optional(),
+    deviceFingerprintChecks: z.boolean().optional(),
+    duplicateEmailPhoneBlock: z.boolean().optional(),
+    geoTargeting: z.array(z.string()).nullable().optional(),
+    minimumOrderValue: z.number().min(10000).nullable().optional(),
+    conversionSpikeAlert: z.boolean().optional(),
+    cookieTamperDetection: z.boolean().optional(),
+    affiliateBlacklist: z.boolean().optional(),
+    kycVerifiedOnly: z.boolean().optional(),
+  }),
+  saveAndCreate: z.boolean().optional(),
+  duplicate: z.boolean().optional(),
+}).refine(
+  (data) => data.type === 'custom' ? !!data.conversionEvent : true,
+  { message: 'Conversion event is required for custom type', path: ['conversionEvent'] }
+).refine(
+  (data) => data.validationMethod === 'webhook' ? !!data.webhookUrl && !!data.secretToken : true,
+  { message: 'Webhook URL and secret token are required for webhook validation', path: ['webhookUrl', 'secretToken'] }
+);
+
 // Auth schemas
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
 });
-
 
 export const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -286,7 +414,6 @@ export const registerSchema = z.object({
   message: 'Organization name is required for admin role',
   path: ['organizationName'],
 });
-
 
 // Validation schema for profile photo upload
 export const profilePhotoSchema = z.object({
@@ -324,3 +451,4 @@ export type Conversion = IConversion;
 export type Activity = IActivity;
 export type Payout = IPayout;
 export type NotificationSetting = INotificationSetting;
+export type Commission = ICommission;

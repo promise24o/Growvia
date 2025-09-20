@@ -7,4 +7,5 @@ export * from './referral.controller';
 export * from './subscription.controller';
 export * from './user.controller';
 export * from './wallet.controller';
+export * from './application.controller';
 

@@ -34,6 +34,11 @@ interface CreateCommissionInput {
 
 interface UpdateCommissionInput extends Partial<CreateCommissionInput> {}
 
+interface CommissionStats {
+  totalModels: number;
+  activeModels: number;
+}
+
 export class CommissionService {
   async createCommission(data: CreateCommissionInput): Promise<ICommission> {
     if (data.organizationId) {
@@ -112,6 +117,29 @@ export class CommissionService {
     }
 
     await commission.deleteOne();
+  }
+
+  async getOrganizationCommissionStats(organizationId: string): Promise<CommissionStats> {
+    console.log("Organization ID:", organizationId);
+    const stats = await Commission.aggregate([
+      { $match: { organizationId: new Types.ObjectId(organizationId) } },
+      {
+        $group: {
+          _id: null,
+          totalModels: { $sum: 1 },
+          activeModels: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          totalModels: 1,
+          activeModels: 1,
+        },
+      },
+    ]);
+
+    return stats.length > 0 ? stats[0] : { totalModels: 0, activeModels: 0 };
   }
 }
 

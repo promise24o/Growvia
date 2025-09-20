@@ -8,6 +8,7 @@ const router = Router();
 
 router.post("/", authenticate, authorize([UserRole.ADMIN, UserRole.MANAGEMENT]), commissionController.createCommission);
 router.get("/organization", authenticate, authorize([UserRole.ADMIN, UserRole.MANAGEMENT]), commissionController.getOrganizationCommissions);
+router.get("/stats", authenticate, authorize([UserRole.ADMIN, UserRole.MANAGEMENT]), commissionController.getOrganizationCommissionStats);
 router.get("/:id", authenticate, authorize([UserRole.ADMIN, UserRole.MANAGEMENT]), commissionController.getCommission);
 router.put("/:id", authenticate, authorize([UserRole.ADMIN, UserRole.MANAGEMENT]), commissionController.updateCommission);
 router.post("/:id/duplicate", authenticate, authorize([UserRole.ADMIN, UserRole.MANAGEMENT]), commissionController.duplicateCommission);

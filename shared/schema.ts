@@ -1,20 +1,17 @@
 // shared/schema.ts
 import { z } from "zod";
 
-// User roles
 export enum UserRole {
   MANAGEMENT = "management",
   ADMIN = "admin",
   MARKETER = "marketer",
 }
 
-// Payment gateways
 export enum PaymentGateway {
   FLUTTERWAVE = "flutterwave",
   PAYSTACK = "paystack",
 }
 
-// Subscription plans
 export enum SubscriptionPlan {
   FREE_TRIAL = "free_trial",
   STARTER = "starter",
@@ -23,7 +20,6 @@ export enum SubscriptionPlan {
   ENTERPRISE = "enterprise",
 }
 
-// Plan limitations
 export const PLAN_LIMITS = {
   [SubscriptionPlan.FREE_TRIAL]: { apps: 1, marketers: 10, durationDays: 7 },
   [SubscriptionPlan.STARTER]: { apps: 1, marketers: 50, price: 29 },
@@ -36,7 +32,48 @@ export const PLAN_LIMITS = {
   },
 };
 
-// Interfaces for MongoDB documents
+export enum AppType {
+  MOBILE_APP = "Mobile App",
+  WEBSITE = "Website",
+}
+
+export enum AppCategory {
+  FINANCE = "Finance",
+  ECOMMERCE = "eCommerce",
+  EDUCATION = "Education",
+  HEALTH = "Health",
+  GAMING = "Gaming",
+  SOCIAL = "Social",
+  PRODUCTIVITY = "Productivity",
+  OTHER = "Other",
+}
+
+export enum AppStatus {
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  DRAFT = "draft",
+}
+
+export interface IApp {
+  _id?: string;
+  id?: string;
+  organizationId: string;
+  name: string;
+  type: AppType;
+  url: string;
+  shortDescription: string;
+  detailedDescription?: string | null;
+  category: AppCategory;
+  appStoreLink?: string | null;
+  googlePlayLink?: string | null;
+  landingPages?: string[];
+  icon?: string | null;
+  promoMaterials?: string[];
+  status: AppStatus;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export interface IOrganization {
   _id?: string;
   id?: string;
@@ -70,20 +107,6 @@ export interface IUser {
   role: UserRole;
   avatar?: string | null;
   status: string;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-export interface IApp {
-  _id?: string;
-  id?: string;
-  organizationId: string;
-  name: string;
-  description?: string | null;
-  baseUrl: string;
-  icon?: string | null;
-  commissionType: string;
-  commissionValue: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -183,7 +206,6 @@ export interface ICommission {
   };
 }
 
-// Insert schemas
 export const insertOrganizationSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
@@ -258,12 +280,31 @@ export const onboardingSchema = z.object({
 });
 
 export const insertAppSchema = z.object({
-  name: z.string(),
-  description: z.string().optional(),
-  baseUrl: z.string(),
-  icon: z.string().optional(),
-  commissionType: z.string(),
-  commissionValue: z.number(),
+  name: z.string().min(1, 'Application name is required').max(100, 'Name must be less than 100 characters'),
+  type: z.enum(['Mobile App', 'Website'], { message: 'Invalid application type' }),
+  url: z.string().url('Please enter a valid URL').min(1, 'Application URL is required'),
+  shortDescription: z.string().max(200, 'Short description must be less than 200 characters').min(1, 'Short description is required'),
+  detailedDescription: z.string().max(1000, 'Detailed description must be less than 1000 characters').optional(),
+  category: z.enum(['Finance', 'eCommerce', 'Education', 'Health', 'Gaming', 'Social', 'Productivity', 'Other'], { message: 'Invalid category' }),
+  appStoreLink: z.string().url('Please enter a valid App Store URL').optional(),
+  googlePlayLink: z.string().url('Please enter a valid Google Play URL').optional(),
+  landingPages: z.array(z.string().url('Invalid URL')).optional(),
+  promoMaterials: z.array(z.string()).optional(),
+  status: z.enum(['active', 'inactive', 'draft']).optional(),
+}).superRefine((data, ctx) => {
+  if (data.type === 'Mobile App') {
+    if (!data.appStoreLink) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'App Store Link is required for Mobile App', path: ['appStoreLink'] });
+    }
+    if (!data.googlePlayLink) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Google Play Link is required for Mobile App', path: ['googlePlayLink'] });
+    }
+  }
+  if (data.type === 'Website') {
+    if (!data.landingPages || data.landingPages.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'At least one landing page URL is required for Website', path: ['landingPages'] });
+    }
+  }
 });
 
 export const insertAffiliateLinkSchema = z.object({
@@ -305,46 +346,6 @@ export const insertNotificationSettingsSchema = z.object({
   marketingTips: z.boolean(),
 });
 
-export const commissionSchemaBase = z.object({
-  name: z.string().min(1, 'Model name is required'),
-  description: z.string().optional(),
-  type: z.enum(['click', 'visit', 'signup', 'purchase', 'custom'], {
-    errorMap: () => ({ message: 'Invalid commission type' }),
-  }),
-  conversionEvent: z.string().optional(),
-  payout: z.object({
-    amount: z.number().min(0, 'Amount must be positive'),
-    isPercentage: z.boolean(),
-    currency: z.string().optional(),
-    baseField: z.string().optional(),
-  }),
-  maxPerMarketer: z.number().min(0, 'Must be positive').nullable().optional(),
-  maxTotalPayout: z.number().min(0, 'Must be positive').nullable().optional(),
-  validationMethod: z.enum(['auto', 'manual', 'webhook'], {
-    errorMap: () => ({ message: 'Invalid validation method' }),
-  }),
-  webhookUrl: z.string().optional(),
-  secretToken: z.string().optional(),
-  payoutDelay: z.number().min(0, 'Must be positive'),
-  oneConversionPerUser: z.boolean(),
-  minSessionDuration: z.number().min(0, 'Must be positive').nullable().optional(),
-  organizationId: z.string().optional(),
-  fraudDetection: z.object({
-    conversionDelay: z.number().min(1).max(30).nullable().optional(),
-    ipRestriction: z.enum(['one_per_12h']).nullable().optional(),
-    deviceFingerprintChecks: z.boolean().optional(),
-    duplicateEmailPhoneBlock: z.boolean().optional(),
-    geoTargeting: z.array(z.string()).nullable().optional(),
-    minimumOrderValue: z.number().min(10000).nullable().optional(),
-    conversionSpikeAlert: z.boolean().optional(),
-    cookieTamperDetection: z.boolean().optional(),
-    affiliateBlacklist: z.boolean().optional(),
-    kycVerifiedOnly: z.boolean().optional(),
-  }),
-  saveAndCreate: z.boolean().optional(),
-  duplicate: z.boolean().optional(),
-});
-
 export const commissionSchema = z.object({
   name: z.string().min(1, 'Model name is required'),
   description: z.string().optional(),
@@ -359,10 +360,10 @@ export const commissionSchema = z.object({
     baseField: z.string().optional(),
   }).refine(
     (data) => !data.isPercentage ? !!data.currency : true,
-    { message: 'Currency is required for fixed amount payouts', path: ['payout.currency'] }
+    { message: 'Currency is required for fixed amount payouts', path: ['currency'] }
   ).refine(
     (data) => data.isPercentage ? !!data.baseField : true,
-    { message: 'Base field is required for percentage payouts', path: ['payout.baseField'] }
+    { message: 'Base field is required for percentage payouts', path: ['baseField'] }
   ),
   maxPerMarketer: z.number().min(0, 'Must be positive').nullable().optional(),
   maxTotalPayout: z.number().min(0, 'Must be positive').nullable().optional(),
@@ -397,7 +398,6 @@ export const commissionSchema = z.object({
   { message: 'Webhook URL and secret token are required for webhook validation', path: ['webhookUrl', 'secretToken'] }
 );
 
-// Auth schemas
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -415,14 +415,12 @@ export const registerSchema = z.object({
   path: ['organizationName'],
 });
 
-// Validation schema for profile photo upload
 export const profilePhotoSchema = z.object({
   avatar: z.any().refine((file) => file !== undefined, {
     message: "Avatar file is required",
   }),
 });
 
-// Validation schema for profile update
 export const updateProfileSchema = z.object({
   username: z.string().min(3, { message: "Username must be at least 3 characters" }).optional(),
   about: z.string().max(500, { message: "About section cannot exceed 500 characters" }).optional(),
@@ -442,7 +440,6 @@ export const updateProfileSchema = z.object({
   skills: z.array(z.string()).optional(),
 });
 
-// Type aliases for consistency with MongoStorage
 export type Organization = IOrganization;
 export type User = IUser;
 export type App = IApp;

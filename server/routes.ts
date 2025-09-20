@@ -16,6 +16,7 @@ import userRoutes from "./routes/user.routes";
 import walletRoutes from "./routes/wallet.routes";
 import { setupPaymentRoutes } from "./services/payment.service";
 import commissionRoutes from "./routes/commission.routes";
+import applicationRoutes from "./routes/application.routes";
 
 export async function registerRoutes(
   app: Express,
@@ -34,7 +35,6 @@ export async function registerRoutes(
   router.use("/management", managementRoutes);
   router.use("/organizations", organizationRoutes);
   router.use("/marketers", marketerApplicationRoutes);
-  router.use("/apps", appRoutes);
   router.use("/affiliate-links", affiliateLinkRoutes);
   router.use("/conversions", conversionRoutes);
   router.use("/analytics", analyticsRoutes);
@@ -45,6 +45,7 @@ export async function registerRoutes(
   router.use("/wallet", walletRoutes);
   router.use("/referrals", referralRoutes);
   router.use('/commissions', commissionRoutes);
+  router.use('/applications', applicationRoutes);
 
 
   const httpServer = createServer(app);

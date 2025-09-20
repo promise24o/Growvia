@@ -7,5 +7,7 @@ export * from './referral.service';
 export * from './subscription.service';
 export * from './user.service';
 export * from './wallet.service';
+export * from './application.service';
+
 
 

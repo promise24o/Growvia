@@ -13,6 +13,7 @@ export interface ICommission extends Document {
     isPercentage: boolean;
     currency?: string;
     baseField?: string;
+    conversionValueEstimate?: number;
   };
   maxPerMarketer?: number | null;
   maxTotalPayout?: number | null;
@@ -80,6 +81,20 @@ const CommissionSchema = new Schema<ICommission>(
         type: Number,
         required: true,
         min: [0, 'Amount must be positive'],
+        validate: {
+          validator: function (value: number) {
+            if (this.payout.isPercentage) {
+              return value >= 0 && value <= 100;
+            }
+            return value >= 0;
+          },
+          message: function (props: any) {
+            if (props.instance.payout.isPercentage) {
+              return 'Percentage must be between 0 and 100';
+            }
+            return 'Amount must be positive';
+          },
+        },
       },
       isPercentage: {
         type: Boolean,
@@ -95,6 +110,13 @@ const CommissionSchema = new Schema<ICommission>(
       baseField: {
         type: String,
         trim: true,
+        required: function () {
+          return this.payout.isPercentage;
+        },
+      },
+      conversionValueEstimate: {
+        type: Number,
+        min: [1, 'Conversion value estimate must be at least ₦1'],
         required: function () {
           return this.payout.isPercentage;
         },
@@ -134,8 +156,9 @@ const CommissionSchema = new Schema<ICommission>(
     },
     payoutDelay: {
       type: Number,
-      required: true,
+      required: false,
       min: [0, 'Must be positive'],
+      default: 0,
     },
     oneConversionPerUser: {
       type: Boolean,

@@ -2,6 +2,8 @@ import mongoose, { Types } from 'mongoose';
 import { App, IApp } from '../models/Application';
 import { BadRequestError, NotFoundError } from '../utils/errors';
 import { insertAppSchema } from '../../shared/schema';
+import { fileService } from './file.service';
+import { z } from 'zod';
 
 interface CreateAppInput {
   organizationId: Types.ObjectId;
@@ -24,17 +26,87 @@ interface UpdateAppInput extends Partial<CreateAppInput> {}
 interface AppStats {
   totalApps: number;
   activeApps: number;
+  totalAffiliates: number;
+  conversionEventsTracked: number;
+  activeCampaigns: number;
 }
 
 export class AppService {
-  async createApp(data: CreateAppInput): Promise<IApp> {
-    const validation = insertAppSchema.safeParse(data);
-    if (!validation.success) {
-      throw new BadRequestError(validation.error.message);
+  async createApp(data: CreateAppInput, file?: Express.Multer.File, userId?: string): Promise<IApp> {
+    const organizationId = Array.isArray(data.organizationId) 
+      ? data.organizationId[0] 
+      : data.organizationId;
+
+    let landingPages: string[] = [];
+    if (typeof data.landingPages === 'string') {
+      try {
+        landingPages = JSON.parse(data.landingPages);
+      } catch {
+        landingPages = data.landingPages
+          .split(',')
+          .map((url: string) => url.trim())
+          .filter((url: string) => url);
+      }
+    } else if (Array.isArray(data.landingPages)) {
+      landingPages = data.landingPages
+        .map((url: any) => typeof url === 'string' ? url.trim() : '')
+        .filter((url: string) => url);
     }
 
-    const app = new App(data);
+    const processedData = {
+      ...data,
+      organizationId,
+      appStoreLink: data.appStoreLink || null,
+      googlePlayLink: data.googlePlayLink || null,
+      landingPages,
+      promoMaterials: Array.isArray(data.promoMaterials)
+        ? data.promoMaterials.filter((url: string) => url && url.trim() !== '')
+        : [],
+      icon: data.icon || null,
+    };
+
+    const validation = insertAppSchema.safeParse(processedData);
+    if (!validation.success) {
+      throw new BadRequestError(JSON.stringify(validation.error.errors));
+    }
+
+    const existing = await App.findOne({
+      organizationId: new Types.ObjectId(organizationId),
+      name: processedData.name,
+    });
+    if (existing) {
+      throw new BadRequestError('An app with this name already exists in your organization');
+    }
+
+    const app = new App(processedData);
     await app.save();
+
+    if (file && userId) {
+      const iconUrl = await fileService.uploadFile(file, {
+        userId,
+        bucketFolder: 'app-icons',
+        fileNamePrefix: 'icon',
+        maxSize: 5 * 1024 * 1024,
+        allowedTypes: ['image/png', 'image/jpeg', 'image/jpg'],
+        activityDescription: 'You uploaded an app icon',
+        updateEntity: {
+          entityId: app._id.toString(),
+          field: 'icon',
+          updateFn: async (id: string, updateData: UpdateAppInput) => {
+            const appToUpdate = await App.findById(id);
+            if (!appToUpdate) {
+              throw new NotFoundError('App not found');
+            }
+            Object.assign(appToUpdate, updateData);
+            await appToUpdate.save();
+            return appToUpdate;
+          },
+        },
+      });
+      app.icon = iconUrl;
+      await app.save();
+    }
+
     return app;
   }
 
@@ -50,18 +122,69 @@ export class AppService {
     return App.find({ organizationId: new Types.ObjectId(organizationId) });
   }
 
-  async updateApp(id: string, data: UpdateAppInput): Promise<IApp> {
+  async updateApp(id: string, data: UpdateAppInput, file?: Express.Multer.File, userId?: string): Promise<IApp> {
     const app = await App.findById(id);
     if (!app) {
       throw new NotFoundError('App not found');
     }
 
-    const validation = insertAppSchema.partial().safeParse(data);
-    if (!validation.success) {
-      throw new BadRequestError(validation.error.message);
+    let landingPages: string[] | undefined;
+    if (typeof data.landingPages === 'string') {
+      try {
+        landingPages = JSON.parse(data.landingPages);
+      } catch {
+        landingPages = data.landingPages
+          .split(',')
+          .map((url: string) => url.trim())
+          .filter((url: string) => url);
+      }
+    } else if (Array.isArray(data.landingPages)) {
+      landingPages = data.landingPages
+        .map((url: any) => typeof url === 'string' ? url.trim() : '')
+        .filter((url: string) => url);
     }
 
-    Object.assign(app, data);
+    const processedData = {
+      ...data,
+      landingPages: landingPages ?? app.landingPages,
+      appStoreLink: data.appStoreLink !== undefined ? data.appStoreLink : app.appStoreLink,
+      googlePlayLink: data.googlePlayLink !== undefined ? data.googlePlayLink : app.googlePlayLink,
+      promoMaterials: Array.isArray(data.promoMaterials)
+        ? data.promoMaterials.filter((url: string) => url && url.trim() !== '')
+        : app.promoMaterials,
+    };
+
+    const validation = insertAppSchema.safeParse(processedData);
+    if (!validation.success) {
+      throw new BadRequestError(JSON.stringify(validation.error.errors));
+    }
+
+    if (file && userId) {
+      const iconUrl = await fileService.uploadFile(file, {
+        userId,
+        bucketFolder: 'app-icons',
+        fileNamePrefix: 'icon',
+        maxSize: 5 * 1024 * 1024,
+        allowedTypes: ['image/png', 'image/jpeg', 'image/jpg'],
+        activityDescription: 'You updated an app icon',
+        updateEntity: {
+          entityId: id,
+          field: 'icon',
+          updateFn: async (id: string, updateData: UpdateAppInput) => {
+            const appToUpdate = await App.findById(id);
+            if (!appToUpdate) {
+              throw new NotFoundError('App not found');
+            }
+            Object.assign(appToUpdate, updateData);
+            await appToUpdate.save();
+            return appToUpdate;
+          },
+        },
+      });
+      processedData.icon = iconUrl;
+    }
+
+    Object.assign(app, processedData);
     await app.save();
     return app;
   }
@@ -70,6 +193,14 @@ export class AppService {
     const app = await App.findById(id);
     if (!app) {
       throw new NotFoundError('App not found');
+    }
+
+    const existing = await App.findOne({
+      organizationId,
+      name: `${app.name} (Copy)`,
+    });
+    if (existing) {
+      throw new BadRequestError('A duplicate app already exists in your organization');
     }
 
     const newApp = new App({
@@ -90,7 +221,6 @@ export class AppService {
     if (!app) {
       throw new NotFoundError('App not found');
     }
-
     await app.deleteOne();
   }
 
@@ -109,11 +239,22 @@ export class AppService {
           _id: 0,
           totalApps: 1,
           activeApps: 1,
+          // Placeholder values for future implementation
+          totalAffiliates: { $literal: 0 },
+          conversionEventsTracked: { $literal: 0 },
+          activeCampaigns: { $literal: 0 }
         },
       },
     ]);
-
-    return stats.length > 0 ? stats[0] : { totalApps: 0, activeApps: 0 };
+    
+    // Return default values if no apps found
+    return stats.length > 0 ? stats[0] : { 
+      totalApps: 0, 
+      activeApps: 0, 
+      totalAffiliates: 0, 
+      conversionEventsTracked: 0,
+      activeCampaigns: 0 
+    };
   }
 }
 

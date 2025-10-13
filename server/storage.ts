@@ -3,6 +3,7 @@ import {
   IActivity,
   IAffiliateLink,
   IApp,
+  ICampaign,
   IConversion,
   INotificationSetting,
   IOrganization,
@@ -41,11 +42,17 @@ export interface InsertUser {
 export interface InsertApp {
   organizationId: mongoose.Types.ObjectId | string;
   name: string;
-  description?: string | null;
-  baseUrl: string;
+  type: 'Mobile App' | 'Website';
+  url: string;
+  shortDescription: string;
+  detailedDescription?: string | null;
+  category: 'Finance' | 'eCommerce' | 'Education' | 'Health' | 'Gaming' | 'Social' | 'Productivity' | 'Other';
+  appStoreLink?: string | null;
+  googlePlayLink?: string | null;
+  landingPages?: string[];
   icon?: string | null;
-  commissionType?: string;
-  commissionValue?: number;
+  promoMaterials?: string[];
+  status?: 'active' | 'inactive' | 'draft';
 }
 
 export interface InsertAffiliateLink {

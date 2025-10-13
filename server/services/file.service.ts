@@ -2,6 +2,8 @@ import B2 from "backblaze-b2";
 import { IStorage } from "../storage";
 import { MongoStorage } from "../mongoStorage";
 import { z } from "zod";
+import { promisify } from 'util';
+import * as fs from 'fs';
 
 const storage: IStorage = new MongoStorage();
 
@@ -9,6 +11,8 @@ const b2 = new B2({
   applicationKeyId: process.env.BACKBLAZE_APP_KEY_ID,
   applicationKey: process.env.BACKBLAZE_APP_KEY,
 });
+
+const readFile = promisify(fs.readFile);
 
 const uploadSchema = z.object({
   file: z.any().refine((file) => file !== undefined, {
@@ -72,45 +76,72 @@ export class FileService {
       updateEntity,
     } = options;
 
-    this.validateFile(file, { maxSize, allowedTypes });
-
-    await this.initializeB2();
-
-    const bucketId = process.env.BACKBLAZE_BUCKET_ID;
-    const bucketName = process.env.BACKBLAZE_BUCKET;
-
-    if (!bucketId || !bucketName) {
-      throw new Error("Backblaze configuration missing");
+    // Ensure file has the required properties
+    if (!file || !file.originalname || !file.mimetype) {
+      throw new Error("Invalid file object. Required properties are missing.");
     }
 
-    const fileName = this.generateFileName(file, { bucketFolder, userId, fileNamePrefix });
+    let fileBuffer: Buffer;
 
-    const response = await b2.getUploadUrl({ bucketId });
-    const uploadResponse = await b2.uploadFile({
-      uploadUrl: response.data.uploadUrl,
-      uploadAuthToken: response.data.authorizationToken,
-      fileName,
-      data: file.buffer,
-      contentType: file.mimetype,
-    });
+    try {
+      // If buffer is not present but path is, we need to read the file
+      if (!file.buffer && file.path) {
+        fileBuffer = await readFile(file.path);
+      } else if (file.buffer) {
+        fileBuffer = file.buffer;
+      } else {
+        throw new Error("File buffer is required for upload");
+      }
 
-    const uploadedFileName = uploadResponse.data.fileName;
-    const fileUrl = `https://f003.backblazeb2.com/file/${bucketName}/${uploadedFileName}`;
+      // Create a new file object with the buffer
+      const fileWithBuffer = { ...file, buffer: fileBuffer };
+      
+      this.validateFile(fileWithBuffer, { bucketFolder, maxSize, allowedTypes });
 
-    if (updateEntity && userId) {
-      await updateEntity.updateFn(updateEntity.entityId, { [updateEntity.field]: fileUrl });
-    }
+      await this.initializeB2();
 
-    if (userId && activityDescription) {
-      await storage.createActivity({
-        type: "upload",
-        description: activityDescription,
-        userId,
-        metadata: { fileUrl, fileName: uploadedFileName },
+      const bucketId = process.env.BACKBLAZE_BUCKET_ID;
+      const bucketName = process.env.BACKBLAZE_BUCKET;
+
+      if (!bucketId || !bucketName) {
+        throw new Error("Backblaze configuration missing");
+      }
+
+      const fileName = this.generateFileName(fileWithBuffer, { bucketFolder, userId, fileNamePrefix });
+
+      const response = await b2.getUploadUrl({ bucketId });
+      const uploadResponse = await b2.uploadFile({
+        uploadUrl: response.data.uploadUrl,
+        uploadAuthToken: response.data.authorizationToken,
+        fileName,
+        data: fileBuffer,
+        mime: fileWithBuffer.mimetype,
       });
-    }
 
-    return fileUrl;
+      const uploadedFileName = uploadResponse.data.fileName;
+      const fileUrl = `https://f003.backblazeb2.com/file/${bucketName}/${uploadedFileName}`;
+
+      if (userId && activityDescription) {
+        await storage.createActivity({
+          type: "upload",
+          description: activityDescription,
+          userId,
+          metadata: { fileUrl, fileName: uploadedFileName },
+        });
+      }
+
+      if (updateEntity) {
+        await updateEntity.updateFn(updateEntity.entityId, {
+          [updateEntity.field]: fileUrl,
+        });
+      }
+
+      return fileUrl;
+    } catch (error: unknown) {
+      console.error('Error uploading file to Backblaze:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new Error(`Failed to upload file: ${errorMessage}`);
+    }
   }
 }
 

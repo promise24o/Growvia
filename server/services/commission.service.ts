@@ -2,37 +2,77 @@ import mongoose, { Types } from 'mongoose';
 import { Commission, ICommission } from '../models/CommissionModel';
 import { Organization } from '../models/Organization';
 import { BadRequestError, NotFoundError } from '../utils/errors';
-
 interface CreateCommissionInput {
   name: string;
-  description?: string;
+  description?: string | undefined;
   type: string;
-  conversionEvent?: string;
+  conversionEvent?: string | undefined;
   payout: {
     amount: number;
     isPercentage: boolean;
-    currency?: string;
-    baseField?: string;
+    currency?: string | undefined;
+    baseField?: string | undefined;
+    conversionValueEstimate?: number | undefined;
   };
-  maxPerMarketer?: number | null;
-  maxTotalPayout?: number | null;
+  maxPerMarketer?: number | null | undefined;
+  maxTotalPayout?: number | null | undefined;
   validationMethod: string;
+  webhookUrl?: string | undefined;
+  secretToken?: string | undefined;
+  oneConversionPerUser?: boolean | undefined;
+  minSessionDuration?: number | null | undefined;
   fraudDetection: {
-    conversionDelay?: number | null;
-    ipRestriction?: string | null;
-    deviceFingerprintChecks?: boolean;
-    duplicateEmailPhoneBlock?: boolean;
-    geoTargeting?: string[] | null;
-    minimumOrderValue?: number | null;
-    conversionSpikeAlert?: boolean;
-    cookieTamperDetection?: boolean;
-    affiliateBlacklist?: boolean;
-    kycVerifiedOnly?: boolean;
+    conversionDelay?: number | null | undefined;
+    ipRestriction?: string | null | undefined;
+    deviceFingerprintChecks?: boolean | undefined;
+    duplicateEmailPhoneBlock?: boolean | undefined;
+    geoTargeting?: string[] | null | undefined;
+    minimumOrderValue?: number | null | undefined;
+    conversionSpikeAlert?: boolean | undefined;
+    cookieTamperDetection?: boolean | undefined;
+    affiliateBlacklist?: boolean | undefined;
+    kycVerifiedOnly?: boolean | undefined;
   };
-  organizationId?: Types.ObjectId;
+  organizationId?: Types.ObjectId | undefined;
+  saveAndCreate?: boolean | undefined;
+  duplicate?: boolean | undefined;
 }
 
-interface UpdateCommissionInput extends Partial<CreateCommissionInput> {}
+interface UpdateCommissionInput {
+  name?: string | undefined;
+  description?: string | undefined;
+  type?: string | undefined;
+  conversionEvent?: string | undefined;
+  payout?: {
+    amount?: number | undefined;
+    isPercentage?: boolean | undefined;
+    currency?: string | undefined;
+    baseField?: string | undefined;
+    conversionValueEstimate?: number | undefined;
+  } | undefined;
+  maxPerMarketer?: number | null | undefined;
+  maxTotalPayout?: number | null | undefined;
+  validationMethod?: string | undefined;
+  webhookUrl?: string | undefined;
+  secretToken?: string | undefined;
+  oneConversionPerUser?: boolean | undefined;
+  minSessionDuration?: number | null | undefined;
+  fraudDetection?: {
+    conversionDelay?: number | null | undefined;
+    ipRestriction?: string | null | undefined;
+    deviceFingerprintChecks?: boolean | undefined;
+    duplicateEmailPhoneBlock?: boolean | undefined;
+    geoTargeting?: string[] | null | undefined;
+    minimumOrderValue?: number | null | undefined;
+    conversionSpikeAlert?: boolean | undefined;
+    cookieTamperDetection?: boolean | undefined;
+    affiliateBlacklist?: boolean | undefined;
+    kycVerifiedOnly?: boolean | undefined;
+  } | undefined;
+  organizationId?: Types.ObjectId | undefined;
+  saveAndCreate?: boolean | undefined;
+  duplicate?: boolean | undefined;
+}
 
 interface CommissionStats {
   totalModels: number;
@@ -52,8 +92,10 @@ export class CommissionService {
       ...data,
       organizationId: data.organizationId || null,
       payoutDelay: data.fraudDetection.conversionDelay || 0,
-      oneConversionPerUser: data.fraudDetection.duplicateEmailPhoneBlock || false,
-      minSessionDuration: null, // Not used in frontend, set to null
+      oneConversionPerUser: data.oneConversionPerUser || data.fraudDetection.duplicateEmailPhoneBlock || false,
+      minSessionDuration: data.minSessionDuration || null,
+      webhookUrl: data.webhookUrl || null,
+      secretToken: data.secretToken || null,
     });
 
     await commission.save();
@@ -80,10 +122,13 @@ export class CommissionService {
 
     const updateData = {
       ...data,
-      payoutDelay: data.fraudDetection?.conversionDelay || commission.payoutDelay,
-      oneConversionPerUser: data.fraudDetection?.duplicateEmailPhoneBlock !== undefined 
-        ? data.fraudDetection.duplicateEmailPhoneBlock 
-        : commission.oneConversionPerUser,
+      payoutDelay: data.fraudDetection?.conversionDelay !== undefined ? 
+                   data.fraudDetection.conversionDelay : 
+                   commission.payoutDelay,
+      oneConversionPerUser: data.oneConversionPerUser !== undefined ? data.oneConversionPerUser :
+                           data.fraudDetection?.duplicateEmailPhoneBlock !== undefined ? 
+                           data.fraudDetection.duplicateEmailPhoneBlock : 
+                           commission.oneConversionPerUser,
     };
 
     Object.assign(commission, updateData);

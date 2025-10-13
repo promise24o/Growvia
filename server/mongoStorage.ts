@@ -6,10 +6,12 @@ import {
     Activity,
     AffiliateLink,
     App,
+    Campaign,
     Conversion,
     IActivity,
     IAffiliateLink,
     IApp,
+    ICampaign,
     IConversion,
     INotificationSetting,
     IOrganization,
@@ -515,7 +517,31 @@ export class MongoStorage implements IStorage {
   async getApp(id: number): Promise<any | undefined> {
     try {
       const app = await App.findOne({ id });
-      return toPlainObject(app);
+      if (!app) return undefined;
+      
+      const result = toPlainObject<IApp>(app);
+      if (!result) return undefined;
+      
+      return {
+        ...result,
+        id: this.convertId(result._id),
+        // Ensure all fields are included in the response
+        name: result.name,
+        type: result.type,
+        url: result.url,
+        shortDescription: result.shortDescription,
+        detailedDescription: result.detailedDescription,
+        category: result.category,
+        appStoreLink: result.appStoreLink,
+        googlePlayLink: result.googlePlayLink,
+        landingPages: result.landingPages || [],
+        icon: result.icon,
+        promoMaterials: result.promoMaterials || [],
+        status: result.status || 'draft',
+        organizationId: result.organizationId,
+        createdAt: result.createdAt,
+        updatedAt: result.updatedAt,
+      };
     } catch (error) {
       console.error("Error getting app:", error);
       return undefined;
@@ -533,6 +559,22 @@ export class MongoStorage implements IStorage {
           return {
             ...plainApp,
             id: this.convertId(plainApp._id),
+            // Ensure all fields are included in the response
+            name: plainApp.name,
+            type: plainApp.type,
+            url: plainApp.url,
+            shortDescription: plainApp.shortDescription,
+            detailedDescription: plainApp.detailedDescription,
+            category: plainApp.category,
+            appStoreLink: plainApp.appStoreLink,
+            googlePlayLink: plainApp.googlePlayLink,
+            landingPages: plainApp.landingPages || [],
+            icon: plainApp.icon,
+            promoMaterials: plainApp.promoMaterials || [],
+            status: plainApp.status || 'draft',
+            organizationId: plainApp.organizationId,
+            createdAt: plainApp.createdAt,
+            updatedAt: plainApp.updatedAt,
           };
         })
         .filter(Boolean) as any[];
@@ -547,11 +589,17 @@ export class MongoStorage implements IStorage {
       const newApp = new App({
         name: appData.name,
         organizationId: appData.organizationId,
-        description: appData.description || null,
+        type: appData.type,
+        url: appData.url,
+        shortDescription: appData.shortDescription,
+        detailedDescription: appData.detailedDescription || null,
+        category: appData.category,
+        appStoreLink: appData.appStoreLink || null,
+        googlePlayLink: appData.googlePlayLink || null,
+        landingPages: appData.landingPages || [],
         icon: appData.icon || null,
-        baseUrl: appData.baseUrl,
-        commissionType: appData.commissionType || "percentage",
-        commissionValue: appData.commissionValue || 10,
+        promoMaterials: appData.promoMaterials || [],
+        status: appData.status || 'draft',
       });
 
       const saved = await newApp.save();
@@ -573,9 +621,24 @@ export class MongoStorage implements IStorage {
 
   async updateApp(id: number, appData: Partial<any>): Promise<any | undefined> {
     try {
+      const updateData: Partial<IApp> = {
+        ...(appData.name && { name: appData.name }),
+        ...(appData.type && { type: appData.type }),
+        ...(appData.url && { url: appData.url }),
+        ...(appData.shortDescription && { shortDescription: appData.shortDescription }),
+        ...(appData.detailedDescription !== undefined && { detailedDescription: appData.detailedDescription }),
+        ...(appData.category && { category: appData.category }),
+        ...(appData.appStoreLink !== undefined && { appStoreLink: appData.appStoreLink }),
+        ...(appData.googlePlayLink !== undefined && { googlePlayLink: appData.googlePlayLink }),
+        ...(appData.landingPages !== undefined && { landingPages: appData.landingPages }),
+        ...(appData.icon !== undefined && { icon: appData.icon }),
+        ...(appData.promoMaterials !== undefined && { promoMaterials: appData.promoMaterials }),
+        ...(appData.status && { status: appData.status }),
+      };
+
       const app = await App.findOneAndUpdate(
         { id },
-        { $set: appData },
+        { $set: updateData },
         { new: true }
       );
 

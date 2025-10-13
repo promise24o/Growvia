@@ -134,10 +134,7 @@ AppSchema.index({ type: 1 });
 AppSchema.index({ category: 1 });
 AppSchema.index({ status: 1 });
 
-// Check if model has already been compiled
-const App = mongoose.models.App || mongoose.model<IApp>('App', AppSchema);
-
-export { App };
+export const App = mongoose.model<IApp>('App', AppSchema);
 export const AppTypes = allowedTypes;
 export const AppCategories = allowedCategories;
 export const AppStatuses = Object.values(AppStatus);

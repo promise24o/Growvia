@@ -6,3 +6,5 @@ export * from './user.routes';
 export * from './wallet.routes';
 export * from './referral.routes';
 export * from './application.routes';
+export * from './commission.routes';
+export * from './campaign.routes';

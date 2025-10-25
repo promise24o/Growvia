@@ -22,7 +22,17 @@ interface CreateCampaignInput {
   maxAffiliates: number;
   expectedConversionsPerAffiliate?: number | null | undefined;
   organizationId?: string | undefined;
-  status?: 'active' | 'paused' | 'completed' | 'archived' | undefined;
+  status?: 'active' | 'paused' | 'completed' | 'archived' | 'draft' | undefined;
+  budgetCalculation?: {
+    baseBudget: number;
+    bufferAmount: number;
+    totalBudget: number;
+    breakdown: Array<{
+      modelName: string;
+      cost: number;
+      percentage: number;
+    }>;
+  } | undefined;
 }
 
 interface UpdateCampaignInput {
@@ -38,7 +48,17 @@ interface UpdateCampaignInput {
   safetyBufferPercent?: number | undefined;
   maxAffiliates?: number | undefined;
   expectedConversionsPerAffiliate?: number | null | undefined;
-  status?: 'active' | 'paused' | 'completed' | 'archived' | undefined;
+  status?: 'active' | 'paused' | 'completed' | 'archived' | 'draft' | undefined;
+  budgetCalculation?: {
+    baseBudget: number;
+    bufferAmount: number;
+    totalBudget: number;
+    breakdown: Array<{
+      modelName: string;
+      cost: number;
+      percentage: number;
+    }>;
+  } | undefined;
 }
 
 interface CampaignStats {
@@ -330,7 +350,7 @@ export class CampaignService {
     return this.updateCampaignStatus(id, 'archived');
   }
 
-  private async updateCampaignStatus(id: string, status: 'active' | 'paused' | 'completed' | 'archived'): Promise<ICampaign> {
+  private async updateCampaignStatus(id: string, status: 'active' | 'paused' | 'completed' | 'archived' | 'draft'): Promise<ICampaign> {
     const campaign = await Campaign.findById(id);
     if (!campaign) {
       throw new NotFoundError('Campaign not found');

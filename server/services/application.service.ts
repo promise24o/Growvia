@@ -224,36 +224,455 @@ export class AppService {
     await app.deleteOne();
   }
 
-  async getOrganizationAppStats(organizationId: string): Promise<AppStats> {
-    const stats = await App.aggregate([
-      { $match: { organizationId: new Types.ObjectId(organizationId) } },
-      {
-        $group: {
-          _id: null,
-          totalApps: { $sum: 1 },
-          activeApps: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          totalApps: 1,
-          activeApps: 1,
-          // Placeholder values for future implementation
-          totalAffiliates: { $literal: 0 },
-          conversionEventsTracked: { $literal: 0 },
-          activeCampaigns: { $literal: 0 }
-        },
-      },
-    ]);
+  async getAppStats(organizationId: string): Promise<AppStats> {
+    const totalApps = await App.countDocuments({ organizationId: new Types.ObjectId(organizationId) });
+    const activeApps = await App.countDocuments({ 
+      organizationId: new Types.ObjectId(organizationId), 
+      status: 'active' 
+    });
+
+    return {
+      totalApps,
+      activeApps,
+      totalAffiliates: 0, // This would need to be calculated from affiliate assignments
+      conversionEventsTracked: 0, // This would need to be calculated from conversion events
+      activeCampaigns: 0, // This would need to be calculated from active campaigns
+    };
+  }
+
+  // ===== ASSET MANAGEMENT METHODS =====
+
+  /**
+   * Get all assets for an application
+   */
+  async getAppAssets(appId: string, userId: string): Promise<any> {
+    if (!Types.ObjectId.isValid(appId)) {
+      throw new BadRequestError('Invalid app ID');
+    }
+
+    const app = await App.findById(appId);
+    if (!app) {
+      throw new NotFoundError('Application not found');
+    }
+
+    // Handle legacy landing pages format (string array) and convert to new format
+    let landingPages = app.landingPages || [];
     
-    // Return default values if no apps found
-    return stats.length > 0 ? stats[0] : { 
-      totalApps: 0, 
-      activeApps: 0, 
-      totalAffiliates: 0, 
-      conversionEventsTracked: 0,
-      activeCampaigns: 0 
+    // Check if we have legacy format (array of strings)
+    if (landingPages.length > 0 && typeof landingPages[0] === 'string') {
+      // Convert legacy format to new structured format
+      landingPages = (landingPages as any[]).map((url: string, index: number) => ({
+        id: `legacy_${index}_${Date.now()}`,
+        title: `Landing Page ${index + 1}`,
+        url: url,
+        isPrimary: index === 0,
+        createdAt: app.createdAt || new Date(),
+      }));
+      
+      // Update the database with the new format
+      app.landingPages = landingPages as any;
+      await app.save();
+    }
+
+    // Handle legacy promotional materials format (string array) and convert to new format
+    let promoMaterials = app.promoMaterials || [];
+    
+    // Check if we have legacy format (array of strings)
+    if (promoMaterials.length > 0 && typeof promoMaterials[0] === 'string') {
+      // Convert legacy format to new structured format
+      promoMaterials = (promoMaterials as any[]).map((url: string, index: number) => ({
+        id: Date.now() + index,
+        name: `Legacy Material ${index + 1}`,
+        type: 'image',
+        url: url,
+        size: 'Unknown',
+        dimensions: 'N/A',
+        uploadedAt: app.createdAt || new Date(),
+      }));
+      
+      // Update the database with the new format
+      app.promoMaterials = promoMaterials as any;
+      await app.save();
+    }
+
+    // Return structured asset data
+    return {
+      promoMaterials: promoMaterials,
+      landingPages: landingPages,
+      appStoreLinks: {
+        appStore: app.appStoreLink || '',
+        googlePlay: app.googlePlayLink || '',
+      },
+    };
+  }
+
+  /**
+   * Upload promotional material
+   */
+  async uploadPromoMaterial(
+    appId: string,
+    file: Express.Multer.File,
+    name: string,
+    userId: string
+  ): Promise<any> {
+    if (!Types.ObjectId.isValid(appId)) {
+      throw new BadRequestError('Invalid app ID');
+    }
+
+    const app = await App.findById(appId);
+    if (!app) {
+      throw new NotFoundError('Application not found');
+    }
+
+    // Upload file using file service
+    const fileUrl = await fileService.uploadFile(file, {
+      bucketFolder: `apps/${appId}/promo-materials`,
+      allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'application/pdf'],
+      maxSize: 10 * 1024 * 1024, // 10MB
+    });
+
+    const newMaterial = {
+      id: Date.now(),
+      name: name || file.originalname,
+      type: file.mimetype.startsWith('image/') ? 'image' : 'file',
+      url: fileUrl,
+      size: `${(file.size / 1024).toFixed(1)} KB`,
+      dimensions: 'N/A', // Would need image processing to get actual dimensions
+      uploadedAt: new Date(),
+    };
+
+    // Initialize promoMaterials if it doesn't exist
+    if (!app.promoMaterials) {
+      app.promoMaterials = [];
+    }
+
+    // Handle legacy format first if needed
+    if (app.promoMaterials.length > 0 && typeof app.promoMaterials[0] === 'string') {
+      // Convert legacy format to new structured format
+      const newPromoMaterials = (app.promoMaterials as any[]).map((url: string, index: number) => ({
+        id: Date.now() + index,
+        name: `Legacy Material ${index + 1}`,
+        type: 'image',
+        url: url,
+        size: 'Unknown',
+        dimensions: 'N/A',
+        uploadedAt: app.createdAt || new Date(),
+      }));
+      
+      app.promoMaterials = newPromoMaterials as any;
+    }
+
+    (app.promoMaterials as any[]).push(newMaterial);
+    await app.save();
+    
+    return newMaterial;
+  }
+
+  /**
+   * Delete promotional material
+   */
+  async deletePromoMaterial(appId: string, materialId: string, userId: string): Promise<void> {
+    if (!Types.ObjectId.isValid(appId)) {
+      throw new BadRequestError('Invalid app ID');
+    }
+
+    const app = await App.findById(appId);
+    if (!app) {
+      throw new NotFoundError('Application not found');
+    }
+
+    if (!app.promoMaterials) {
+      throw new NotFoundError('No promotional materials found for this application');
+    }
+
+    // Handle legacy format first if needed
+    if (app.promoMaterials.length > 0 && typeof app.promoMaterials[0] === 'string') {
+      // Convert legacy format to new structured format
+      const newPromoMaterials = (app.promoMaterials as any[]).map((url: string, index: number) => ({
+        id: Date.now() + index,
+        name: `Legacy Material ${index + 1}`,
+        type: 'image',
+        url: url,
+        size: 'Unknown',
+        dimensions: 'N/A',
+        uploadedAt: app.createdAt || new Date(),
+      }));
+      
+      app.promoMaterials = newPromoMaterials as any;
+      await app.save();
+    }
+
+    // Try to find by materialId (number)
+    let materialIndex = app.promoMaterials.findIndex((material: any) => 
+      material.id.toString() === materialId
+    );
+
+    // If not found by ID, try to find by MongoDB _id
+    if (materialIndex === -1) {
+      materialIndex = app.promoMaterials.findIndex((material: any) => 
+        (material as any)._id?.toString() === materialId
+      );
+    }
+
+    if (materialIndex === -1) {
+      // Log available IDs for debugging
+      const availableIds = app.promoMaterials.map((material: any) => ({
+        id: material.id,
+        _id: (material as any)._id?.toString(),
+        name: material.name
+      }));
+      console.log('Available promo material IDs:', availableIds);
+      console.log('Requested material ID:', materialId);
+      throw new NotFoundError(`Promotional material with ID ${materialId} not found. Available materials: ${availableIds.length}`);
+    }
+
+    // Remove from array
+    app.promoMaterials.splice(materialIndex, 1);
+    await app.save();
+  }
+
+  /**
+   * Add landing page
+   */
+  async addLandingPage(
+    appId: string,
+    landingPageData: { title: string; url: string; isPrimary: boolean },
+    userId: string
+  ): Promise<any> {
+    if (!Types.ObjectId.isValid(appId)) {
+      throw new BadRequestError('Invalid app ID');
+    }
+
+    const app = await App.findById(appId);
+    if (!app) {
+      throw new NotFoundError('Application not found');
+    }
+
+    // Initialize landingPages if it doesn't exist
+    if (!app.landingPages) {
+      app.landingPages = [];
+    }
+
+    // If this is set as primary, make all others non-primary
+    if (landingPageData.isPrimary) {
+      app.landingPages.forEach(page => {
+        page.isPrimary = false;
+      });
+    }
+
+    // Create new landing page
+    const newLandingPage = {
+      id: new Date().getTime().toString(),
+      title: landingPageData.title,
+      url: landingPageData.url,
+      isPrimary: landingPageData.isPrimary,
+      createdAt: new Date(),
+    };
+
+    app.landingPages.push(newLandingPage);
+    await app.save();
+
+    return newLandingPage;
+  }
+
+  /**
+   * Delete landing page
+   */
+  async deleteLandingPage(appId: string, pageId: string, userId: string): Promise<void> {
+    if (!Types.ObjectId.isValid(appId)) {
+      throw new BadRequestError('Invalid app ID');
+    }
+
+    const app = await App.findById(appId);
+    if (!app) {
+      throw new NotFoundError('Application not found');
+    }
+
+    if (!app.landingPages) {
+      throw new NotFoundError('No landing pages found for this application');
+    }
+
+    // Handle legacy format first if needed
+    if (app.landingPages.length > 0 && typeof app.landingPages[0] === 'string') {
+      // Convert legacy format to new structured format
+      const newLandingPages = (app.landingPages as any[]).map((url: string, index: number) => ({
+        id: `legacy_${index}_${Date.now()}`,
+        title: `Landing Page ${index + 1}`,
+        url: url,
+        isPrimary: index === 0,
+        createdAt: app.createdAt || new Date(),
+      }));
+      
+      app.landingPages = newLandingPages as any;
+      await app.save();
+    }
+
+    // Try to find by pageId first
+    let pageIndex = app.landingPages.findIndex(page => page.id === pageId);
+    
+    // If not found by ID, try to find by MongoDB _id
+    if (pageIndex === -1) {
+      pageIndex = app.landingPages.findIndex(page => (page as any)._id?.toString() === pageId);
+    }
+
+    // If still not found, try to find by index (fallback for legacy calls)
+    if (pageIndex === -1 && /^\d+$/.test(pageId)) {
+      const index = parseInt(pageId);
+      if (index >= 0 && index < app.landingPages.length) {
+        pageIndex = index;
+      }
+    }
+
+    if (pageIndex === -1) {
+      // Log available IDs for debugging
+      const availableIds = app.landingPages.map(page => ({
+        id: page.id,
+        _id: (page as any)._id?.toString(),
+        url: page.url
+      }));
+      console.log('Available landing page IDs:', availableIds);
+      console.log('Requested page ID:', pageId);
+      throw new NotFoundError(`Landing page with ID ${pageId} not found. Available pages: ${availableIds.length}`);
+    }
+
+    app.landingPages.splice(pageIndex, 1);
+    await app.save();
+  }
+
+  /**
+   * Set landing page as primary
+   */
+  async setPrimaryLandingPage(appId: string, pageId: string, userId: string): Promise<void> {
+    if (!Types.ObjectId.isValid(appId)) {
+      throw new BadRequestError('Invalid app ID');
+    }
+
+    const app = await App.findById(appId);
+    if (!app) {
+      throw new NotFoundError('Application not found');
+    }
+
+    if (!app.landingPages) {
+      throw new NotFoundError('No landing pages found for this application');
+    }
+
+    // Handle legacy format first if needed
+    if (app.landingPages.length > 0 && typeof app.landingPages[0] === 'string') {
+      // Convert legacy format to new structured format
+      const newLandingPages = (app.landingPages as any[]).map((url: string, index: number) => ({
+        id: `legacy_${index}_${Date.now()}`,
+        title: `Landing Page ${index + 1}`,
+        url: url,
+        isPrimary: index === 0,
+        createdAt: app.createdAt || new Date(),
+      }));
+      
+      app.landingPages = newLandingPages as any;
+      await app.save();
+    }
+
+    // Try to find by pageId first
+    let targetPage = app.landingPages.find(page => page.id === pageId);
+    
+    // If not found by ID, try to find by MongoDB _id (in case it's using the auto-generated _id)
+    if (!targetPage) {
+      targetPage = app.landingPages.find(page => (page as any)._id?.toString() === pageId);
+    }
+
+    // If still not found, try to find by index (fallback for legacy calls)
+    if (!targetPage && /^\d+$/.test(pageId)) {
+      const index = parseInt(pageId);
+      if (index >= 0 && index < app.landingPages.length) {
+        targetPage = app.landingPages[index];
+      }
+    }
+
+    if (!targetPage) {
+      // Log available IDs for debugging
+      const availableIds = app.landingPages.map(page => ({
+        id: page.id,
+        _id: (page as any)._id?.toString(),
+        url: page.url
+      }));
+      console.log('Available landing page IDs:', availableIds);
+      console.log('Requested page ID:', pageId);
+      throw new NotFoundError(`Landing page with ID ${pageId} not found. Available pages: ${availableIds.length}`);
+    }
+
+    // Set all pages to non-primary first
+    app.landingPages.forEach(page => {
+      page.isPrimary = false;
+    });
+
+    // Set the target page as primary
+    targetPage.isPrimary = true;
+    
+    await app.save();
+  }
+
+  /**
+   * Update app store links
+   */
+  async updateAppStoreLinks(
+    appId: string,
+    links: { appStore?: string; googlePlay?: string },
+    userId: string
+  ): Promise<any> {
+    if (!Types.ObjectId.isValid(appId)) {
+      throw new BadRequestError('Invalid app ID');
+    }
+
+    const app = await App.findById(appId);
+    if (!app) {
+      throw new NotFoundError('Application not found');
+    }
+
+    // Update the links
+    if (links.appStore !== undefined) {
+      app.appStoreLink = links.appStore;
+    }
+    if (links.googlePlay !== undefined) {
+      app.googlePlayLink = links.googlePlay;
+    }
+
+    await app.save();
+
+    return {
+      appStore: app.appStoreLink || '',
+      googlePlay: app.googlePlayLink || '',
+    };
+  }
+
+  /**
+   * Migrate legacy landing pages format to new structured format
+   */
+  async migrateLegacyLandingPages(): Promise<{ migrated: number; total: number }> {
+    const apps = await App.find({});
+    let migratedCount = 0;
+
+    for (const app of apps) {
+      if (app.landingPages && app.landingPages.length > 0) {
+        // Check if this is legacy format (array of strings)
+        if (typeof app.landingPages[0] === 'string') {
+          // Convert to new format
+          const newLandingPages = (app.landingPages as any[]).map((url: string, index: number) => ({
+            id: `migrated_${app._id}_${index}_${Date.now()}`,
+            title: `Landing Page ${index + 1}`,
+            url: url,
+            isPrimary: index === 0,
+            createdAt: app.createdAt || new Date(),
+          }));
+
+          app.landingPages = newLandingPages as any;
+          await app.save();
+          migratedCount++;
+        }
+      }
+    }
+
+    return {
+      migrated: migratedCount,
+      total: apps.length,
     };
   }
 }

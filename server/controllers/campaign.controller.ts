@@ -180,10 +180,12 @@ export class CampaignController {
       const validationResult = updateCampaignSchema.safeParse(req.body);
       if (!validationResult.success) {
         const validationError = fromZodError(validationResult.error);
+        console.error('Campaign validation failed:', JSON.stringify(validationResult.error.issues, null, 2));
         return res.status(400).json({
           status: "error",
           message: "Validation failed",
           errors: validationError.details,
+          issues: validationResult.error.issues,
         });
       }
 
@@ -196,6 +198,7 @@ export class CampaignController {
         data: campaign,
       });
     } catch (error: any) {
+      console.error('Campaign update error:', error);
       Sentry.captureException(error, {
         extra: {
           route: req.path,

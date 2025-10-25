@@ -17,7 +17,17 @@ export interface ICampaign extends Document {
   maxAffiliates: number;
   expectedConversionsPerAffiliate?: number | null;
   organizationId?: mongoose.Types.ObjectId | null;
-  status: 'active' | 'paused' | 'completed' | 'archived';
+  status: 'active' | 'paused' | 'completed' | 'archived' | 'draft';
+  budgetCalculation?: {
+    baseBudget: number;
+    bufferAmount: number;
+    totalBudget: number;
+    breakdown: Array<{
+      modelName: string;
+      cost: number;
+      percentage: number;
+    }>;
+  };
   createdAt: Date;
   updatedAt: Date;
   // Computed fields (calculated separately, not as virtuals)
@@ -41,7 +51,7 @@ const allowedCategories = [
 ];
 
 const allowedVisibility = ['public', 'invite-only'];
-const allowedStatuses = ['active', 'paused', 'completed', 'archived'];
+const allowedStatuses = ['active', 'paused', 'completed', 'archived', 'draft'];
 
 const CampaignSchema = new Schema<ICampaign>(
   {
@@ -142,7 +152,23 @@ const CampaignSchema = new Schema<ICampaign>(
         values: allowedStatuses,
         message: 'Invalid status',
       },
-      default: 'active',
+      default: 'draft',
+    },
+    budgetCalculation: {
+      type: {
+        baseBudget: { type: Number, required: true },
+        bufferAmount: { type: Number, required: true },
+        totalBudget: { type: Number, required: true },
+        breakdown: [
+          {
+            modelName: { type: String, required: true },
+            cost: { type: Number, required: true },
+            percentage: { type: Number, required: true },
+          },
+        ],
+      },
+      required: false,
+      default: undefined,
     },
   },
   {

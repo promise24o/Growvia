@@ -15,6 +15,7 @@ import {
   sendGrowCoinTransferNotificationEmail,
   sendGrowCoinReceivedNotificationEmail,
   sendGrowCoinTopUpNotificationEmail,
+  sendCampaignInvitationEmail,
 } from '../utils/email';
 
 interface EmailJobData {
@@ -120,6 +121,13 @@ emailQueue.process(async (job) => {
           throw new Error('Missing required fields for GrowCoin top-up notification email');
         }
         await sendGrowCoinTopUpNotificationEmail(data.email, data.name, data.amount, data.transactionId, data.timestamp, data);
+        break;
+      case 'campaign_invitation':
+      case 'campaign_invitation_resent':
+        if (!user || !data.campaign || !organization || !data.invitationUrl) {
+          throw new Error('Missing required fields for campaign invitation email');
+        }
+        await sendCampaignInvitationEmail(user, data.campaign, organization, data.invitationUrl, data);
         break;
       default:
         throw new Error(`Unknown email type: ${type}`);

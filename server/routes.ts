@@ -18,6 +18,7 @@ import { setupPaymentRoutes } from "./services/payment.service";
 import commissionRoutes from "./routes/commission.routes";
 import applicationRoutes from "./routes/application.routes";
 import campaignRoutes from "./routes/campaign.routes";
+import campaignAffiliateRoutes from "./routes/campaignAffiliate.routes";
 
 export async function registerRoutes(
   app: Express,
@@ -48,6 +49,7 @@ export async function registerRoutes(
   router.use('/commissions', commissionRoutes);
   router.use('/applications', applicationRoutes);
   router.use('/campaigns', campaignRoutes);
+  router.use('/campaign-affiliates', campaignAffiliateRoutes);
 
 
   const httpServer = createServer(app);

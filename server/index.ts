@@ -138,15 +138,8 @@ if (process.env.GLITCHTIP_DSN) {
 
   // API-only server - no frontend serving
 
-  const port = parseInt(process.env.PORT || "5000");
-  server.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    }
-  );
+  const port = parseInt(process.env.PORT || "5050");
+  server.listen(port, "0.0.0.0", () => {
+    log(`serving on port ${port}`);
+  });
 })();

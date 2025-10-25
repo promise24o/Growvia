@@ -414,3 +414,28 @@ export async function sendGrowCoinTopUpNotificationEmail(
   });
   return await sendEmail(email, subject, html, defaultFrom, name);
 }
+
+// Send campaign invitation email
+export async function sendCampaignInvitationEmail(
+  user: any,
+  campaign: any,
+  organization: any,
+  invitationUrl: string,
+  data: Record<string, any> = {}
+): Promise<boolean> {
+  const subject = `Campaign Invitation: ${campaign.name} - Growvia`;
+  const html = await renderTemplate('campaign-invitation', {
+    userName: user.name,
+    inviterName: organization.name,
+    campaignName: campaign.name,
+    campaignCategory: campaign.category,
+    campaignVisibility: campaign.visibility,
+    maxAffiliates: campaign.maxAffiliates,
+    invitationUrl,
+    dashboardUrl: `${process.env.FRONTEND_URL || 'https://app.growviapro.com'}/dashboard`,
+    supportUrl: `${process.env.FRONTEND_URL || 'https://app.growviapro.com'}/support`,
+    year: new Date().getFullYear(),
+    ...data,
+  });
+  return await sendEmail(user.email, subject, html, defaultFrom, user.name);
+}

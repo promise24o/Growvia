@@ -44,8 +44,7 @@ const AffiliateLinkSchema = new Schema<IAffiliateLink>(
   }
 );
 
-// Add indexes
-AffiliateLinkSchema.index({ code: 1 }, { unique: true });
+// Add indexes (code already has unique index from schema definition)
 AffiliateLinkSchema.index({ userId: 1 });
 AffiliateLinkSchema.index({ appId: 1 });
 

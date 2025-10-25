@@ -9,4 +9,6 @@ export * from './MarketerApplication';
 export * from './Application';
 export * from './CampaignModel';
 export * from './CommissionModel';
+export * from './CampaignAffiliate';
+export * from './AuditLog';
 

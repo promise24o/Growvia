@@ -49,9 +49,8 @@ const ConversionSchema = new Schema<IConversion>(
   }
 );
 
-// Add indexes
+// Add indexes (transactionId already has unique index from schema definition)
 ConversionSchema.index({ linkId: 1 });
-ConversionSchema.index({ transactionId: 1 }, { unique: true });
 ConversionSchema.index({ status: 1 });
 
 export const Conversion = mongoose.model<IConversion>('Conversion', ConversionSchema);

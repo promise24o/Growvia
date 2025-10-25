@@ -492,7 +492,17 @@ export interface ICampaign {
   maxAffiliates: number;
   expectedConversionsPerAffiliate?: number | null;
   organizationId?: string | null;
-  status?: 'active' | 'paused' | 'completed' | 'archived';
+  status?: 'active' | 'paused' | 'completed' | 'archived' | 'draft';
+  budgetCalculation?: {
+    baseBudget: number;
+    bufferAmount: number;
+    totalBudget: number;
+    breakdown: Array<{
+      modelName: string;
+      cost: number;
+      percentage: number;
+    }>;
+  };
   createdAt?: Date;
   updatedAt?: Date;
   currentAffiliates?: number;
@@ -537,7 +547,17 @@ const baseCampaignSchema = z.object({
   maxAffiliates: z.number().min(1, 'Must allow at least 1 affiliate').max(10000, 'Cannot exceed 10,000 affiliates'),
   expectedConversionsPerAffiliate: z.number().min(0, 'Must be positive').nullable().optional(),
   organizationId: z.string().optional(),
-  status: z.enum(['active', 'paused', 'completed', 'archived']).optional(),
+  status: z.enum(['active', 'paused', 'completed', 'archived', 'draft']).optional(),
+  budgetCalculation: z.object({
+    baseBudget: z.number().min(0, 'Base budget must be positive'),
+    bufferAmount: z.number().min(0, 'Buffer amount must be positive'),
+    totalBudget: z.number().min(0, 'Total budget must be positive'),
+    breakdown: z.array(z.object({
+      modelName: z.string().min(1, 'Model name is required'),
+      cost: z.number().min(0, 'Cost must be positive'),
+      percentage: z.number().min(0).max(100, 'Percentage must be between 0 and 100'),
+    })),
+  }).optional(),
 });
 
 // Full campaign schema with refinements for creation

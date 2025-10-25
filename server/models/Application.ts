@@ -1,6 +1,24 @@
 import mongoose, { Document, Schema } from "mongoose";
 import { AppCategory, AppStatus, AppType } from "../../shared/schema";
 
+export interface ILandingPage {
+  id: string;
+  title: string;
+  url: string;
+  isPrimary: boolean;
+  createdAt: Date;
+}
+
+export interface IPromoMaterial {
+  id: number;
+  name: string;
+  type: string;
+  url: string;
+  size: string;
+  dimensions: string;
+  uploadedAt: Date;
+}
+
 export interface IApp extends Document {
   _id: string;
   organizationId: mongoose.Types.ObjectId;
@@ -12,9 +30,9 @@ export interface IApp extends Document {
   category: AppCategory;
   appStoreLink?: string;
   googlePlayLink?: string;
-  landingPages?: string[];
+  landingPages?: ILandingPage[];
   icon?: string;
-  promoMaterials?: string[];
+  promoMaterials?: IPromoMaterial[];
   status: AppStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -95,15 +113,42 @@ const AppSchema = new Schema<IApp>(
       },
     },
     landingPages: {
-      type: [String],
+      type: [{
+        id: {
+          type: String,
+          required: true,
+        },
+        title: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        url: {
+          type: String,
+          required: true,
+          trim: true,
+          validate: {
+            validator: (value: string) => /^https?:\/\/.+/.test(value),
+            message: 'Invalid URL format',
+          },
+        },
+        isPrimary: {
+          type: Boolean,
+          default: false,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      }],
       validate: {
-        validator: function (value: string[]) {
+        validator: function (value: ILandingPage[]) {
           if (this.type === 'Website') {
-            return value && value.length > 0 && value.every((url: string) => /^https?:\/\/.+/.test(url));
+            return value && value.length > 0;
           }
           return true;
         },
-        message: 'At least one valid landing page URL is required for Website',
+        message: 'At least one landing page is required for Website',
       },
     },
     icon: {
@@ -112,7 +157,38 @@ const AppSchema = new Schema<IApp>(
       default: null,
     },
     promoMaterials: {
-      type: [String],
+      type: [{
+        id: {
+          type: Number,
+          required: true,
+        },
+        name: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        type: {
+          type: String,
+          required: true,
+        },
+        url: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        size: {
+          type: String,
+          required: true,
+        },
+        dimensions: {
+          type: String,
+          default: 'N/A',
+        },
+        uploadedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      }],
       default: [],
     },
     status: {

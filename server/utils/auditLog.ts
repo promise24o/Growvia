@@ -1,4 +1,4 @@
-import { AuditLogModel } from "../models/AuditLog";
+import { AuditLog } from "../models/AuditLog";
 
 interface AuditLogEntry {
     userId: string;
@@ -9,7 +9,7 @@ interface AuditLogEntry {
 
 export const auditLog = async (userId: string, action: string, details: string): Promise<void> => {
     try {
-        await AuditLogModel.create({
+        await AuditLog.create({
             userId,
             action,
             details,

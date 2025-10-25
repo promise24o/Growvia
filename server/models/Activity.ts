@@ -27,6 +27,10 @@ const allowedTypes = [
   "marketer_revoked",
   "application_removed",
   "marketer_registered",
+  "campaign_invitation_received",
+  "campaign_invitation_accepted",
+  "campaign_invitation_declined",
+  "campaign_invitation_resent",
 ];
 
 const ActivitySchema = new Schema<IActivity>(

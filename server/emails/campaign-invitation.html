@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Invitation - {{campaignName}} - Growvia</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f4f7fc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 640px;
+            width: 100%;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin: 24px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: #ffffff;
+            padding: 40px 32px;
+            text-align: center;
+        }
+
+        .header img {
+            width: 40px;
+            margin-bottom: 12px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px 32px;
+            color: #1f2937;
+            line-height: 1.75;
+        }
+
+        .content h2 {
+            margin: 0 0 16px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #4f46e5;
+        }
+
+        .content p {
+            font-size: 16px;
+            color: #4b5563;
+            margin: 0 0 16px;
+        }
+
+        .campaign-details {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 24px;
+            margin: 24px 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .campaign-details::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('https://img.freepik.com/free-vector/flat-design-illustration-customer-support_23-2148887720.jpg') no-repeat top right / 120px;
+            opacity: 0.1;
+            z-index: 0;
+        }
+
+        .campaign-details h3 {
+            margin: 0 0 16px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            position: relative;
+            z-index: 1;
+        }
+
+        .campaign-details ul {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            position: relative;
+            z-index: 1;
+        }
+
+        .campaign-details li {
+            margin: 12px 0;
+            font-size: 14px;
+            color: #4b5563;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .campaign-details li::before {
+            content: '•';
+            color: #4f46e5;
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .campaign-details strong {
+            color: #1f2937;
+            font-weight: 600;
+        }
+
+        .button-container {
+            margin: 32px 0;
+            text-align: center;
+        }
+
+        .invitation-button {
+            background-color: #6366F1;
+            color: #fff;
+            padding: 14px 28px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 1.1em;
+            display: inline-block;
+            transition: background-color 0.2s ease;
+            margin: 5px;
+        }
+
+        .invitation-button:hover {
+            background-color: #4F46E5;
+        }
+
+        .info-box {
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 24px 0;
+        }
+
+        .info-box p {
+            margin: 8px 0;
+            color: #1e40af;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .footer {
+            background-color: #f8fafc;
+            color: #6b7280;
+            padding: 24px;
+            text-align: center;
+            font-size: 13px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .footer p {
+            margin: 6px 0;
+        }
+
+        .footer a {
+            color: #4f46e5;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 576px) {
+            .container {
+                margin: 16px;
+            }
+
+            .header {
+                padding: 24px 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .header p {
+                font-size: 13px;
+            }
+
+            .content {
+                padding: 24px 20px;
+            }
+
+            .content h2 {
+                font-size: 20px;
+            }
+
+            .content p {
+                font-size: 14px;
+            }
+
+            .campaign-details {
+                padding: 16px;
+            }
+
+            .campaign-details h3 {
+                font-size: 16px;
+            }
+
+            .campaign-details li {
+                font-size: 13px;
+            }
+
+            .button-container {
+                margin: 24px 0;
+            }
+
+            .invitation-button {
+                padding: 12px 24px;
+                font-size: 14px;
+                width: 100%;
+                margin: 8px 0;
+            }
+
+            .info-box {
+                padding: 16px;
+            }
+
+            .footer {
+                padding: 16px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://i.ibb.co/1tsQ0dqs/icon-light.png" alt="Growvia Logo">
+            <h1>Growvia</h1>
+            <p>Your Affiliate Marketing Platform</p>
+        </div>
+
+        <div class="content">
+            <h2>Campaign Invitation</h2>
+            <p>Hello <strong>{{userName}}</strong>,</p>
+            <p>You've been invited by <strong>{{inviterName}}</strong> to join the <strong>"{{campaignName}}"</strong> campaign on Growvia.</p>
+
+            <div class="campaign-details">
+                <h3>📋 Campaign Overview</h3>
+                <ul>
+                    <li><strong>Campaign:</strong> {{campaignName}}</li>
+                    <li><strong>Category:</strong> {{campaignCategory}}</li>
+                    <li><strong>Visibility:</strong> {{campaignVisibility}}</li>
+                    <li><strong>Max Affiliates:</strong> {{maxAffiliates}}</li>
+                </ul>
+            </div>
+
+            <div class="info-box">
+                <p>💡 <strong>Ready to Join?</strong></p>
+                <p>Review the campaign details and accept this invitation to get started.</p>
+            </div>
+
+            <div class="button-container">
+                <a href="{{invitationUrl}}" class="invitation-button">View Invitation</a>
+            </div>
+
+            <p style="color: #6b7280; font-size: 14px; text-align: center;">
+                You can also manage this invitation directly from your <a href="{{dashboardUrl}}">Growvia Dashboard</a>.
+            </p>
+
+            <p style="margin-top: 32px; font-size: 14px;">Best Regards,<br>The Growvia Team</p>
+        </div>
+
+        <div class="footer">
+            <p>© {{year}} Growvia. All rights reserved.</p>
+            <p>If you did not expect this invitation, please <a href="{{supportUrl}}">contact support</a> or ignore this email.</p>
+        </div>
+    </div>
+</body>
+</html>

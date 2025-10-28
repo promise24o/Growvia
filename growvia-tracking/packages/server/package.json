@@ -1,0 +1,22 @@
+{
+  "name": "@growvia/server",
+  "version": "1.0.0",
+  "description": "Growvia Tracking Server - MongoDB models and utilities",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@growvia/shared": "*",
+    "mongoose": "^8.0.3",
+    "ioredis": "^5.3.2",
+    "crypto": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "typescript": "^5.3.3"
+  }
+}

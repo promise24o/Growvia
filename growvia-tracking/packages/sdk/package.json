@@ -1,0 +1,27 @@
+{
+  "name": "@growvia/sdk",
+  "version": "1.0.0",
+  "description": "Growvia Tracking SDK - Client-side tracking and attribution",
+  "main": "./dist/index.js",
+  "module": "./dist/index.esm.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "npm run build:lib && npm run build:types",
+    "build:lib": "rollup -c",
+    "build:cdn": "rollup -c rollup.cdn.config.js",
+    "build:types": "tsc --emitDeclarationOnly",
+    "dev": "rollup -c -w",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@growvia/shared": "*"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.9.1",
+    "typescript": "^5.3.3"
+  }
+}

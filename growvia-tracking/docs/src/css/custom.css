@@ -1,0 +1,87 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+:root {
+  --ifm-color-primary: #5f42f0;
+  --ifm-color-primary-dark: #4a2eec;
+  --ifm-color-primary-darker: #4126ea;
+  --ifm-color-primary-darkest: #2f13d9;
+  --ifm-color-primary-light: #7556f3;
+  --ifm-color-primary-lighter: #7e5ef4;
+  --ifm-color-primary-lightest: #9a7ff7;
+  --ifm-color-secondary: #056EE9;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(95, 66, 240, 0.1);
+  --growvia-purple: #5f42f0;
+  --growvia-blue: #056EE9;
+  --growvia-light-blue: #EFF6FF;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #7e5ef4;
+  --ifm-color-primary-dark: #6a47f2;
+  --ifm-color-primary-darker: #5f42f0;
+  --ifm-color-primary-darkest: #4a2eec;
+  --ifm-color-primary-light: #9275f6;
+  --ifm-color-primary-lighter: #9a7ff7;
+  --ifm-color-primary-lightest: #b49ff9;
+  --ifm-color-secondary: #2d8cef;
+  --docusaurus-highlighted-code-line-bg: rgba(126, 94, 244, 0.2);
+}
+
+.hero--primary {
+  background: linear-gradient(135deg, var(--growvia-purple) 0%, var(--growvia-blue) 100%);
+  color: white;
+}
+
+.hero__title {
+  font-size: 3rem;
+  font-weight: 800;
+}
+
+.hero__subtitle {
+  font-size: 1.25rem;
+  max-width: 800px;
+  margin: 1.5rem auto;
+  opacity: 0.95;
+}
+
+.button--secondary {
+  background-color: white;
+  color: var(--growvia-purple);
+  border: none;
+}
+
+.button--secondary:hover {
+  background-color: var(--growvia-light-blue);
+  color: var(--growvia-purple);
+}
+
+.button--outline {
+  border-color: white;
+  color: white;
+}
+
+.button--outline:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: white;
+  color: white;
+}
+
+.footer {
+  background-color: #161d31 !important;
+}
+
+.footer__title,
+.footer__item,
+.footer__link-item,
+.footer__copyright {
+  color: white !important;
+}
+
+.footer__link-item:hover {
+  color: var(--growvia-purple) !important;
+}

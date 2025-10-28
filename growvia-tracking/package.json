@@ -1,0 +1,32 @@
+{
+  "name": "growvia-tracking",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Growvia Tracking and Attribution System - Modular SDK and Backend Service",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "sdk:build": "npm run build --workspace=@growvia/sdk",
+    "cdn:build": "npm run build:cdn --workspace=@growvia/sdk",
+    "api:dev": "npm run dev --workspace=@growvia/api",
+    "worker:dev": "npm run dev --workspace=@growvia/worker"
+  },
+  "devDependencies": {
+    "turbo": "^1.10.16",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.5",
+    "prettier": "^3.1.1",
+    "eslint": "^8.56.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

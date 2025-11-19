@@ -2,7 +2,7 @@
  * Attribution Engine - Handles click-to-conversion attribution
  */
 
-import type { AttributionModel, ClickData, Touchpoint, AttributionData } from '@growvia/shared';
+import type { AttributionModel, ClickData, Touchpoint, AttributionData, EventType } from '@growvia/shared';
 import { calculateAttribution } from '@growvia/shared';
 import { AttributionCache } from '../redis/AttributionCache';
 import { ClickTracking } from '../models/ClickTracking';
@@ -111,7 +111,7 @@ export class AttributionEngine {
         expiresAt: click.expiresAt.getTime(),
         converted: click.converted,
         conversionId: click.conversionId,
-        conversionType: click.conversionType,
+        conversionType: click.conversionType as EventType | undefined,
         conversionTimestamp: click.conversionTimestamp?.getTime(),
       }));
     }
@@ -135,7 +135,7 @@ export class AttributionEngine {
   async markConverted(
     clickIds: string[],
     conversionId: string,
-    conversionType: string
+    conversionType: EventType
   ): Promise<void> {
     // Update cache
     for (const clickId of clickIds) {

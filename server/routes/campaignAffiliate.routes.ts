@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { campaignAffiliateController } from '../controllers/campaignAffiliate.controller';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorize } from '../middleware/auth';
+import { UserRole } from '../../shared/schema';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.use(authenticate);
  */
 router.post(
   '/:campaignId/affiliates',
+  authorize([UserRole.ADMIN, UserRole.MANAGEMENT]),
   campaignAffiliateController.assignUserToCampaign
 );
 
@@ -24,6 +26,7 @@ router.post(
  */
 router.get(
   '/:campaignId/affiliates',
+  authorize([UserRole.ADMIN, UserRole.MANAGEMENT]),
   campaignAffiliateController.getCampaignAffiliates
 );
 
@@ -34,6 +37,7 @@ router.get(
  */
 router.get(
   '/:campaignId/application',
+  authorize([UserRole.ADMIN, UserRole.MANAGEMENT]),
   campaignAffiliateController.getCampaignApplication
 );
 
@@ -44,6 +48,7 @@ router.get(
  */
 router.get(
   '/:campaignId/affiliates/performance-distribution',
+  authorize([UserRole.ADMIN, UserRole.MANAGEMENT]),
   campaignAffiliateController.getAffiliatePerformanceDistribution
 );
 
@@ -54,6 +59,7 @@ router.get(
  */
 router.get(
   '/:campaignId/affiliates/stats',
+  authorize([UserRole.ADMIN, UserRole.MANAGEMENT]),
   campaignAffiliateController.getCampaignAffiliateStats
 );
 
@@ -64,26 +70,31 @@ router.get(
  */
 router.post(
   '/:campaignId/affiliates/:userId/resend-invitation',
+  authorize([UserRole.ADMIN, UserRole.MANAGEMENT]),
   campaignAffiliateController.resendCampaignInvitation
 );
 
 /**
- * @route   POST /api/campaigns/:campaignId/invitations/accept
+ * @route   POST /api/campaigns-affiliates/accept-invitation/:campaignId
  * @desc    Accept campaign invitation
  * @access  Authenticated users
  */
 router.post(
-  '/:campaignId/invitations/accept',
+  '/accept-invitation/:campaignId',
+  authenticate,
+  authorize([UserRole.MARKETER]),
   campaignAffiliateController.acceptCampaignInvitation
 );
 
 /**
- * @route   POST /api/campaigns/:campaignId/invitations/decline
+ * @route   POST /api/campaigns-affiliates/decline-invitation/:campaignId
  * @desc    Decline campaign invitation
  * @access  Authenticated users
  */
 router.post(
-  '/:campaignId/invitations/decline',
+  '/decline-invitation/:campaignId',
+  authenticate,
+  authorize([UserRole.MARKETER]),
   campaignAffiliateController.declineCampaignInvitation
 );
 
@@ -94,6 +105,7 @@ router.post(
  */
 router.delete(
   '/:campaignId/affiliates/:userId',
+  authorize([UserRole.ADMIN, UserRole.MANAGEMENT]),
   campaignAffiliateController.removeUserFromCampaign
 );
 
@@ -104,6 +116,7 @@ router.delete(
  */
 router.patch(
   '/:campaignId/affiliates/:userId/status',
+  authorize([UserRole.ADMIN, UserRole.MANAGEMENT]),
   campaignAffiliateController.updateAffiliateStatus
 );
 
@@ -115,6 +128,61 @@ router.patch(
 router.get(
   '/users/:userId/campaigns',
   campaignAffiliateController.getUserCampaigns
+);
+
+/**
+ * @route   GET /api/campaign-affiliates/my-invitations
+ * @desc    Get my campaign invitations (marketer)
+ * @access  Authenticated marketers
+ */
+router.get(
+  '/my-invitations',
+  authorize([UserRole.MARKETER]),
+  campaignAffiliateController.getMyInvitations
+);
+
+/**
+ * @route   GET /api/campaign-affiliates/my-campaigns
+ * @desc    Get my active campaigns (marketer)
+ * @access  Authenticated marketers
+ */
+router.get(
+  '/my-campaigns',
+  authorize([UserRole.MARKETER]),
+  campaignAffiliateController.getMyCampaigns
+);
+
+/**
+ * @route   GET /api/campaign-affiliates/my-campaigns/:campaignId
+ * @desc    Get my campaign details (marketer)
+ * @access  Authenticated marketers
+ */
+router.get(
+  '/my-campaigns/:campaignId',
+  authorize([UserRole.MARKETER]),
+  campaignAffiliateController.getMyCampaignDetails
+);
+
+/**
+ * @route   GET /api/campaign-affiliates/my-campaigns/:campaignId/performance
+ * @desc    Get my campaign performance metrics (marketer)
+ * @access  Authenticated marketers
+ */
+router.get(
+  '/my-campaigns/:campaignId/performance',
+  authorize([UserRole.MARKETER]),
+  campaignAffiliateController.getMyCampaignPerformance
+);
+
+/**
+ * @route   GET /api/campaign-affiliates/my-campaigns/:campaignId/earnings
+ * @desc    Get my campaign earnings breakdown (marketer)
+ * @access  Authenticated marketers
+ */
+router.get(
+  '/my-campaigns/:campaignId/earnings',
+  authorize([UserRole.MARKETER]),
+  campaignAffiliateController.getMyCampaignEarnings
 );
 
 export default router;

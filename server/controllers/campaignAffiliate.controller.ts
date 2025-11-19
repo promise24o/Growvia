@@ -108,19 +108,8 @@ export class CampaignAffiliateController {
    */
   removeUserFromCampaign = async (req: Request, res: Response) => {
     try {
-      // Validate request body
-      const validationResult = removeUserSchema.safeParse(req.body);
-      if (!validationResult.success) {
-        const validationError = fromZodError(validationResult.error);
-        return res.status(400).json({
-          status: 'error',
-          message: 'Validation failed',
-          errors: validationError.details,
-        });
-      }
-
       const { campaignId, userId } = req.params;
-      const { removalReason } = validationResult.data;
+      const { removalReason } = req.body;
       const removedBy = (req as any).user?.id;
 
       if (!campaignId || !userId) {
@@ -645,6 +634,250 @@ export class CampaignAffiliateController {
       return res.status(500).json({
         status: 'error',
         message: error.message || 'Failed to fetch campaign affiliate statistics',
+      });
+    }
+  };
+
+  /**
+   * Get my campaign invitations (marketer)
+   * GET /api/campaign-affiliates/my-invitations
+   */
+  getMyInvitations = async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'User not authenticated',
+        });
+      }
+
+      const filters = {
+        status: req.query.status as string,
+        page: parseInt(req.query.page as string) || 1,
+        limit: parseInt(req.query.limit as string) || 10,
+      };
+
+      const result = await campaignAffiliateService.getMarketerInvitations(userId, filters);
+
+      return res.status(200).json({
+        status: 'success',
+        data: result.invitations,
+        pagination: {
+          total: result.total,
+          page: filters.page,
+          limit: filters.limit,
+          totalPages: Math.ceil(result.total / filters.limit),
+        },
+      });
+    } catch (error: any) {
+      console.error('Get my invitations error:', error);
+      Sentry.captureException(error, {
+        extra: {
+          route: req.path,
+          method: req.method,
+          userId: (req as any).user?.id,
+        },
+      });
+
+      return res.status(500).json({
+        status: 'error',
+        message: error.message || 'Failed to fetch invitations',
+      });
+    }
+  };
+
+  /**
+   * Get my campaigns (marketer)
+   * GET /api/campaign-affiliates/my-campaigns
+   */
+  getMyCampaigns = async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'User not authenticated',
+        });
+      }
+
+      const filters = {
+        status: req.query.status as string,
+        page: parseInt(req.query.page as string) || 1,
+        limit: parseInt(req.query.limit as string) || 10,
+      };
+
+      const result = await campaignAffiliateService.getMarketerCampaigns(userId, filters);
+
+      return res.status(200).json({
+        status: 'success',
+        data: result.campaigns,
+        pagination: {
+          total: result.total,
+          page: filters.page,
+          limit: filters.limit,
+          totalPages: Math.ceil(result.total / filters.limit),
+        },
+      });
+    } catch (error: any) {
+      console.error('Get my campaigns error:', error);
+      Sentry.captureException(error, {
+        extra: {
+          route: req.path,
+          method: req.method,
+          userId: (req as any).user?.id,
+        },
+      });
+
+      return res.status(500).json({
+        status: 'error',
+        message: error.message || 'Failed to fetch campaigns',
+      });
+    }
+  };
+
+  /**
+   * Get my campaign details (marketer)
+   * GET /api/campaign-affiliates/my-campaigns/:campaignId
+   */
+  getMyCampaignDetails = async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user?.id;
+      const { campaignId } = req.params;
+
+      if (!userId) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'User not authenticated',
+        });
+      }
+
+      if (!campaignId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Campaign ID is required',
+        });
+      }
+
+      const result = await campaignAffiliateService.getMarketerCampaignDetails(userId, campaignId);
+
+      return res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('Get my campaign details error:', error);
+      Sentry.captureException(error, {
+        extra: {
+          route: req.path,
+          method: req.method,
+          userId: (req as any).user?.id,
+          campaignId: req.params.campaignId,
+        },
+      });
+
+      const statusCode = error.statusCode || 500;
+      return res.status(statusCode).json({
+        status: 'error',
+        message: error.message || 'Failed to fetch campaign details',
+      });
+    }
+  };
+
+  /**
+   * Get my campaign performance (marketer)
+   * GET /api/campaign-affiliates/my-campaigns/:campaignId/performance
+   */
+  getMyCampaignPerformance = async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user?.id;
+      const { campaignId } = req.params;
+
+      if (!userId) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'User not authenticated',
+        });
+      }
+
+      if (!campaignId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Campaign ID is required',
+        });
+      }
+
+      const result = await campaignAffiliateService.getMarketerCampaignPerformance(userId, campaignId);
+
+      return res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('Get my campaign performance error:', error);
+      Sentry.captureException(error, {
+        extra: {
+          route: req.path,
+          method: req.method,
+          userId: (req as any).user?.id,
+          campaignId: req.params.campaignId,
+        },
+      });
+
+      const statusCode = error.statusCode || 500;
+      return res.status(statusCode).json({
+        status: 'error',
+        message: error.message || 'Failed to fetch campaign performance',
+      });
+    }
+  };
+
+  /**
+   * Get my campaign earnings (marketer)
+   * GET /api/campaign-affiliates/my-campaigns/:campaignId/earnings
+   */
+  getMyCampaignEarnings = async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user?.id;
+      const { campaignId } = req.params;
+
+      if (!userId) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'User not authenticated',
+        });
+      }
+
+      if (!campaignId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Campaign ID is required',
+        });
+      }
+
+      const result = await campaignAffiliateService.getMarketerCampaignEarnings(userId, campaignId);
+
+      return res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('Get my campaign earnings error:', error);
+      Sentry.captureException(error, {
+        extra: {
+          route: req.path,
+          method: req.method,
+          userId: (req as any).user?.id,
+          campaignId: req.params.campaignId,
+        },
+      });
+
+      const statusCode = error.statusCode || 500;
+      return res.status(statusCode).json({
+        status: 'error',
+        message: error.message || 'Failed to fetch campaign earnings',
       });
     }
   };

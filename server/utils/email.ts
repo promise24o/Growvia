@@ -27,6 +27,13 @@ const __dirname = path.dirname(__filename);
 // Default sender address
 const defaultFrom = process.env.EMAIL_FROM || "Growvia Pro <noreply@growviapro.com>";
 
+// Helper function to get the correct base URL based on environment
+function getBaseUrl(): string {
+  return process.env.NODE_ENV === "production"
+    ? process.env.BASE_URL || "https://app.growviapro.com"
+    : process.env.LOCAL_URL || "http://localhost:3000";
+}
+
 // Helper function to send email via Brevo API
 const sendEmailViaApi = async (
   toEmail: string,
@@ -163,10 +170,7 @@ export async function sendPasswordResetSuccessEmail(
   data: Record<string, any>
 ): Promise<boolean> {
   const subject = "Your Password Has Been Reset - Growvia";
-  const loginUrl =
-    process.env.NODE_ENV === "production"
-      ? `${process.env.BASE_URL}login`
-      : `${process.env.LOCAL_URL}login`;
+  const loginUrl = `${getBaseUrl()}/login`;
   const html = await renderTemplate("password-reset-success", {
     name: user.name,
     loginUrl,
@@ -204,10 +208,7 @@ export async function sendMarketerApprovalEmail(
   data: Record<string, any> = {}
 ): Promise<boolean> {
   const subject = `Your application as a marketer for ${organization.name} has been approved`;
-  const loginUrl =
-    process.env.NODE_ENV === "production"
-      ? `${process.env.BASE_URL}login`
-      : `${process.env.LOCAL_URL}login`;
+  const loginUrl = `${getBaseUrl()}/login`;
   const html = await renderTemplate("marketer-approval", {
     name: application.name,
     organizationName: organization.name,
@@ -218,6 +219,23 @@ export async function sendMarketerApprovalEmail(
   });
 
   return await sendEmail(application.email, subject, html, defaultFrom, application.name);
+}
+
+// Send payout method OTP verification email
+export async function sendPayoutMethodOTPEmail(
+  user: any,
+  otp: string,
+  data: Record<string, any> = {}
+): Promise<boolean> {
+  const subject = "Verify Your Payout Method - Growvia";
+  const html = await renderTemplate("payout-method-otp", {
+    name: user.name,
+    otp,
+    year: new Date().getFullYear(),
+    ...data,
+  });
+
+  return await sendEmail(user.email, subject, html, defaultFrom, user.name);
 }
 
 // Send marketer application rejection email
@@ -432,8 +450,8 @@ export async function sendCampaignInvitationEmail(
     campaignVisibility: campaign.visibility,
     maxAffiliates: campaign.maxAffiliates,
     invitationUrl,
-    dashboardUrl: `${process.env.FRONTEND_URL || 'https://app.growviapro.com'}/dashboard`,
-    supportUrl: `${process.env.FRONTEND_URL || 'https://app.growviapro.com'}/support`,
+    dashboardUrl: `${getBaseUrl()}/dashboard`,
+    supportUrl: `${getBaseUrl()}/support`,
     year: new Date().getFullYear(),
     ...data,
   });

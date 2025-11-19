@@ -10,13 +10,17 @@ interface AuditLogEntry {
 export const auditLog = async (userId: string, action: string, details: string): Promise<void> => {
     try {
         await AuditLog.create({
-            userId,
             action,
-            details,
+            description: details,
+            type: 'other',
+            performedBy: userId,
+            organizationId: userId,
+            entityType: 'WalletTransaction',
+            entityId: userId,
+            details: { action, description: details },
             timestamp: new Date(),
         });
     } catch (error) {
         console.error('Failed to create audit log:', error);
-        throw new Error('Audit log creation failed');
     }
 };

@@ -138,8 +138,27 @@ if (process.env.GLITCHTIP_DSN) {
 
   // API-only server - no frontend serving
 
-  const port = parseInt(process.env.PORT || "5050");
-  server.listen(port, "0.0.0.0", () => {
-    log(`serving on port ${port}`);
-  });
+  let port = parseInt(process.env.PORT || "5050");
+  
+  const tryListen = (attemptPort: number, maxAttempts = 10): void => {
+    if (maxAttempts <= 0) {
+      console.error('Could not find an available port after multiple attempts.');
+      process.exit(1);
+    }
+    
+    server.once('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        log(`Port ${attemptPort} is in use, trying ${attemptPort + 1}...`);
+        tryListen(attemptPort + 1, maxAttempts - 1);
+      } else {
+        throw err;
+      }
+    });
+    
+    server.listen(attemptPort, "0.0.0.0", () => {
+      log(`serving on port ${attemptPort}`);
+    });
+  };
+  
+  tryListen(port);
 })();

@@ -3,13 +3,14 @@ import { Schema, model, Document, Types } from 'mongoose';
 interface IGrowCoinTransaction extends Document {
   userId: Types.ObjectId;
   description: string;
-  type: 'Earned' | 'Spent' | 'Transfer In' | 'Transfer Out' | 'Referral';
+  type: 'Earned' | 'Spent' | 'Transfer In' | 'Transfer Out' | 'Referral' | 'Wallet Transfer';
   amount: number;
   status: 'Pending' | 'Completed' | 'Failed';
   transactionId: string;
   receiverId?: Types.ObjectId;
   ipAddress?: string;
   deviceFingerprint?: string;
+  metadata?: any;
   createdAt: Date;
 }
 
@@ -18,7 +19,7 @@ const GrowCoinTransactionSchema = new Schema<IGrowCoinTransaction>({
   description: { type: String, required: true },
   type: {
     type: String,
-    enum: ['Earned', 'Spent', 'Transfer In', 'Transfer Out', 'Referral'],
+    enum: ['Earned', 'Spent', 'Transfer In', 'Transfer Out', 'Referral', 'Wallet Transfer'],
     required: true,
   },
   amount: { type: Number, required: true },
@@ -27,6 +28,7 @@ const GrowCoinTransactionSchema = new Schema<IGrowCoinTransaction>({
   receiverId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   ipAddress: { type: String },
   deviceFingerprint: { type: String },
+  metadata: { type: Schema.Types.Mixed },
   createdAt: { type: Date, default: Date.now },
 });
 

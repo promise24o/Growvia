@@ -194,7 +194,7 @@ export class RedisClient {
   /**
    * Execute pipeline
    */
-  pipeline(): Redis.Pipeline {
+  pipeline() {
     return this.client.pipeline();
   }
 
@@ -239,7 +239,12 @@ export class RedisClient {
 // Singleton instance
 let redisInstance: RedisClient | null = null;
 
-export function getRedisClient(config?: Parameters<typeof RedisClient.prototype.constructor>[0]): RedisClient {
+export function getRedisClient(config?: {
+  host?: string;
+  port?: number;
+  password?: string;
+  db?: number;
+}): RedisClient {
   if (!redisInstance) {
     redisInstance = new RedisClient(config);
   }

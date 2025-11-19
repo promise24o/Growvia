@@ -230,8 +230,6 @@ export class MongoStorage implements IStorage {
       const existingAdmin = await User.findOne({ email: "admin@admin.com" });
 
       if (!existingAdmin) {
-        console.log("Creating admin user...");
-
         // Create the admin user with management role - let the schema handle password hashing
         const adminUser = new User({
           name: "System Administrator",
@@ -244,15 +242,11 @@ export class MongoStorage implements IStorage {
         });
 
         await adminUser.save();
-        console.log("Admin user created successfully");
       } else {
-        console.log("Admin user already exists");
-
         // If needed, update the admin user to ensure it has the right role
         if (existingAdmin.role !== "management") {
           existingAdmin.role = "management";
           await existingAdmin.save();
-          console.log("Updated admin user role to management");
         }
       }
     } catch (error) {
@@ -1284,8 +1278,15 @@ export class MongoStorage implements IStorage {
 
   async getWallet(userId: string): Promise<WalletData | null> {
     try {
-      const wallet = await GrowCoinWallet.findOne({ userId: this.toObjectId(userId) });
-      return wallet ? { userId: wallet.userId, balance: wallet.balance, pendingBalance: wallet.pendingBalance } : null;
+      let wallet = await GrowCoinWallet.findOne({ userId: this.toObjectId(userId) });
+      if (!wallet) {
+        wallet = await GrowCoinWallet.create({
+          userId: this.toObjectId(userId),
+          balance: 0,
+          pendingBalance: 0,
+        });
+      }
+      return { userId: wallet.userId, balance: wallet.balance, pendingBalance: wallet.pendingBalance };
     } catch (error) {
       console.error('Error getting wallet:', error);
       return null;

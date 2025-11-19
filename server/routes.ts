@@ -10,7 +10,6 @@ import conversionRoutes from "./routes/conversionRoutes";
 import managementRoutes from "./routes/managementRoutes";
 import marketerApplicationRoutes from "./routes/marketerApplication.routes";
 import organizationRoutes from "./routes/organizationRoutes";
-import payoutRoutes from "./routes/payoutRoutes";
 import referralRoutes from "./routes/referral.routes";
 import userRoutes from "./routes/user.routes";
 import walletRoutes from "./routes/wallet.routes";
@@ -19,6 +18,9 @@ import commissionRoutes from "./routes/commission.routes";
 import applicationRoutes from "./routes/application.routes";
 import campaignRoutes from "./routes/campaign.routes";
 import campaignAffiliateRoutes from "./routes/campaignAffiliate.routes";
+import payoutRoutes from "./routes/payout.routes";
+import growviaWalletRoutes from "./routes/growviaWallet.routes";
+import kycRoutes from "./routes/kyc.routes";
 
 export async function registerRoutes(
   app: Express,
@@ -41,7 +43,6 @@ export async function registerRoutes(
   router.use("/conversions", conversionRoutes);
   router.use("/analytics", analyticsRoutes);
   router.use("/activities", activityRoutes);
-  router.use("/payouts", payoutRoutes);
   router.use("/affiliates", affiliateRoutes);
   router.use("/users", userRoutes);
   router.use("/wallet", walletRoutes);
@@ -50,7 +51,9 @@ export async function registerRoutes(
   router.use('/applications', applicationRoutes);
   router.use('/campaigns', campaignRoutes);
   router.use('/campaign-affiliates', campaignAffiliateRoutes);
-
+  router.use('/payouts', payoutRoutes);
+  router.use('/growvia-wallet', growviaWalletRoutes);
+  router.use('/kyc', kycRoutes);
 
   const httpServer = createServer(app);
   return httpServer;

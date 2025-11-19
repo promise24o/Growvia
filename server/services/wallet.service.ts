@@ -273,9 +273,9 @@ export const handlePaymentCallback = async (user: any, query: any, ipAddress: st
     throw new Error("Transaction not found");
   }
 
-  const wallet = await storage.getWallet(userId);
+  let wallet = await storage.getWallet(userId);
   if (!wallet) {
-    throw new Error("Wallet not found");
+    wallet = { userId, balance: 0, pendingBalance: 0 };
   }
 
   await storage.updateWallet(userId, { balance: wallet.balance + transaction.amount });

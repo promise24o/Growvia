@@ -9,6 +9,13 @@ import { AuditLog } from '../models/AuditLog';
 import { sendCampaignInvitationEmail } from '../utils/email';
 import emailQueue from '../queue/emailQueue';
 
+// Helper function to get the correct base URL based on environment
+function getBaseUrl(): string {
+  return process.env.NODE_ENV === 'production'
+    ? process.env.BASE_URL || 'https://app.growviapro.com'
+    : process.env.LOCAL_URL || 'http://localhost:3000';
+}
+
 interface AssignUserToCampaignInput {
   campaignId: string;
   userId: string;
@@ -188,7 +195,7 @@ export class CampaignAffiliateService {
     }
 
     // 14. Send invitation email (with queue fallback)
-    const invitationUrl = `${process.env.FRONTEND_URL || 'https://app.growviapro.com'}/campaigns/${campaign._id}/invitation`;
+    const invitationUrl = `${getBaseUrl()}/auth/campaigns/${campaign._id}/invitation/${assignment._id}`;
     
     try {
       await emailQueue.add({
@@ -197,13 +204,13 @@ export class CampaignAffiliateService {
         campaign,
         organization,
         invitationUrl,
-        dashboardUrl: `${process.env.FRONTEND_URL || 'https://app.growviapro.com'}/dashboard`,
-        supportUrl: `${process.env.FRONTEND_URL || 'https://app.growviapro.com'}/support`,
+        dashboardUrl: `${getBaseUrl()}/dashboard`,
+        supportUrl: `${getBaseUrl()}/support`,
       });
     } catch (queueError: any) {
       console.warn('Email queue unavailable, sending email directly:', queueError?.message || queueError);
       // Fallback to direct email sending
-      await this.sendInvitationEmail(user, campaign, organization);
+      await this.sendInvitationEmail(user, campaign, organization, (assignment._id as Types.ObjectId).toString());
     }
 
     // 15. Create activity notification for the user
@@ -261,7 +268,52 @@ export class CampaignAffiliateService {
       throw new ForbiddenError('Only admins and managers can remove users from campaigns');
     }
 
-    // 4. Update assignment status (soft delete - maintain data integrity)
+    // 4. Get campaign and user details
+    const campaign = await Campaign.findById(campaignId);
+    const user = await User.findById(userId);
+
+    // 5. Check if campaign has started
+    const now = new Date();
+    const campaignStarted = campaign?.startDate && campaign.startDate <= now;
+
+    if (!campaignStarted) {
+      // Campaign hasn't started - delete the assignment completely
+      await CampaignAffiliate.deleteOne({ _id: assignment._id });
+
+      // Create audit log for deletion
+      await this.createAuditLog({
+        action: 'campaign_affiliate_deleted',
+        performedBy: removedBy,
+        organizationId: assignmentOrgId,
+        entityType: 'CampaignAffiliate',
+        entityId: (assignment._id as Types.ObjectId).toString(),
+        details: {
+          campaignId,
+          userId,
+          campaignName: campaign?.name,
+          userName: user?.name,
+          removalReason,
+          note: 'User removed before campaign start - assignment deleted',
+        },
+      });
+
+      // Notify user via activity
+      await this.createActivity({
+        type: 'campaign_invitation_cancelled',
+        description: `Your invitation to campaign "${campaign?.name}" has been cancelled as the campaign has not yet started.`,
+        userId,
+        organizationId: assignmentOrgId,
+        metadata: {
+          campaignId,
+          campaignName: campaign?.name,
+          removedBy: remover.name,
+        },
+      });
+
+      return assignment;
+    }
+
+    // 6. Campaign has started - soft delete (maintain data integrity)
     assignment.status = 'removed';
     assignment.removedBy = new Types.ObjectId(removedBy);
     assignment.removedAt = new Date();
@@ -269,11 +321,7 @@ export class CampaignAffiliateService {
 
     await assignment.save();
 
-    // 5. Get campaign and user details for audit log
-    const campaign = await Campaign.findById(campaignId);
-    const user = await User.findById(userId);
-
-    // 6. Create audit log
+    // 7. Create audit log
     await this.createAuditLog({
       action: 'campaign_affiliate_removed',
       performedBy: removedBy,
@@ -292,6 +340,20 @@ export class CampaignAffiliateService {
           totalRevenue: assignment.totalRevenue,
           totalCommission: assignment.totalCommission,
         },
+      },
+    });
+
+    // 8. Notify user via activity
+    await this.createActivity({
+      type: 'campaign_affiliate_removed',
+      description: `You have been removed from campaign "${campaign?.name}".`,
+      userId,
+      organizationId: assignmentOrgId,
+      metadata: {
+        campaignId,
+        campaignName: campaign?.name,
+        removedBy: remover.name,
+        removalReason,
       },
     });
 
@@ -440,7 +502,7 @@ export class CampaignAffiliateService {
     }
 
     // 5. Send resend invitation email (with queue fallback)
-    const invitationUrl = `${process.env.FRONTEND_URL || 'https://app.growviapro.com'}/campaigns/${campaign._id}/invitation`;
+    const invitationUrl = `${getBaseUrl()}/auth/campaigns/${campaign._id}/invitation/${assignment._id}`;
     
     try {
       await emailQueue.add({
@@ -449,13 +511,13 @@ export class CampaignAffiliateService {
         campaign,
         organization,
         invitationUrl,
-        dashboardUrl: `${process.env.FRONTEND_URL || 'https://app.growviapro.com'}/dashboard`,
-        supportUrl: `${process.env.FRONTEND_URL || 'https://app.growviapro.com'}/support`,
+        dashboardUrl: `${getBaseUrl()}/dashboard`,
+        supportUrl: `${getBaseUrl()}/support`,
       });
     } catch (queueError: any) {
       console.warn('Email queue unavailable, sending email directly:', queueError?.message || queueError);
       // Fallback to direct email sending
-      await this.sendInvitationEmail(user, campaign, organization);
+      await this.sendInvitationEmail(user, campaign, organization, (assignment._id as Types.ObjectId).toString());
     }
 
     // 6. Create audit log
@@ -963,10 +1025,13 @@ export class CampaignAffiliateService {
   private async sendInvitationEmail(
     user: any,
     campaign: any,
-    organization: any
+    organization: any,
+    assignmentId?: string
   ): Promise<void> {
     try {
-      const invitationUrl = `${process.env.FRONTEND_URL || 'https://app.growviapro.com'}/campaigns/${campaign._id}/invitation`;
+      const invitationUrl = assignmentId 
+        ? `${getBaseUrl()}/auth/campaigns/${campaign._id}/invitation/${assignmentId}`
+        : `${getBaseUrl()}/auth/campaigns/${campaign._id}/invitation`;
       
       await sendCampaignInvitationEmail(
         user,
@@ -1029,6 +1094,230 @@ export class CampaignAffiliateService {
       console.error('Failed to create audit log:', error);
       // Don't throw error - audit log failure shouldn't break the main operation
     }
+  }
+
+  /**
+   * Get marketer invitations (pending campaign assignments)
+   */
+  async getMarketerInvitations(
+    userId: string,
+    filters: CampaignAffiliateFilters = {}
+  ): Promise<{ invitations: any[]; total: number }> {
+    const { status, page = 1, limit = 10 } = filters;
+
+    const query: any = {
+      userId: new Types.ObjectId(userId),
+      status: status || 'pending',
+    };
+
+    const skip = (page - 1) * limit;
+
+    const [assignments, total] = await Promise.all([
+      CampaignAffiliate.find(query)
+        .populate({
+          path: 'campaignId',
+          populate: [
+            { path: 'commissionModels' },
+            { path: 'applicationId' },
+          ],
+        })
+        .populate('assignedBy', 'name email')
+        .populate('organizationId', 'name')
+        .sort({ assignedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      CampaignAffiliate.countDocuments(query),
+    ]);
+
+    const invitations = assignments.map(assignment => ({
+      invitationId: assignment._id,
+      campaign: assignment.campaignId,
+      organization: assignment.organizationId,
+      invitedBy: assignment.assignedBy,
+      invitedAt: assignment.assignedAt,
+      status: assignment.status,
+      participationNotes: assignment.participationNotes,
+    }));
+
+    return { invitations, total };
+  }
+
+  /**
+   * Get marketer active campaigns
+   */
+  async getMarketerCampaigns(
+    userId: string,
+    filters: CampaignAffiliateFilters = {}
+  ): Promise<{ campaigns: any[]; total: number }> {
+    const { status, page = 1, limit = 10 } = filters;
+
+    const query: any = {
+      userId: new Types.ObjectId(userId),
+      status: status || 'active',
+    };
+
+    const skip = (page - 1) * limit;
+
+    const [assignments, total] = await Promise.all([
+      CampaignAffiliate.find(query)
+        .populate('campaignId')
+        .populate('organizationId', 'name')
+        .sort({ assignedAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      CampaignAffiliate.countDocuments(query),
+    ]);
+
+    const campaigns = assignments.map(assignment => ({
+      assignmentId: assignment._id,
+      campaign: assignment.campaignId,
+      organization: assignment.organizationId,
+      joinedAt: assignment.assignedAt,
+      status: assignment.status,
+      performance: {
+        clicks: assignment.clicks,
+        conversions: assignment.conversions,
+        revenue: assignment.totalRevenue,
+        commission: assignment.totalCommission,
+      },
+    }));
+
+    return { campaigns, total };
+  }
+
+  /**
+   * Get marketer campaign details
+   */
+  async getMarketerCampaignDetails(userId: string, campaignId: string): Promise<any> {
+    const assignment = await CampaignAffiliate.findOne({
+      userId: new Types.ObjectId(userId),
+      campaignId: new Types.ObjectId(campaignId),
+    })
+      .populate('campaignId')
+      .populate('organizationId', 'name email')
+      .populate('assignedBy', 'name email');
+
+    if (!assignment) {
+      throw new NotFoundError('You are not assigned to this campaign');
+    }
+
+    const campaign = await Campaign.findById(campaignId).populate('commissionModels');
+
+    if (!campaign) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    return {
+      assignmentId: assignment._id,
+      campaign: {
+        id: campaign._id,
+        name: campaign.name,
+        description: campaign.description,
+        category: campaign.category,
+        startDate: campaign.startDate,
+        endDate: campaign.endDate,
+        status: campaign.status,
+        visibility: campaign.visibility,
+        commissionModels: campaign.commissionModels,
+        affiliateRequirements: campaign.affiliateRequirements,
+      },
+      organization: assignment.organizationId,
+      assignedBy: assignment.assignedBy,
+      joinedAt: assignment.assignedAt,
+      assignmentStatus: assignment.status,
+      kycVerified: assignment.kycVerified,
+      participationNotes: assignment.participationNotes,
+    };
+  }
+
+  /**
+   * Get marketer campaign performance metrics
+   */
+  async getMarketerCampaignPerformance(userId: string, campaignId: string): Promise<any> {
+    const assignment = await CampaignAffiliate.findOne({
+      userId: new Types.ObjectId(userId),
+      campaignId: new Types.ObjectId(campaignId),
+    });
+
+    if (!assignment) {
+      throw new NotFoundError('You are not assigned to this campaign');
+    }
+
+    const campaign = await Campaign.findById(campaignId);
+
+    if (!campaign) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    // Calculate conversion rate
+    const conversionRate = assignment.clicks > 0 
+      ? ((assignment.conversions / assignment.clicks) * 100).toFixed(2)
+      : '0.00';
+
+    // Calculate average revenue per conversion
+    const avgRevenuePerConversion = assignment.conversions > 0
+      ? (assignment.totalRevenue / assignment.conversions).toFixed(2)
+      : '0.00';
+
+    // Calculate average commission per conversion
+    const avgCommissionPerConversion = assignment.conversions > 0
+      ? (assignment.totalCommission / assignment.conversions).toFixed(2)
+      : '0.00';
+
+    return {
+      campaignName: campaign.name,
+      assignmentStatus: assignment.status,
+      metrics: {
+        clicks: assignment.clicks,
+        conversions: assignment.conversions,
+        conversionRate: `${conversionRate}%`,
+        totalRevenue: assignment.totalRevenue,
+        totalCommission: assignment.totalCommission,
+        avgRevenuePerConversion: parseFloat(avgRevenuePerConversion),
+        avgCommissionPerConversion: parseFloat(avgCommissionPerConversion),
+      },
+      period: {
+        startDate: campaign.startDate,
+        endDate: campaign.endDate,
+        joinedAt: assignment.assignedAt,
+      },
+    };
+  }
+
+  /**
+   * Get marketer campaign earnings breakdown
+   */
+  async getMarketerCampaignEarnings(userId: string, campaignId: string): Promise<any> {
+    const assignment = await CampaignAffiliate.findOne({
+      userId: new Types.ObjectId(userId),
+      campaignId: new Types.ObjectId(campaignId),
+    }).populate('campaignId');
+
+    if (!assignment) {
+      throw new NotFoundError('You are not assigned to this campaign');
+    }
+
+    const campaign = await Campaign.findById(campaignId).populate('commissionModels');
+
+    if (!campaign) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    return {
+      campaignName: campaign.name,
+      assignmentStatus: assignment.status,
+      earnings: {
+        totalCommission: assignment.totalCommission,
+        totalRevenue: assignment.totalRevenue,
+        conversions: assignment.conversions,
+        clicks: assignment.clicks,
+      },
+      commissionModels: campaign.commissionModels,
+      paymentStatus: 'pending',
+      nextPayoutDate: null,
+      currency: 'NGN',
+    };
   }
 }
 

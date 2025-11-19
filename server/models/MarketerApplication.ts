@@ -41,7 +41,6 @@ const MarketerApplicationSchema = new Schema<IMarketerApplication>(
       required: true,
       trim: true,
       lowercase: true,
-      index: true,
     },
     phone: {
       type: String,
@@ -70,7 +69,6 @@ const MarketerApplicationSchema = new Schema<IMarketerApplication>(
     applicationToken: {
       type: String,
       default: () => crypto.randomBytes(32).toString("hex"),
-      index: true,
     },
     tokenExpiry: {
       type: Date,

@@ -12,5 +12,13 @@ export * from './redis';
 // Export services
 export * from './services';
 
-// Re-export shared types
-export * from '@growvia/shared';
+// Re-export shared types (excluding TrackingEvent to avoid conflict)
+export type {
+  EventType,
+  AttributionModel,
+  ValidationMethod,
+  EventContext,
+  Touchpoint,
+  ClickData,
+  SDKConfig,
+} from '@growvia/shared';

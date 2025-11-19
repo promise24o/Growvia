@@ -3,7 +3,7 @@
  */
 
 import { RedisClient } from './RedisClient';
-import type { ClickData } from '@growvia/shared';
+import type { ClickData, EventType } from '@growvia/shared';
 
 const CLICK_PREFIX = 'click:';
 const SESSION_PREFIX = 'session:';
@@ -86,7 +86,7 @@ export class AttributionCache {
   async markClickConverted(
     clickId: string,
     conversionId: string,
-    conversionType: string
+    conversionType: EventType
   ): Promise<void> {
     const click = await this.getClick(clickId);
     if (!click) return;

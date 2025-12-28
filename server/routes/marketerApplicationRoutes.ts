@@ -2,8 +2,8 @@ import B2 from "backblaze-b2";
 import { randomBytes } from "crypto";
 import { Request, Response, Router } from "express";
 import mongoose, { ObjectId } from "mongoose";
-import { FraudReviewRequest } from "server/models/FraudReviewRequest";
-import { MarketerOrganization } from "server/models/MarketerOrganization";
+import { FraudReviewRequest } from "../models/FraudReviewRequest";
+import { MarketerOrganization } from "../models/MarketerOrganization";
 import { PLAN_LIMITS, SubscriptionPlan, UserRole } from "../../shared/schema";
 import { authenticate, authorize } from "../middleware/auth";
 import { upload } from "../middleware/multerConfig";
@@ -17,8 +17,8 @@ const storage: IStorage = new MongoStorage();
 const router = Router();
 
 const b2 = new B2({
-  applicationKeyId: process.env.BACKBLAZE_APP_KEY_ID,
-  applicationKey: process.env.BACKBLAZE_APP_KEY,
+  applicationKeyId: process.env.BACKBLAZE_APP_KEY_ID!,
+  applicationKey: process.env.BACKBLAZE_APP_KEY!,
 });
 
 router.post(
@@ -59,7 +59,7 @@ router.post(
         return res.status(404).json({ message: "Organization not found" });
       }
 
-      const plan = organization.plan;
+      const plan = organization.plan as keyof typeof PLAN_LIMITS;
       const currentMarketers = await User.countDocuments({
         organizationId,
         role: UserRole.MARKETER,
@@ -171,7 +171,7 @@ router.delete(
           });
 
           marketerOrg.status = "under_review";
-          marketerOrg.reviewRequestId = review._id;
+          marketerOrg.reviewRequestId = review._id as mongoose.Types.ObjectId;
           await marketerOrg.save();
 
           await storage.createActivity({
@@ -253,6 +253,9 @@ router.delete(
 
         return res.status(200).json({ message: "Application removed successfully." });
       }
+      
+      // This should not be reached due to the earlier check, but TypeScript requires it
+      throw new Error("Marketer or application not found");
     } catch (error: any) {
       console.error("Error removing marketer or application:", error);
       return res.status(500).json({ message: error.message });
@@ -308,23 +311,13 @@ router.get(
         ];
       }
 
-      // Filter by socialMedia
-      if (socialMedia) {
-        userQuery['socialMedia.platform'] = socialMedia;
-        applicationQuery['socialMedia.platform'] = socialMedia;
-      }
-
-      // Filter by skills
-      if (skills) {
-        userQuery.skills = { $in: [skills] };
-        applicationQuery.skills = { $in: [skills] };
-      }
 
       // Step 1: Fetch all users first
       const users = await User.find(userQuery);
       // Step 2: Fetch all applications and marketer organizations
-      const allApplications = await MarketerApplication.find(applicationQuery);
-      const marketerOrgs = await MarketerOrganization.find(marketerOrgQuery);
+      const allApplications = await MarketerApplication.find(applicationQuery).populate('user');
+      
+            const marketerOrgs = await MarketerOrganization.find(marketerOrgQuery);
 
       // Create maps for efficient lookup
       const applicationMap = new Map(
@@ -343,12 +336,32 @@ router.get(
           applicationToken: app.applicationToken || null,
           tokenExpiry: app.tokenExpiry || null,
           invitedBy: app.invitedBy || null,
-          user: app.user || null,
+          user: app.user && typeof app.user === 'object' && '_id' in app.user ? {
+            id: (app.user as any)._id,
+            name: (app.user as any).name,
+            username: (app.user as any).username,
+            about: (app.user as any).about,
+            country: (app.user as any).country,
+            state: (app.user as any).state,
+            languages: (app.user as any).languages,
+            industryFocus: (app.user as any).industryFocus,
+            email: (app.user as any).email,
+            phone: (app.user as any).phone,
+            role: (app.user as any).role,
+            organizationId: (app.user as any).organizationId,
+            avatar: (app.user as any).avatar,
+            status: (app.user as any).status,
+            socialMedia: (app.user as any).socialMedia,
+            skills: (app.user as any).skills,
+            loginNotifications: (app.user as any).loginNotifications,
+            createdAt: (app.user as any).createdAt,
+            updatedAt: (app.user as any).updatedAt
+          } : null,
         }])
       );
 
       const marketerOrgMap = new Map(
-        marketerOrgs.map((mo) => [mo.userId.toString(), {
+        marketerOrgs.map((mo: any) => [mo.userId.toString(), {
           status: mo.status,
           appliedAt: mo.appliedAt,
           approvedAt: mo.approvedAt,
@@ -399,11 +412,11 @@ router.get(
           createdAt: app.applicationDate,
           role: UserRole.MARKETER,
           source: "application",
-          clicks: app.clicks || 0,
-          conversions: app.conversions || 0,
-          commission: app.commission || 0,
-          payoutStatus: app.payoutStatus || "pending",
-          assignedApps: app.assignedApps || [],
+          clicks: 0, // Applications don't have clicks
+          conversions: 0, // Applications don't have conversions
+          commission: 0, // Applications don't have commission
+          payoutStatus: "pending", // Applications don't have payoutStatus
+          assignedApps: [], // Applications don't have assignedApps
           socialMedia: app.socialMedia || {},
           skills: app.skills || [],
           application: {
@@ -421,7 +434,27 @@ router.get(
             applicationToken: app.applicationToken || null,
             tokenExpiry: app.tokenExpiry || null,
             invitedBy: app.invitedBy || null,
-            user: app.user || null,
+            user: app.user && typeof app.user === 'object' && '_id' in app.user ? {
+              id: (app.user as any)._id,
+              name: (app.user as any).name,
+              username: (app.user as any).username,
+              about: (app.user as any).about,
+              country: (app.user as any).country,
+              state: (app.user as any).state,
+              languages: (app.user as any).languages,
+              industryFocus: (app.user as any).industryFocus,
+              email: (app.user as any).email,
+              phone: (app.user as any).phone,
+              role: (app.user as any).role,
+              organizationId: (app.user as any).organizationId,
+              avatar: (app.user as any).avatar,
+              status: (app.user as any).status,
+              socialMedia: (app.user as any).socialMedia,
+              skills: (app.user as any).skills,
+              loginNotifications: (app.user as any).loginNotifications,
+              createdAt: (app.user as any).createdAt,
+              updatedAt: (app.user as any).updatedAt
+            } : null,
           },
           marketerOrganization: null,
         }));
@@ -520,6 +553,7 @@ router.get("/verify/:token", async (req: Request, res: Response) => {
         name: application.name,
         email: application.email,
         status: application.status,
+        accountCreated: application.accountCreated || false,
         organization: {
           name: organization.name,
           id: organization._id,
@@ -543,7 +577,7 @@ router.post(
     try {
       const { token } = req.params;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      const { experience, skills, twitter, instagram, linkedin, facebook } =
+      const { experience, skills, twitter, instagram, linkedin, facebook, password } =
         req.body;
 
       const application = await MarketerApplication.findOne({
@@ -576,8 +610,8 @@ router.post(
       };
 
       await b2.authorize();
-      const bucketId = process.env.BACKBLAZE_BUCKET_ID;
-      const bucketName = process.env.BACKBLAZE_BUCKET;
+      const bucketId = process.env.BACKBLAZE_BUCKET_ID!;
+      const bucketName = process.env.BACKBLAZE_BUCKET!;
 
       if (files.resume && files.resume[0]) {
         const resumeFile = files.resume[0];
@@ -590,7 +624,6 @@ router.post(
           uploadAuthToken: response.data.authorizationToken,
           fileName: resumeFileName,
           data: resumeFile.buffer,
-          contentType: resumeFile.mimetype,
         });
         const uploadedFileName = uploadResponse.data.fileName;
         application.resumeUrl = `https://f003.backblazeb2.com/file/${bucketName}/${uploadedFileName}`;
@@ -607,10 +640,44 @@ router.post(
           uploadAuthToken: response.data.authorizationToken,
           fileName: kycFileName,
           data: kycFile.buffer,
-          contentType: kycFile.mimetype,
         });
         const uploadedFileName = uploadResponse.data.fileName;
         application.kycDocUrl = `https://f003.backblazeb2.com/file/${bucketName}/${uploadedFileName}`;
+      }
+
+      // Handle account creation if password is provided and account doesn't exist
+      if (password && !application.accountCreated && !application.user) {
+        // Check if user already exists
+        const existingUser = await User.findOne({ email: application.email });
+        
+        if (!existingUser) {
+          // Create new user account
+          const tempPassword = randomBytes(8).toString("hex");
+          const user = await User.create({
+            name: application.name,
+            email: application.email,
+            password: password || tempPassword,
+            phone: application.phone,
+            role: UserRole.MARKETER,
+            organizationId: application.organizationId,
+            status: "active",
+          });
+
+          // Link user to application
+          application.user = user._id as mongoose.Types.ObjectId;
+          application.accountCreated = true;
+        } else {
+          // User already exists, link to application
+          if (!existingUser.organizationId.some(orgId => orgId.toString() === application.organizationId.toString())) {
+            existingUser.organizationId = [
+              ...existingUser.organizationId,
+              application.organizationId,
+            ] as mongoose.Types.ObjectId[];
+            await existingUser.save();
+          }
+          application.user = existingUser._id as mongoose.Types.ObjectId;
+          application.accountCreated = true;
+        }
       }
 
       await application.save();
@@ -703,7 +770,7 @@ router.post(
           status: "active",
         });
 
-        application.user = user._id as ObjectId;
+        application.user = user._id as mongoose.Types.ObjectId;
         await emailQueue.add({
           type: "approval",
           application,

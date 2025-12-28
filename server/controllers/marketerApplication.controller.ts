@@ -13,6 +13,7 @@ import {
   getApplicationByToken as getApplicationByTokenService,
   resendInvite as resendInviteService,
   getTopMarketers as getTopMarketersService,
+  getMarketerUserProfile as getUserProfileService,
 } from "../services";
 
 export const inviteMarketer = async (req: Request, res: Response) => {
@@ -142,5 +143,32 @@ export const getTopMarketers = async (req: Request, res: Response) => {
     return res.json(result);
   } catch (error: any) {
     return res.status(500).json({ message: error.message });
+  }
+};
+
+export const getUserProfile = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'User ID is required' 
+      });
+    }
+
+    const result = await getUserProfileService(userId);
+    
+    return res.status(200).json({
+      status: 'success',
+      message: 'User profile retrieved successfully',
+      data: result
+    });
+  } catch (error: any) {
+    console.error('Error fetching user profile:', error);
+    return res.status(500).json({ 
+      status: 'error',
+      message: error.message || 'Failed to fetch user profile' 
+    });
   }
 };

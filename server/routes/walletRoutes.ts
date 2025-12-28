@@ -12,7 +12,7 @@ import * as Sentry from '@sentry/node';
 // Zod Schemas for Validation
 const transferSchema = z.object({
     receiver: z.string().min(1, 'Receiver username or email is required'),
-    amount: z.number().min(5, 'Minimum transfer is 5 GrowCoins'),
+    amount: z.number().min(1, 'Minimum transfer is 1 GrowCoin'),
     note: z.string().max(100, 'Note must be 100 characters or less').optional(),
 });
 
@@ -25,8 +25,8 @@ const storage: IStorage = new MongoStorage();
 const router = Router();
 
 // Apply Sentry request handler for this router
-if (process.env.GLITCHTIP_DSN && Sentry.Handlers?.requestHandler) {
-  router.use(Sentry.Handlers.requestHandler({
+if (process.env.GLITCHTIP_DSN && (Sentry as any).Handlers?.requestHandler) {
+  router.use((Sentry as any).Handlers.requestHandler({
     serverName: false,
     user: ['id', 'username', 'email'],
     transaction: 'methodPath',
@@ -46,7 +46,7 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
         // Calculate transaction count and last transaction date
         const transactionCount = transactions.length;
         const lastTransaction = transactions.length > 0 
-            ? transactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0].createdAt
+            ? transactions.sort((a, b) => new Date(b.createdAt || new Date()).getTime() - new Date(a.createdAt || new Date()).getTime())[0].createdAt
             : null;
 
         res.json({
@@ -93,33 +93,24 @@ router.post('/transfer', authenticate, async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'Receiver wallet not found' });
         }
 
-        // Check daily transfer limit
-        const today = new Date().setHours(0, 0, 0, 0);
-        const dailyTransfers = await storage.countWalletTransactions(userId, 'Transfer Out', today);
-        if (dailyTransfers >= 500) {
-            return res.status(400).json({ message: 'Daily transfer limit exceeded' });
-        }
+        // No daily transfer limits - unlimited transfers
 
-        const transactionFeePercentage = parseFloat(process.env.GROWCOIN_TRANSACTION_PERCENTAGE || '10') / 100;
-        const transactionFee = validatedData.amount * transactionFeePercentage;
-        const totalDeduction = validatedData.amount + transactionFee;
-
-        if (senderWallet.balance < totalDeduction) {
-            return res.status(400).json({ message: 'Insufficient balance for transfer and fee' });
+        if (senderWallet.balance < validatedData.amount) {
+            return res.status(400).json({ message: 'Insufficient balance for transfer' });
         }
 
         const transactionId = `GVC${nanoid(8)}`;
         const receiverTransactionId = `GVC${nanoid(8)}`;
 
         // Update wallets
-        await storage.updateWallet(userId, { balance: senderWallet.balance - totalDeduction });
+        await storage.updateWallet(userId, { balance: senderWallet.balance - validatedData.amount });
         await storage.updateWallet(receiverUser.id, { balance: receiverWallet.balance + validatedData.amount });
 
         // Create transactions
         await storage.createWalletTransaction({
             userId,
             description: `Sent to @${receiverUser.username} ${validatedData.note ? `(${validatedData.note})` : ''}`,
-            type: 'Transfer Out',
+            type: 'user_transfer',
             amount: -validatedData.amount,
             transactionId: transactionId,
             receiverId: receiverUser.id,
@@ -129,31 +120,21 @@ router.post('/transfer', authenticate, async (req: Request, res: Response) => {
 
         await storage.createWalletTransaction({
             userId: receiverUser.id,
-            description: `Received from @${req.user?.username} ${validatedData.note ? `(${validatedData.note})` : ''}`,
-            type: 'Transfer In',
+            description: `Received from @${(req.user as any)?.username || 'unknown'} ${validatedData.note ? `(${validatedData.note})` : ''}`,
+            type: 'user_transfer',
             amount: validatedData.amount,
             transactionId: receiverTransactionId,
             ipAddress: req.ip,
             deviceFingerprint: req.headers['user-agent'],
         });
 
-        await storage.createWalletTransaction({
-            userId,
-            description: 'Platform transfer fee',
-            type: 'Spent',
-            amount: -transactionFee,
-            transactionId: `FEE${nanoid(8)}`,
-            ipAddress: req.ip,
-            deviceFingerprint: req.headers['user-agent'],
-        });
-
         await auditLog(userId, 'GROWCOIN_TRANSFER', `Transferred ${validatedData.amount} GrowCoins to @${receiverUser.username}`);
-        await auditLog(receiverUser.id, 'GROWCOIN_RECEIVED', `Received ${validatedData.amount} GrowCoins from @${req.user?.username}`);
+        await auditLog(receiverUser.id, 'GROWCOIN_RECEIVED', `Received ${validatedData.amount} GrowCoins from @${(req.user as any)?.username || 'unknown'}`);
 
         await emailQueue.add({
             type: 'growcoin_transfer_notification',
-            email: req.user?.email,
-            name: req.user?.username,
+            email: (req as any).user?.email || 'unknown',
+            name: (req as any).user?.name || 'unknown',
             receiver: receiverUser.username,
             amount: validatedData.amount,
             transactionId: transactionId,
@@ -164,15 +145,16 @@ router.post('/transfer', authenticate, async (req: Request, res: Response) => {
             type: 'growcoin_received_notification',
             email: receiverUser.email,
             name: receiverUser.username,
-            sender: req.user?.username,
+            sender: (req.user as any)?.username || 'unknown',
             amount: validatedData.amount,
             transactionId: receiverTransactionId,
             timestamp: new Date().toISOString(),
         });
 
         res.status(200).json({
-            message: `You’ve sent ${validatedData.amount} GrowCoins to @${receiverUser.username}. Transaction ID: ${transactionId}`,
+            message: `You've sent ${validatedData.amount} GrowCoins to @${receiverUser.username}. Transaction ID: ${transactionId}`,
         });
+        return;
     } catch (error: any) {
         Sentry.captureException(error, {
             extra: {
@@ -184,6 +166,7 @@ router.post('/transfer', authenticate, async (req: Request, res: Response) => {
             },
         });
         res.status(500).json({ message: error.message || 'Failed to transfer GrowCoins' });
+        return;
     }
 });
 
@@ -221,7 +204,7 @@ router.post('/top-up', authenticate, async (req: Request, res: Response) => {
                 const response = await axios.post(
                     'https://api.paystack.co/transaction/initialize',
                     {
-                        email: req.user.email,
+                        email: (req as any).user?.email || 'unknown',
                         amount: validatedData.amount * 100, // Paystack expects amount in kobo
                         callback_url: `${req.get('origin') || 'https://www.growviapro.com'}/auth/wallet/callback`,
                         reference: transactionId, // Use transactionId as Paystack reference
@@ -240,7 +223,7 @@ router.post('/top-up', authenticate, async (req: Request, res: Response) => {
                         amount: validatedData.amount,
                         currency: 'NGN',
                         redirect_url: `${req.get('origin') || 'https://www.growviapro.com'}/auth/wallet/callback`,
-                        customer: { email: req.user.email, name: req.user.name },
+                        customer: { email: (req as any).user?.email || 'unknown', name: (req as any).user?.name || 'unknown' },
                         meta: { transactionId },
                     },
                     {
@@ -271,7 +254,6 @@ router.post('/top-up', authenticate, async (req: Request, res: Response) => {
             amount: growCoins,
             status: 'Pending',
             transactionId,
-            referenceId, // Store provider reference
             ipAddress: req.ip,
             deviceFingerprint: req.headers['user-agent'],
         });
@@ -282,7 +264,7 @@ router.post('/top-up', authenticate, async (req: Request, res: Response) => {
             type: 'transaction',
             description: `Initiated top-up of ${growCoins} GrowCoins`,
             userId,
-            metadata: { amount: validatedData.amount, provider: validatedData.provider, transactionId, referenceId },
+            metadata: { amount: validatedData.amount, provider: validatedData.provider, transactionId },
         });
 
         res.status(200).json({ paymentUrl, provider: validatedData.provider, transactionId, referenceId });
@@ -322,7 +304,7 @@ router.get('/callback', authenticate, async (req: Request, res: Response) => {
                 process.env.NODE_ENV === 'production'
                     ? process.env.PAYSTACK_SECRET_KEY_LIVE
                     : process.env.PAYSTACK_SECRET_KEY_TEST;
-            const ref = reference || trxref;
+            const ref = reference || trxref || '';
             const response = await axios.get(`https://api.paystack.co/transaction/verify/${ref}`, {
                 headers: { Authorization: `Bearer ${secretKey}` },
             });
@@ -338,7 +320,7 @@ router.get('/callback', authenticate, async (req: Request, res: Response) => {
                 process.env.NODE_ENV === 'production'
                     ? process.env.FLUTTERWAVE_SECRET_KEY_LIVE
                     : process.env.FLUTTERWAVE_SECRET_KEY_TEST;
-            const ref = transaction_id || tx_ref;
+            const ref = transaction_id || tx_ref || '';
             const response = await axios.get(
                 `https://api.flutterwave.com/v3/transactions/${ref}/verify`,
                 {
@@ -382,8 +364,8 @@ router.get('/callback', authenticate, async (req: Request, res: Response) => {
 
         await emailQueue.add({
             type: 'growcoin_topup_notification',
-            email: (req as any).user.email,
-            name: (req as any).user.name,
+            email: (req as any).user?.email || 'unknown',
+            name: (req as any).user?.name || 'unknown',
             amount: transaction.amount,
             transactionId: transaction.transactionId,
             timestamp: new Date().toISOString(),
@@ -422,8 +404,8 @@ router.get('/callback', authenticate, async (req: Request, res: Response) => {
 });
 
 // Sentry error handler must be after all routes
-if (process.env.GLITCHTIP_DSN && Sentry.Handlers?.errorHandler) {
-  router.use(Sentry.Handlers.errorHandler({
+if (process.env.GLITCHTIP_DSN && (Sentry as any).Handlers?.errorHandler) {
+  router.use((Sentry as any).Handlers.errorHandler({
     shouldHandleError(error: any) {
       return error.status === 404 || error.status >= 500;
     },

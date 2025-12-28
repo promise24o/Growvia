@@ -25,8 +25,10 @@ export interface IMarketerApplication extends Document {
   reviewedAt?: Date;
   reviewNotes?: string;
   user?: mongoose.Types.ObjectId;
+  accountCreated: boolean;
   updatedAt: Date;
   coolOffUntil?: Date;
+  source?: string;
 }
 
 const MarketerApplicationSchema = new Schema<IMarketerApplication>(
@@ -112,12 +114,21 @@ const MarketerApplicationSchema = new Schema<IMarketerApplication>(
       type: Schema.Types.ObjectId,
       ref: "User",
     },
+    accountCreated: {
+      type: Boolean,
+      default: false,
+    },
     updatedAt: {
       type: Date,
       default: Date.now,
     },
     coolOffUntil: {
       type: Date,
+    },
+    source: {
+      type: String,
+      enum: ["marketplace", "direct", "invite", "other"],
+      default: "direct",
     },
   },
   {

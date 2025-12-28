@@ -47,7 +47,8 @@ const allowedCategories = [
   'fashion',
   'food',
   'technology',
-  'other'
+  'other',
+  'business'
 ];
 
 const allowedVisibility = ['public', 'invite-only'];

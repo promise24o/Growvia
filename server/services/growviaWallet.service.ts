@@ -12,6 +12,7 @@ import { BadRequestError, NotFoundError } from '../utils/errors';
 // Fee configuration
 const WITHDRAWAL_FEE_PERCENT = 1.5; // 1.5%
 const MINIMUM_FEE = 50; // ₦50
+const MAXIMUM_FEE = 2500; // ₦2500 capped fee
 const GROWCOIN_TO_NAIRA_RATE = parseInt(process.env.GROWCOIN_TO_NAIRA || '100'); // 1 GrowCoin = ₦100
 
 export class GrowviaWalletService {
@@ -35,13 +36,14 @@ export class GrowviaWalletService {
   }
 
   /**
-   * Calculate withdrawal fee
+   * Calculate withdrawal fee with 2500 cap
    */
   calculateWithdrawalFee(amount: number): number {
     const feeAmount = (amount * WITHDRAWAL_FEE_PERCENT) / 100;
     
-    // Apply minimum cap only
+    // Apply minimum and maximum caps
     if (feeAmount < MINIMUM_FEE) return MINIMUM_FEE;
+    if (feeAmount > MAXIMUM_FEE) return MAXIMUM_FEE;
     
     return Math.round(feeAmount * 100) / 100; // Round to 2 decimal places
   }
@@ -248,6 +250,10 @@ export class GrowviaWalletService {
           source: 'growvia_wallet',
         },
       }], { session });
+
+      if (!payoutRequest[0]) {
+        throw new Error('Failed to create payout request');
+      }
 
       // Create withdrawal transaction
       const transaction = await GrowviaWalletTransaction.create([{

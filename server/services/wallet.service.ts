@@ -11,7 +11,7 @@ const storage: IStorage = new MongoStorage();
 // Zod Schemas for Validation
 const transferSchema = z.object({
   receiver: z.string().min(1, "Receiver username or email is required"),
-  amount: z.number().min(5, "Minimum transfer is 5 GrowCoins"),
+  amount: z.number().min(1, "Minimum transfer is 1 GrowCoin"),
   note: z.string().max(100, "Note must be 100 characters or less").optional(),
 });
 
@@ -62,30 +62,20 @@ export const transferGrowCoins = async (user: any, data: any, ipAddress: string,
     throw new Error("Receiver wallet not found");
   }
 
-  const today = new Date().setHours(0, 0, 0, 0);
-  const dailyTransfers = await storage.countWalletTransactions(userId, "Transfer Out", today);
-  if (dailyTransfers >= 500) {
-    throw new Error("Daily transfer limit exceeded");
-  }
-
-  const transactionFeePercentage = parseFloat(process.env.GROWCOIN_TRANSACTION_PERCENTAGE || "10") / 100;
-  const transactionFee = validatedData.amount * transactionFeePercentage;
-  const totalDeduction = validatedData.amount + transactionFee;
-
-  if (senderWallet.balance < totalDeduction) {
-    throw new Error("Insufficient balance for transfer and fee");
+  if (senderWallet.balance < validatedData.amount) {
+    throw new Error("Insufficient balance for transfer");
   }
 
   const transactionId = `GVC${nanoid(8)}`;
   const receiverTransactionId = `GVC${nanoid(8)}`;
 
-  await storage.updateWallet(userId, { balance: senderWallet.balance - totalDeduction });
+  await storage.updateWallet(userId, { balance: senderWallet.balance - validatedData.amount });
   await storage.updateWallet(receiverUser.id, { balance: receiverWallet.balance + validatedData.amount });
 
   await storage.createWalletTransaction({
     userId,
     description: `Sent to @${receiverUser.username} ${validatedData.note ? `(${validatedData.note})` : ""}`,
-    type: "Transfer Out",
+    type: "user_transfer",
     amount: -validatedData.amount,
     transactionId: transactionId,
     receiverId: receiverUser.id,
@@ -96,19 +86,9 @@ export const transferGrowCoins = async (user: any, data: any, ipAddress: string,
   await storage.createWalletTransaction({
     userId: receiverUser.id,
     description: `Received from @${user.username} ${validatedData.note ? `(${validatedData.note})` : ""}`,
-    type: "Transfer In",
+    type: "user_transfer",
     amount: validatedData.amount,
     transactionId: receiverTransactionId,
-    ipAddress,
-    deviceFingerprint,
-  });
-
-  await storage.createWalletTransaction({
-    userId,
-    description: "Platform transfer fee",
-    type: "Spent",
-    amount: -transactionFee,
-    transactionId: `FEE${nanoid(8)}`,
     ipAddress,
     deviceFingerprint,
   });
@@ -137,7 +117,7 @@ export const transferGrowCoins = async (user: any, data: any, ipAddress: string,
   });
 
   return {
-    message: `You’ve sent ${validatedData.amount} GrowCoins to @${receiverUser.username}. Transaction ID: ${transactionId}`,
+    message: `You've sent ${validatedData.amount} GrowCoins to @${receiverUser.username}. Transaction ID: ${transactionId}`,
   };
 };
 

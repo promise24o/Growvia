@@ -140,7 +140,7 @@ const kycSchema = new Schema<IKYC>(
   { timestamps: true }
 );
 
-kycSchema.index({ userId: 1 });
+// userId already indexed due to unique constraint
 kycSchema.index({ tier: 1 });
 kycSchema.index({ status: 1 });
 

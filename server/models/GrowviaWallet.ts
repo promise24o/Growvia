@@ -21,7 +21,6 @@ const growviaWalletSchema = new Schema<IGrowviaWallet>(
   { timestamps: true }
 );
 
-// Index for faster queries
-growviaWalletSchema.index({ userId: 1 });
+// Index for faster queries - userId already indexed due to unique constraint
 
 export const GrowviaWallet = model<IGrowviaWallet>('GrowviaWallet', growviaWalletSchema);

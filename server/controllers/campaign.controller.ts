@@ -179,12 +179,11 @@ export class CampaignController {
       // Validate request body against schema (partial update)
       const validationResult = updateCampaignSchema.safeParse(req.body);
       if (!validationResult.success) {
-        const validationError = fromZodError(validationResult.error);
         console.error('Campaign validation failed:', JSON.stringify(validationResult.error.issues, null, 2));
         return res.status(400).json({
           status: "error",
           message: "Validation failed",
-          errors: validationError.details,
+          errors: validationResult.error.issues,
           issues: validationResult.error.issues,
         });
       }

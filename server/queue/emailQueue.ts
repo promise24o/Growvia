@@ -129,6 +129,22 @@ emailQueue.process(async (job) => {
         }
         await sendCampaignInvitationEmail(user, data.campaign, organization, data.invitationUrl, data);
         break;
+      case 'marketplace_application_approved':
+        if (!user || !data.campaign || !organization) {
+          throw new Error('Missing required fields for marketplace application approval email');
+        }
+        // Email will be sent with campaign details and next steps
+        console.log(`Marketplace application approved for ${user.email} - Campaign: ${data.campaign.name}`);
+        // TODO: Implement sendMarketplaceApprovalEmail function in utils/email
+        break;
+      case 'marketplace_application_rejected':
+        if (!user || !data.campaign || !organization) {
+          throw new Error('Missing required fields for marketplace application rejection email');
+        }
+        // Email will be sent with rejection reason and suggestions
+        console.log(`Marketplace application rejected for ${user.email} - Campaign: ${data.campaign.name}, Reason: ${data.reason}`);
+        // TODO: Implement sendMarketplaceRejectionEmail function in utils/email
+        break;
       default:
         throw new Error(`Unknown email type: ${type}`);
     }

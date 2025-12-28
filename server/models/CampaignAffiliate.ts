@@ -12,6 +12,7 @@ export interface ICampaignAffiliate extends Document {
   removalReason?: string | undefined;
   kycVerified: boolean;
   participationNotes?: string | undefined;
+  source?: string;
   // Performance tracking
   clicks: number;
   conversions: number;
@@ -72,6 +73,11 @@ const CampaignAffiliateSchema = new Schema<ICampaignAffiliate>(
     participationNotes: {
       type: String,
       trim: true,
+    },
+    source: {
+      type: String,
+      enum: ['marketplace', 'direct', 'invite', 'other'],
+      default: 'direct',
     },
     // Performance metrics
     clicks: {

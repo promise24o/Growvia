@@ -1319,6 +1319,349 @@ export class CampaignAffiliateService {
       currency: 'NGN',
     };
   }
+
+  /**
+   * Approve marketplace campaign application
+   */
+  async approveMarketplaceApplication(
+    campaignId: string,
+    userId: string,
+    approvedBy: string
+  ): Promise<ICampaignAffiliate> {
+    // Find the campaign affiliate application
+    const assignment = await CampaignAffiliate.findOne({
+      campaignId: new Types.ObjectId(campaignId),
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!assignment) {
+      throw new NotFoundError('Campaign application not found');
+    }
+
+    // Check if application is from marketplace
+    if (assignment.source !== 'marketplace') {
+      throw new BadRequestError('This is not a marketplace application');
+    }
+
+    // Check if application is in pending status
+    if (assignment.status !== 'pending') {
+      throw new BadRequestError(
+        `Cannot approve application with status: ${assignment.status}. Only pending applications can be approved.`
+      );
+    }
+
+    // Verify the person approving has permission
+    const approver = await User.findById(approvedBy);
+    if (!approver) {
+      throw new NotFoundError('User performing action not found');
+    }
+
+    if (!['admin', 'management'].includes(approver.role)) {
+      throw new ForbiddenError('Only admins and managers can approve applications');
+    }
+
+    // Get campaign, user, and organization details
+    const campaign = await Campaign.findById(campaignId);
+    const user = await User.findById(userId);
+    const organization = await Organization.findById(assignment.organizationId);
+
+    if (!campaign) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    if (!organization) {
+      throw new NotFoundError('Organization not found');
+    }
+
+    // Update status to active
+    assignment.status = 'active';
+    await assignment.save();
+
+    // Create audit log
+    await this.createAuditLog({
+      action: 'marketplace_application_approved',
+      performedBy: approvedBy,
+      organizationId: assignment.organizationId.toString(),
+      entityType: 'CampaignAffiliate',
+      entityId: (assignment._id as Types.ObjectId).toString(),
+      details: {
+        campaignId,
+        userId,
+        campaignName: campaign.name,
+        userName: user.name,
+        userEmail: user.email,
+        source: 'marketplace',
+      },
+    });
+
+    // Send approval email
+    try {
+      await emailQueue.add({
+        type: 'marketplace_application_approved',
+        user,
+        campaign,
+        organization,
+        dashboardUrl: `${getBaseUrl()}/dashboard`,
+        campaignUrl: `${getBaseUrl()}/campaigns/${campaignId}`,
+        supportUrl: `${getBaseUrl()}/support`,
+      });
+    } catch (queueError: any) {
+      console.warn('Email queue unavailable, sending email directly:', queueError?.message || queueError);
+      // Fallback - log for now, implement direct email if needed
+      console.log(`Send approval email to ${user.email} for campaign ${campaign.name}`);
+    }
+
+    // Create activity notification for the user
+    await this.createActivity({
+      type: 'marketplace_application_approved',
+      description: `Your application to join campaign "${campaign.name}" has been approved!`,
+      userId,
+      organizationId: assignment.organizationId.toString(),
+      metadata: {
+        campaignId,
+        campaignName: campaign.name,
+        organizationName: organization.name,
+        approvedBy: approver.name,
+      },
+    });
+
+    return assignment;
+  }
+
+  /**
+   * Reject marketplace campaign application
+   */
+  async rejectMarketplaceApplication(
+    campaignId: string,
+    userId: string,
+    rejectedBy: string,
+    reason?: string
+  ): Promise<ICampaignAffiliate> {
+    // Find the campaign affiliate application
+    const assignment = await CampaignAffiliate.findOne({
+      campaignId: new Types.ObjectId(campaignId),
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!assignment) {
+      throw new NotFoundError('Campaign application not found');
+    }
+
+    // Check if application is from marketplace
+    if (assignment.source !== 'marketplace') {
+      throw new BadRequestError('This is not a marketplace application');
+    }
+
+    // Check if application is in pending status
+    if (assignment.status !== 'pending') {
+      throw new BadRequestError(
+        `Cannot reject application with status: ${assignment.status}. Only pending applications can be rejected.`
+      );
+    }
+
+    // Verify the person rejecting has permission
+    const rejecter = await User.findById(rejectedBy);
+    if (!rejecter) {
+      throw new NotFoundError('User performing action not found');
+    }
+
+    if (!['admin', 'management'].includes(rejecter.role)) {
+      throw new ForbiddenError('Only admins and managers can reject applications');
+    }
+
+    // Get campaign, user, and organization details
+    const campaign = await Campaign.findById(campaignId);
+    const user = await User.findById(userId);
+    const organization = await Organization.findById(assignment.organizationId);
+
+    if (!campaign) {
+      throw new NotFoundError('Campaign not found');
+    }
+
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    if (!organization) {
+      throw new NotFoundError('Organization not found');
+    }
+
+    // Update status to removed with rejection reason
+    assignment.status = 'removed';
+    assignment.removedBy = new Types.ObjectId(rejectedBy);
+    assignment.removedAt = new Date();
+    assignment.removalReason = reason || 'Application rejected by organization';
+
+    await assignment.save();
+
+    // Create audit log
+    await this.createAuditLog({
+      action: 'marketplace_application_rejected',
+      performedBy: rejectedBy,
+      organizationId: assignment.organizationId.toString(),
+      entityType: 'CampaignAffiliate',
+      entityId: (assignment._id as Types.ObjectId).toString(),
+      details: {
+        campaignId,
+        userId,
+        campaignName: campaign.name,
+        userName: user.name,
+        userEmail: user.email,
+        source: 'marketplace',
+        reason,
+      },
+    });
+
+    // Send rejection email
+    try {
+      await emailQueue.add({
+        type: 'marketplace_application_rejected',
+        user,
+        campaign,
+        organization,
+        reason: reason || 'Your application did not meet the campaign requirements at this time.',
+        dashboardUrl: `${getBaseUrl()}/dashboard`,
+        marketplaceUrl: `${getBaseUrl()}/marketplace`,
+        supportUrl: `${getBaseUrl()}/support`,
+      });
+    } catch (queueError: any) {
+      console.warn('Email queue unavailable, sending email directly:', queueError?.message || queueError);
+      // Fallback - log for now, implement direct email if needed
+      console.log(`Send rejection email to ${user.email} for campaign ${campaign.name}`);
+    }
+
+    // Create activity notification for the user
+    await this.createActivity({
+      type: 'marketplace_application_rejected',
+      description: `Your application to join campaign "${campaign.name}" was not approved.`,
+      userId,
+      organizationId: assignment.organizationId.toString(),
+      metadata: {
+        campaignId,
+        campaignName: campaign.name,
+        organizationName: organization.name,
+        rejectedBy: rejecter.name,
+        reason: reason || 'No reason provided',
+      },
+    });
+
+    return assignment;
+  }
+
+  /**
+   * Get all affiliates for the organization
+   */
+  async getOrganizationAffiliates(
+    organizationId: string,
+    options: {
+      status?: string;
+      search?: string;
+      conversionRange?: string;
+      sort?: string;
+      page: number;
+      limit: number;
+    }
+  ) {
+    const { status, search, conversionRange, sort, page, limit } = options;
+    const skip = (page - 1) * limit;
+
+    // Build query
+    let query: any = { organizationId };
+
+    // Filter by status
+    if (status && status !== 'all' && ['pending', 'active', 'inactive', 'suspended', 'removed'].includes(status)) {
+      query.status = status;
+    }
+
+    // Search by user name or email
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      query.$or = [
+        { 'user.name': searchRegex },
+        { 'user.email': searchRegex }
+      ];
+    }
+
+    // Filter by conversion range
+    if (conversionRange && conversionRange !== 'all') {
+      const conversionFilter = this.parseConversionRange(conversionRange);
+      if (conversionFilter) {
+        query.conversions = conversionFilter;
+      }
+    }
+
+    // Build sort object
+    let sortObj: any = { createdAt: -1 }; // Default sort
+    if (sort) {
+      switch (sort) {
+        case 'name-asc':
+          sortObj = { 'user.name': 1 };
+          break;
+        case 'name-desc':
+          sortObj = { 'user.name': -1 };
+          break;
+        case 'conversions-desc':
+          sortObj = { conversions: -1 };
+          break;
+        case 'commission-desc':
+          sortObj = { totalCommission: -1 };
+          break;
+        case 'createdAt-desc':
+          sortObj = { createdAt: -1 };
+          break;
+        case 'createdAt-asc':
+          sortObj = { createdAt: 1 };
+          break;
+        default:
+          sortObj = { createdAt: -1 };
+      }
+    }
+
+    // Get total count
+    const totalItems = await CampaignAffiliate.countDocuments(query);
+
+    // Get paginated results with populated user and campaign data
+    const affiliates = await CampaignAffiliate.find(query)
+      .populate('userId', 'name email phone avatar socialMedia skills')
+      .populate('campaignId', 'name description commissionModel startDate endDate')
+      .populate('assignedBy', 'name email')
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return {
+      data: affiliates,
+      pagination: {
+        totalItems,
+        totalPages,
+        currentPage: page,
+        itemsPerPage: limit,
+      },
+    };
+  }
+
+  /**
+   * Parse conversion range filter
+   */
+  private parseConversionRange(range: string): any {
+    switch (range) {
+      case '>10':
+        return { $gt: 10 };
+      case '>20':
+        return { $gt: 20 };
+      case '>30':
+        return { $gt: 30 };
+      default:
+        return null;
+    }
+  }
 }
 
 export const campaignAffiliateService = new CampaignAffiliateService();

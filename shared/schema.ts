@@ -524,6 +524,7 @@ const baseCampaignSchema = z.object({
     'fashion',
     'food',
     'technology',
+    'business',
     'other'
   ], {
     errorMap: () => ({ message: 'Invalid category' }),

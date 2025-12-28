@@ -3,7 +3,7 @@ import { Schema, model, Document, Types } from 'mongoose';
 interface IGrowCoinTransaction extends Document {
   userId: Types.ObjectId;
   description: string;
-  type: 'Earned' | 'Spent' | 'Transfer In' | 'Transfer Out' | 'Referral' | 'Wallet Transfer';
+  type: 'Earned' | 'Spent' | 'user_transfer' | 'Referral' | 'Wallet Transfer';
   amount: number;
   status: 'Pending' | 'Completed' | 'Failed';
   transactionId: string;
@@ -19,7 +19,7 @@ const GrowCoinTransactionSchema = new Schema<IGrowCoinTransaction>({
   description: { type: String, required: true },
   type: {
     type: String,
-    enum: ['Earned', 'Spent', 'Transfer In', 'Transfer Out', 'Referral', 'Wallet Transfer'],
+    enum: ['Earned', 'Spent', 'user_transfer', 'Referral', 'Wallet Transfer'],
     required: true,
   },
   amount: { type: Number, required: true },

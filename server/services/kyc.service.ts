@@ -26,10 +26,10 @@ export class KYCService {
         tier: emailVerified ? KYCTier.BLOOM : KYCTier.SPROUT,
         status: emailVerified ? KYCStatus.APPROVED : KYCStatus.PENDING,
         emailVerified,
-        dailyPurchaseLimit: emailVerified ? 200000 : 5000,
-        portfolioMaxBalance: emailVerified ? 300000 : 10000,
-        maxWithdrawalAmount: emailVerified ? 150000 : 0,
-        dailyWithdrawalLimit: emailVerified ? 300000 : 0,
+        dailyPurchaseLimit: emailVerified ? 1000000 : 20000,
+        portfolioMaxBalance: emailVerified ? 2000000 : 50000,
+        maxWithdrawalAmount: emailVerified ? 500000 : 0,
+        dailyWithdrawalLimit: emailVerified ? 2000000 : 0,
         withdrawalsEnabled: emailVerified,
       });
     }
@@ -114,20 +114,16 @@ export class KYCService {
         }
       );
 
+      console.log(response.data)
+
       if (response.data.status && response.data.data) {
         const bvnData = response.data.data;
 
-        // Paystack BVN match returns boolean values for first_name, last_name, and account_number
+        // Paystack BVN match returns boolean values for first_name and last_name
         // true means they match, false means they don't
         if (bvnData.first_name !== true || bvnData.last_name !== true) {
           throw new BadRequestError(
-            `Name mismatch: Your registered name "${user.name}" does not match the BVN records.`
-          );
-        }
-
-        if (bvnData.account_number !== true) {
-          throw new BadRequestError(
-            'Bank account number does not match the BVN records.'
+            `Name mismatch: Your registered name "${user.name}" does not match the BVN records.` 
           );
         }
 
@@ -149,10 +145,10 @@ export class KYCService {
         kyc.status = KYCStatus.APPROVED;
 
         // Update financial limits for Bloom tier
-        kyc.dailyPurchaseLimit = 200000;
-        kyc.portfolioMaxBalance = 300000;
-        kyc.maxWithdrawalAmount = 150000;
-        kyc.dailyWithdrawalLimit = 300000;
+        kyc.dailyPurchaseLimit = 1000000;
+        kyc.portfolioMaxBalance = 2000000;
+        kyc.maxWithdrawalAmount = 500000;
+        kyc.dailyWithdrawalLimit = 2000000;
         kyc.withdrawalsEnabled = true;
 
         await kyc.save();
@@ -265,10 +261,10 @@ export class KYCService {
     kyc.reviewedAt = new Date();
 
     // Update financial limits for Thrive tier
-    kyc.dailyPurchaseLimit = 1000000;
-    kyc.portfolioMaxBalance = 3000000;
-    kyc.maxWithdrawalAmount = 1000000;
-    kyc.dailyWithdrawalLimit = 3000000;
+    kyc.dailyPurchaseLimit = 5000000;
+    kyc.portfolioMaxBalance = 10000000;
+    kyc.maxWithdrawalAmount = 3000000;
+    kyc.dailyWithdrawalLimit = 10000000;
     kyc.withdrawalsEnabled = true;
 
     await kyc.save();
@@ -301,10 +297,10 @@ export class KYCService {
       kyc.emailVerified = true;
       kyc.tier = KYCTier.BLOOM;
       kyc.status = KYCStatus.APPROVED;
-      kyc.dailyPurchaseLimit = 200000;
-      kyc.portfolioMaxBalance = 300000;
-      kyc.maxWithdrawalAmount = 150000;
-      kyc.dailyWithdrawalLimit = 300000;
+      kyc.dailyPurchaseLimit = 1000000;
+      kyc.portfolioMaxBalance = 2000000;
+      kyc.maxWithdrawalAmount = 500000;
+      kyc.dailyWithdrawalLimit = 2000000;
       kyc.withdrawalsEnabled = true;
       await kyc.save();
     }

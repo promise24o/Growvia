@@ -8,6 +8,7 @@ import {
     getMarketerApplications,
     getSingleApplication,
     getTopMarketers,
+    getUserProfile,
     inviteMarketer,
     rejectApplication,
     removeMarketerOrApplication,
@@ -37,5 +38,6 @@ router.get("/applications", authenticate, getAllApplications);
 router.get("/application/:token", getApplicationByToken);
 router.post("/resend-invite", authenticate, authorize([UserRole.ADMIN]), resendInvite);
 router.get("/top", authenticate, getTopMarketers);
+router.get("/profile/:userId", authenticate, getUserProfile);
 
 export default router;

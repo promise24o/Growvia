@@ -104,13 +104,13 @@ interface WalletData {
 interface TransactionData {
   userId: string | Types.ObjectId;
   description: string;
-  type: 'Earned' | 'Spent' | 'Transfer In' | 'Transfer Out';
+  type: 'Earned' | 'Spent' | 'user_transfer' | 'Referral' | 'Wallet Transfer';
   amount: number;
   status?: 'Pending' | 'Completed' | 'Failed';
   transactionId: string;
-  receiverId?: string | Types.ObjectId;
-  ipAddress?: string;
-  deviceFingerprint?: string;
+  receiverId?: string | Types.ObjectId | undefined;
+  ipAddress?: string | undefined;
+  deviceFingerprint?: string | undefined;
   createdAt?: Date;
 }
 

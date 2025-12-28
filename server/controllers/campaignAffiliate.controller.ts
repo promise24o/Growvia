@@ -881,6 +881,171 @@ export class CampaignAffiliateController {
       });
     }
   };
+
+  /**
+   * Approve marketplace campaign application
+   * POST /api/campaign-affiliates/:campaignId/affiliates/:userId/approve
+   */
+  approveMarketplaceApplication = async (req: Request, res: Response) => {
+    try {
+      const { campaignId, userId } = req.params;
+      const approvedBy = (req as any).user?.id;
+
+      if (!campaignId || !userId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Campaign ID and User ID are required',
+        });
+      }
+
+      if (!approvedBy) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'User not authenticated',
+        });
+      }
+
+      const result = await campaignAffiliateService.approveMarketplaceApplication(
+        campaignId,
+        userId,
+        approvedBy
+      );
+
+      return res.status(200).json({
+        status: 'success',
+        message: 'Marketplace application approved successfully',
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('Approve marketplace application error:', error);
+      Sentry.captureException(error, {
+        extra: {
+          route: req.path,
+          method: req.method,
+          userId: (req as any).user?.id,
+          campaignId: req.params.campaignId,
+          targetUserId: req.params.userId,
+        },
+      });
+
+      const statusCode = error.statusCode || 500;
+      return res.status(statusCode).json({
+        status: 'error',
+        message: error.message || 'Failed to approve marketplace application',
+      });
+    }
+  };
+
+  /**
+   * Reject marketplace campaign application
+   * POST /api/campaign-affiliates/:campaignId/affiliates/:userId/reject
+   */
+  rejectMarketplaceApplication = async (req: Request, res: Response) => {
+    try {
+      const { campaignId, userId } = req.params;
+      const { reason } = req.body;
+      const rejectedBy = (req as any).user?.id;
+
+      if (!campaignId || !userId) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Campaign ID and User ID are required',
+        });
+      }
+
+      if (!rejectedBy) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'User not authenticated',
+        });
+      }
+
+      const result = await campaignAffiliateService.rejectMarketplaceApplication(
+        campaignId,
+        userId,
+        rejectedBy,
+        reason
+      );
+
+      return res.status(200).json({
+        status: 'success',
+        message: 'Marketplace application rejected',
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('Reject marketplace application error:', error);
+      Sentry.captureException(error, {
+        extra: {
+          route: req.path,
+          method: req.method,
+          userId: (req as any).user?.id,
+          campaignId: req.params.campaignId,
+          targetUserId: req.params.userId,
+        },
+      });
+
+      const statusCode = error.statusCode || 500;
+      return res.status(statusCode).json({
+        status: 'error',
+        message: error.message || 'Failed to reject marketplace application',
+      });
+    }
+  };
+
+  /**
+   * Get all affiliates for the organization
+   * GET /api/campaign-affiliates
+   */
+  getOrganizationAffiliates = async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      const { 
+        status, 
+        search, 
+        conversionRange, 
+        sort,
+        page = 1, 
+        limit = 20 
+      } = req.query;
+
+      const result = await campaignAffiliateService.getOrganizationAffiliates(
+        user.organizationId,
+        {
+          status: status as string,
+          search: search as string,
+          conversionRange: conversionRange as string,
+          sort: sort as string,
+          page: parseInt(page as string),
+          limit: parseInt(limit as string),
+        }
+      );
+
+      return res.status(200).json({
+        status: 'success',
+        message: 'Organization affiliates retrieved successfully',
+        ...result,
+      });
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        tags: {
+          controller: 'campaignAffiliate',
+          method: 'getOrganizationAffiliates',
+          route: req.route?.path,
+        },
+        extra: {
+          method: req.method,
+          userId: (req as any).user?.id,
+          organizationId: (req as any).user?.organizationId,
+        },
+      });
+
+      const statusCode = error.statusCode || 500;
+      return res.status(statusCode).json({
+        status: 'error',
+        message: error.message || 'Failed to fetch organization affiliates',
+      });
+    }
+  };
 }
 
 export const campaignAffiliateController = new CampaignAffiliateController();

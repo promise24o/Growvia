@@ -21,6 +21,7 @@ import campaignAffiliateRoutes from "./routes/campaignAffiliate.routes";
 import payoutRoutes from "./routes/payout.routes";
 import growviaWalletRoutes from "./routes/growviaWallet.routes";
 import kycRoutes from "./routes/kyc.routes";
+import marketplaceRoutes from "./routes/marketplace.routes";
 
 export async function registerRoutes(
   app: Express,
@@ -54,6 +55,7 @@ export async function registerRoutes(
   router.use('/payouts', payoutRoutes);
   router.use('/growvia-wallet', growviaWalletRoutes);
   router.use('/kyc', kycRoutes);
+  router.use('/marketplace', marketplaceRoutes);
 
   const httpServer = createServer(app);
   return httpServer;

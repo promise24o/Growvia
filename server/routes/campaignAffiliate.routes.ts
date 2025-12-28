@@ -31,6 +31,17 @@ router.get(
 );
 
 /**
+ * @route   GET /api/campaign-affiliates
+ * @desc    Get all affiliates for the organization
+ * @access  Admin, Management
+ */
+router.get(
+  '/',
+  authorize([UserRole.ADMIN, UserRole.MANAGEMENT]),
+  campaignAffiliateController.getOrganizationAffiliates
+);
+
+/**
  * @route   GET /api/campaigns/:campaignId/application
  * @desc    Get campaign application details for affiliate
  * @access  Admin, Management
@@ -72,6 +83,28 @@ router.post(
   '/:campaignId/affiliates/:userId/resend-invitation',
   authorize([UserRole.ADMIN, UserRole.MANAGEMENT]),
   campaignAffiliateController.resendCampaignInvitation
+);
+
+/**
+ * @route   POST /api/campaign-affiliates/:campaignId/affiliates/:userId/approve
+ * @desc    Approve marketplace campaign application
+ * @access  Admin, Management
+ */
+router.post(
+  '/:campaignId/affiliates/:userId/approve',
+  authorize([UserRole.ADMIN, UserRole.MANAGEMENT]),
+  campaignAffiliateController.approveMarketplaceApplication
+);
+
+/**
+ * @route   POST /api/campaign-affiliates/:campaignId/affiliates/:userId/reject
+ * @desc    Reject marketplace campaign application
+ * @access  Admin, Management
+ */
+router.post(
+  '/:campaignId/affiliates/:userId/reject',
+  authorize([UserRole.ADMIN, UserRole.MANAGEMENT]),
+  campaignAffiliateController.rejectMarketplaceApplication
 );
 
 /**

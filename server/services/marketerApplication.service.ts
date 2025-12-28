@@ -2,6 +2,7 @@ import B2 from "backblaze-b2";
 import { randomBytes } from "crypto";
 import mongoose, { ObjectId } from "mongoose";
 import { PLAN_LIMITS, SubscriptionPlan, UserRole } from "../../shared/schema";
+import { CampaignAffiliate } from "../models/CampaignAffiliate";
 import { Organization, User } from "../models";
 import { FraudReviewRequest } from "../models/FraudReviewRequest";
 import MarketerApplication from "../models/MarketerApplication";
@@ -201,142 +202,124 @@ export const removeMarketerOrApplication = async (id: string, data: any, user: a
       message: "Application removed successfully.",
     };
   }
+  
+  // This should not be reached due to the earlier check, but TypeScript requires it
+  throw new Error("Marketer or application not found");
 };
 
 export const getMarketerApplications = async (user: any, query: any) => {
   const organizationId = user.organizationId;
-  const { status, search, socialMedia, skills, page = 1, limit = 20 } = query;
+  const { status, search, page = 1, limit = 20 } = query;
   const pageNum = parseInt(page as string, 10);
   const limitNum = parseInt(limit as string, 10);
   const skip = (pageNum - 1) * limitNum;
-  let userQuery: any = { organizationId, role: UserRole.MARKETER };
-  let applicationQuery: any = { organizationId };
-  let marketerOrgQuery: any = { organizationId, status: { $ne: 'revoked' } };
-  if (status && ["invited", "pending", "approved", "rejected", "active"].includes(status)) {
-    if (status === "active") {
-      userQuery.status = "active";
-      marketerOrgQuery.status = "approved";
-    } else {
-      applicationQuery.status = status;
-    }
+  
+  // Get all marketer applications for the organization
+  let marketerAppQuery: any = { organizationId };
+  if (status && ["invited", "pending", "approved", "rejected"].includes(status)) {
+    marketerAppQuery.status = status;
   }
   if (search) {
     const searchRegex = new RegExp(search as string, "i");
-    userQuery.$or = [{ name: searchRegex }, { email: searchRegex }];
-    applicationQuery.$or = [{ name: searchRegex }, { email: searchRegex }];
+    marketerAppQuery.$or = [
+      { name: searchRegex },
+      { email: searchRegex }
+    ];
   }
-  if (socialMedia) {
-    userQuery['socialMedia.platform'] = socialMedia;
-    applicationQuery['socialMedia.platform'] = socialMedia;
+  
+  const marketerApplications = await MarketerApplication.find(marketerAppQuery)
+    .populate('user')
+    .sort({ applicationDate: -1 })
+    .lean();
+  
+  // Get all campaign affiliates for the organization
+  let campaignAffiliateQuery: any = { organizationId };
+  if (status && ["pending", "active", "inactive", "suspended", "removed"].includes(status)) {
+    campaignAffiliateQuery.status = status;
   }
-  if (skills) {
-    userQuery.skills = { $in: [skills] };
-    applicationQuery.skills = { $in: [skills] };
+  if (search) {
+    const searchRegex = new RegExp(search as string, "i");
+    campaignAffiliateQuery.$or = [
+      { 'userId.name': searchRegex },
+      { 'userId.email': searchRegex }
+    ];
   }
-  const users = await User.find(userQuery);
-  const allApplications = await MarketerApplication.find(applicationQuery);
-  const marketerOrgs = await MarketerOrganization.find(marketerOrgQuery);
-  const applicationMap = new Map(
-    allApplications.map((app) => [app.email, {
-      id: app._id,
-      resumeUrl: app.resumeUrl || "",
-      kycDocUrl: app.kycDocUrl || "",
-      socialMedia: app.socialMedia || {},
-      skills: app.skills || [],
-      reviewedAt: app.reviewedAt || null,
-      reviewNotes: app.reviewNotes || "",
-      experience: app.experience || "",
-      applicationDate: app.applicationDate,
-      status: app.status,
-      reviewedBy: app.reviewedBy || null,
-      applicationToken: app.applicationToken || null,
-      tokenExpiry: app.tokenExpiry || null,
-      invitedBy: app.invitedBy || null,
-      user: app.user || null,
-    }])
-  );
-  const marketerOrgMap = new Map(
-    marketerOrgs.map((mo) => [mo.userId.toString(), {
-      status: mo.status,
-      appliedAt: mo.appliedAt,
-      approvedAt: mo.approvedAt,
-      revokedAt: mo.revokedAt,
-      revokedBy: mo.revokedBy,
-      revocationReason: mo.revocationReason,
-      reviewRequestId: mo.reviewRequestId,
-    }])
-  );
-  const userMarketers = users
-    .filter((user) => user.role === UserRole.MARKETER)
-    .map((user) => {
-      const application = applicationMap.get(user.email);
-      const marketerOrg = marketerOrgMap.get(user.id);
+  
+  const campaignAffiliates = await CampaignAffiliate.find(campaignAffiliateQuery)
+    .populate('userId', 'name email avatar phone socialMedia skills')
+    .sort({ createdAt: -1 })
+    .lean();
+  
+  // Process marketer applications
+  const processedApplications = marketerApplications.map(app => {
+    // Check if user has account
+    if (app.user && typeof app.user === 'object' && '_id' in app.user) {
+      // User has account, fetch from user table
+      const userData = app.user as any;
       return {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone || "",
-        status: user.status || "active",
-        createdAt: user.createdAt,
-        role: user.role,
-        source: "user",
-        clicks: user.clicks || 0,
-        conversions: user.conversions || 0,
-        commission: user.commission || 0,
-        payoutStatus: user.payoutStatus || "pending",
-        assignedApps: user.assignedApps || [],
-        socialMedia: user.socialMedia || {},
-        skills: user.skills || [],
-        application: application || null,
-        marketerOrganization: marketerOrg || null,
-      };
-    });
-  const userEmails = new Set(users.map((u) => u.email));
-  const applicationMarketers = allApplications
-    .filter((app) => !userEmails.has(app.email))
-    .map((app) => ({
-      id: app._id,
-      name: app.name,
-      email: app.email,
-      phone: app.phone || "",
-      status: app.status,
-      createdAt: app.applicationDate,
-      role: UserRole.MARKETER,
-      source: "application",
-      clicks: 0, // Application doesn't have these properties
-      conversions: 0,
-      commission: 0,
-      payoutStatus: "pending",
-      assignedApps: [],
-      socialMedia: app.socialMedia || {},
-      skills: app.skills || [],
-      application: {
-        id: app._id,
-        resumeUrl: app.resumeUrl || "",
-        kycDocUrl: app.kycDocUrl || "",
-        socialMedia: app.socialMedia || {},
-        skills: app.skills || [],
-        reviewedAt: app.reviewedAt || null,
-        reviewNotes: app.reviewNotes || "",
-        experience: app.experience || "",
-        applicationDate: app.applicationDate,
+        _id: app._id,
+        userId: userData,
+        campaignId: null,
         status: app.status,
-        reviewedBy: app.reviewedBy || null,
-        applicationToken: app.applicationToken || null,
-        tokenExpiry: app.tokenExpiry || null,
-        invitedBy: app.invitedBy || null,
-        user: app.user || null,
-      },
-      marketerOrganization: null,
-    }));
-  let allMarketers = [...userMarketers, ...applicationMarketers].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
-  const totalItems = allMarketers.length;
-  const paginatedMarketers = allMarketers.slice(skip, skip + limitNum);
+        source: app.source || 'direct',
+        clicks: 0,
+        conversions: 0,
+        totalRevenue: 0,
+        assignedAt: app.applicationDate,
+        createdAt: app.applicationDate,
+        type: 'marketer_application'
+      };
+    } else {
+      // User has no account, fetch from marketer application
+      return {
+        _id: app._id,
+        userId: {
+          _id: null,
+          name: app.name,
+          email: app.email,
+          phone: app.phone,
+          avatar: null,
+          socialMedia: app.socialMedia || {},
+          skills: app.skills || []
+        },
+        campaignId: null,
+        status: app.status,
+        source: app.source || 'direct',
+        clicks: 0,
+        conversions: 0,
+        totalRevenue: 0,
+        assignedAt: app.applicationDate,
+        createdAt: app.applicationDate,
+        type: 'marketer_application'
+      };
+    }
+  });
+  
+  // Process campaign affiliates (always from user table)
+  const processedCampaignAffiliates = campaignAffiliates.map(ca => ({
+    _id: ca._id,
+    userId: ca.userId,
+    campaignId: ca.campaignId,
+    status: ca.status,
+    source: ca.source || 'direct',
+    clicks: ca.clicks || 0,
+    conversions: ca.conversions || 0,
+    totalRevenue: ca.totalRevenue || 0,
+    assignedAt: ca.assignedAt,
+    createdAt: ca.createdAt,
+    type: 'campaign_affiliate'
+  }));
+  
+  // Combine all results
+  const allResults = [...processedApplications, ...processedCampaignAffiliates]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  
+  const totalItems = allResults.length;
+  const paginatedResults = allResults.slice(skip, skip + limitNum);
   const totalPages = Math.ceil(totalItems / limitNum);
+  
   return {
-    data: paginatedMarketers,
+    data: paginatedResults,
     pagination: {
       totalItems,
       totalPages,
@@ -528,7 +511,7 @@ export const reviewApplication = async (id: string, data: any, user: any) => {
       status: "active",
     });
 
-    application.user = user._id;
+    application.user = user._id as mongoose.Types.ObjectId;
     await emailQueue.add({
       type: "approval",
       application,
@@ -849,4 +832,42 @@ export const getTopMarketers = async (user: any, query: any) => {
 
   const limit = parseInt(query.limit as string) || 5;
   return await storage.getTopMarketers(organizationId, limit);
+};
+
+export const getMarketerUserProfile = async (userId: string) => {
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+
+  // Find user by ID
+  const user = await User.findById(userId)
+    .select('-password') // Exclude password from response
+    .lean();
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // Return user profile data
+  return {
+    id: user._id,
+    name: user.name,
+    username: user.username,
+    about: user.about,
+    country: user.country,
+    state: user.state,
+    languages: user.languages,
+    industryFocus: user.industryFocus,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    organizationId: user.organizationId,
+    avatar: user.avatar,
+    status: user.status,
+    socialMedia: user.socialMedia,
+    skills: user.skills,
+    loginNotifications: user.loginNotifications,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt
+  };
 };
